@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+functions/node_modules/
+
+# Build output
+dist/
+dist-ssr/
+functions/lib/
+*.tsbuildinfo
+
+# Environment — never commit real configuration
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+!.env.example
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+database-debug.log
+pubsub-debug.log
+storage-debug.log
+firebase-export-*/
+emulator-data/
+
+# Credentials — must never enter the repository
+*serviceAccount*.json
+*service-account*.json
+*.pem
+*.key
+
+# Test / coverage
+coverage/
+.vitest/
+
+# Editors and OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Local backups produced by scripts/
+backups/
