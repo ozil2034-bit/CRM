@@ -3,47 +3,140 @@ rules_version = '2';
 /**
  * Azhary Boutique — Firebase Storage Security Rules
  *
- * PHASE 1 POSTURE: everything is denied.
- *
  * Dress photographs, damage evidence and the business logo are never publicly
- * readable. A public bucket would expose the boutique's entire inventory and any
- * customer-identifying damage photography (SECURITY.md §6).
+ * readable. A public bucket would expose the boutique's entire inventory and
+ * customer-identifying damage photography.
  *
- * Phase 3 adds the dress photo paths together with content-type, size and role
- * validation. Until an upload path exists, nothing is allowed.
+ * ─────────────────────────────────────────────────────────────────────────
+ * WHY THIS FILE USES CLAIMS WHERE firestore.rules USES A DOCUMENT
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * The Firestore rules read `active` live from users/{uid}, so deactivation
+ * applies to business data on the employee's very next request. The obvious
+ * thing to do here is the same cross-service read:
+ *
+ *     firestore.get(/databases/(default)/documents/users/$(request.auth.uid))
+ *
+ * That is valid in production, but the **Storage emulator does not implement
+ * cross-service Firestore reads**. Every rule using it evaluates to a denial
+ * locally, which means no ALLOW path could ever be tested — and untestable
+ * rules are how a deploy silently breaks every image in the application, or
+ * silently opens the bucket, with a green build either way.
+ *
+ * So identity here comes from the custom claim, which the emulator evaluates
+ * exactly as production does. Both directions are covered by tests/rules/
+ * storage.test.ts.
+ *
+ * The cost is a bounded revocation window: a deactivated employee holding an
+ * unexpired ID token can still fetch objects whose exact paths they already
+ * know, for up to one hour. Three things narrow it:
+ *
+ *   1. `setUserActive` writes `active: false` into the claim, so any newly
+ *      minted token is already refused here.
+ *   2. It calls `revokeRefreshTokens`, so no new ID token can be obtained.
+ *   3. It disables the Auth account outright.
+ *
+ * What it does NOT expose: the paths themselves. Object paths are discovered
+ * through Firestore (`dresses.photos[].storagePath`), and Firestore revokes
+ * immediately — so a deactivated employee cannot enumerate anything new.
+ *
+ * Recorded in SECURITY.md §6 as an accepted, documented limitation.
  */
 
 service firebase.storage {
   match /b/{bucket}/o {
 
+    /* ------------------------------------------------------------------ *
+     * Identity
+     * ------------------------------------------------------------------ */
+
     function isSignedIn() {
       return request.auth != null;
     }
 
+    function claimRole() {
+      return isSignedIn() ? request.auth.token.get('role', '') : '';
+    }
+
     function isActive() {
-      return isSignedIn() && request.auth.token.active == true;
+      return isSignedIn() && request.auth.token.get('active', false) == true;
     }
 
     function isOwner() {
-      return isActive() && request.auth.token.role == 'OWNER';
+      return isActive() && claimRole() == 'OWNER';
     }
 
     function isEmployee() {
-      return isActive() &&
-        (request.auth.token.role == 'OWNER' || request.auth.token.role == 'STAFF');
+      return isActive() && (claimRole() == 'OWNER' || claimRole() == 'STAFF');
     }
 
-    // Content types are validated against an allow-list rather than a
-    // deny-list, so a novel or spoofed type cannot slip through.
+    /* ------------------------------------------------------------------ *
+     * Upload validation
+     * ------------------------------------------------------------------ */
+
+    /*
+     * Content types are checked against an allow-list, not a deny-list, so a
+     * novel or spoofed type cannot slip through. SVG is deliberately excluded:
+     * it is an image type that can carry script.
+     *
+     * `contentType` is client-asserted, so this narrows the surface rather than
+     * proving anything about the bytes. The authenticated-employee check and
+     * the size ceiling carry the real weight.
+     */
     function isAllowedImage() {
-      return request.resource.contentType.matches('image/(jpeg|png|webp)');
+      return request.resource != null
+        && request.resource.contentType != null
+        && request.resource.contentType.matches('image/(jpeg|png|webp)');
     }
 
     function isWithinSizeLimit() {
-      return request.resource.size < 10 * 1024 * 1024;
+      return request.resource != null && request.resource.size < 10 * 1024 * 1024;
     }
 
-    // Deny by default. Phase 3 inserts explicit path rules above this block.
+    function isValidImageUpload() {
+      return isAllowedImage() && isWithinSizeLimit();
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Business logo — owner writes, employees read
+     * ------------------------------------------------------------------ */
+
+    match /business/logo/{fileName} {
+      allow read: if isEmployee();
+      allow write: if isOwner() && isValidImageUpload();
+      allow delete: if isOwner();
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Dress photographs
+     *
+     * `size` is one of original | large | thumb, written by the upload pipeline.
+     * ------------------------------------------------------------------ */
+
+    match /dresses/{dressId}/{size}/{fileName} {
+      allow read: if isEmployee();
+      allow write: if isEmployee() && isValidImageUpload();
+      allow delete: if isEmployee();
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Damage evidence
+     *
+     * Staff may add but not remove: these photographs justify deposit
+     * forfeitures and customer charges, so the person who recorded a charge
+     * must not be able to delete the evidence for it.
+     * ------------------------------------------------------------------ */
+
+    match /damage/{damageLogId}/{fileName} {
+      allow read: if isEmployee();
+      allow write: if isEmployee() && isValidImageUpload();
+      allow delete: if isOwner();
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Deny by default. This block is always last.
+     * ------------------------------------------------------------------ */
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

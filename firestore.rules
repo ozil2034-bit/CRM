@@ -3,79 +3,350 @@ rules_version = '2';
 /**
  * Azhary Boutique — Firestore Security Rules
  *
- * PHASE 1 POSTURE: everything is denied.
+ * This file is the authorization control. Everything in the browser is an
+ * affordance; a hidden button is still a reachable SDK call. If these rules and
+ * src/domain/authorization.ts ever disagree, these rules are correct.
  *
- * No collection rules exist yet because no collections are written yet. The
- * closed default is deliberate — an open rule added "temporarily" during setup
- * is how production databases end up world-readable. Collection rules are added
- * in Phase 2, together with the emulator tests that prove each role can do
- * exactly what it should and nothing more.
- *
- * Invariants that hold in every phase (SECURITY.md):
- *   - `allow read, write: if true` is never written. Not even for the emulator.
- *   - The authoritative role is the Firebase Auth custom claim, never a
- *     Firestore field. A `users` document role is a display mirror only.
- *   - Financial and legal history (payments, invoices, audit logs) is never
- *     deletable by any role, including OWNER. Voiding preserves the record.
+ * Invariants (SECURITY.md):
+ *   - `allow read, write: if true` appears nowhere. Not temporarily, not for the
+ *     emulator.
+ *   - Roles come from BOTH the Firebase Auth custom claim and users/{uid}, and
+ *     the lower of the two wins. See `effectiveOwner()`.
+ *   - `active` is read live from Firestore, so deactivation takes effect on the
+ *     employee's very next request rather than when their ID token expires.
+ *   - Clients can never write `users`, `system`, or `invoices`. Those belong to
+ *     Cloud Functions using the Admin SDK, which bypasses these rules.
+ *   - Financial and legal history — payments, invoices, reservations, audit
+ *     logs, terms — is not deletable by ANY role, including OWNER.
  *   - The final match block denies everything not explicitly allowed above it.
  */
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ---------------------------------------------------------------------
-    // Identity helpers (used from Phase 2 onward)
-    // ---------------------------------------------------------------------
+    /* ------------------------------------------------------------------ *
+     * Identity
+     * ------------------------------------------------------------------ */
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // A user disabled by the owner carries active:false and is refused
-    // everywhere, not merely hidden from the interface.
+    function profilePath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function hasProfile() {
+      return isSignedIn() && exists(profilePath());
+    }
+
+    function profile() {
+      return get(profilePath()).data;
+    }
+
+    /*
+     * A signed-in user with an existing, active profile document.
+     *
+     * The `active` flag is read from Firestore rather than from the token
+     * because a custom claim cannot express deactivation promptly: claims are
+     * minted into the ID token and stay valid until it expires, up to an hour.
+     * An employee dismissed at 09:00 would otherwise keep full access until
+     * 10:00. This costs one document read per rule evaluation, which is the
+     * correct trade for immediate revocation.
+     */
     function isActive() {
-      return isSignedIn() && request.auth.token.active == true;
+      return hasProfile() && profile().active == true;
     }
 
-    function userRole() {
-      return request.auth.token.role;
+    function claimRole() {
+      return isSignedIn() ? request.auth.token.get('role', '') : '';
     }
 
+    function documentRole() {
+      return isActive() ? profile().get('role', '') : '';
+    }
+
+    /*
+     * OWNER requires BOTH sources to say OWNER.
+     *
+     * The claim alone would defer a demotion until the token expires. The
+     * document alone would make the role a database field, which a future rule
+     * bug could expose to a client write. Requiring both means a demotion takes
+     * effect immediately (document caps the stale claim) while a promotion waits
+     * for the token to refresh (under-privileged is the harmless direction).
+     */
     function isOwner() {
-      return isActive() && userRole() == 'OWNER';
-    }
-
-    function isStaff() {
-      return isActive() && userRole() == 'STAFF';
+      return isActive() && claimRole() == 'OWNER' && documentRole() == 'OWNER';
     }
 
     function isEmployee() {
-      return isOwner() || isStaff();
+      return isActive()
+        && (claimRole() == 'OWNER' || claimRole() == 'STAFF')
+        && (documentRole() == 'OWNER' || documentRole() == 'STAFF');
     }
 
-    // ---------------------------------------------------------------------
-    // Field-level helpers (used from Phase 2 onward)
-    // ---------------------------------------------------------------------
+    function isStaff() {
+      return isEmployee() && !isOwner();
+    }
 
-    // True when none of `fields` differ between the stored and incoming document.
-    // Used to freeze pricing snapshots, terms snapshots and issued amounts.
+    /* ------------------------------------------------------------------ *
+     * Field-level helpers
+     * ------------------------------------------------------------------ */
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    /** No field in `fields` differs between the stored and incoming document. */
     function unchanged(fields) {
-      return !request.resource.data.diff(resource.data).affectedKeys()
-        .hasAny(fields.toSet());
+      return !changedKeys().hasAny(fields.toSet());
     }
 
-    // True when the write touches only the listed fields.
+    /** The write touches only fields drawn from `fields`. */
     function onlyChanges(fields) {
-      return request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(fields.toSet());
+      return changedKeys().hasOnly(fields.toSet());
     }
 
-    // ---------------------------------------------------------------------
-    // Deny by default.
-    //
-    // Phase 2 inserts explicit per-collection rules ABOVE this block.
-    // This block always remains last.
-    // ---------------------------------------------------------------------
+    /** The actor recorded on a document is the caller, not someone else. */
+    function actorIsSelf() {
+      return request.resource.data.get('createdBy', request.auth.uid) == request.auth.uid;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * system — bootstrap sentinel
+     *
+     * Owned entirely by Cloud Functions. The client learns whether bootstrap is
+     * needed by calling `getBootstrapState`, never by reading this document, so
+     * that no unauthenticated read rule has to exist anywhere in the database.
+     * ------------------------------------------------------------------ */
+
+    match /system/{documentId} {
+      allow read, write: if false;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * users
+     *
+     * Readable so the interface can show who is signed in and, for the owner,
+     * manage staff. NEVER writable by a client: role and active are the
+     * privilege switches, and role assignment runs as a Cloud Function.
+     * Rejecting the whole write is simpler and safer than trying to allow a
+     * "safe subset" of fields on a privilege-bearing document.
+     * ------------------------------------------------------------------ */
+
+    match /users/{userId} {
+      allow get: if isActive() && (request.auth.uid == userId || isOwner());
+      allow list: if isOwner();
+      allow create, update, delete: if false;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * businessProfile · settings — owner-configured, employee-readable
+     * ------------------------------------------------------------------ */
+
+    match /businessProfile/{documentId} {
+      allow read: if isEmployee();
+      allow create, update: if isOwner();
+      allow delete: if false;
+    }
+
+    match /settings/{documentId} {
+      // Staff read settings because the VAT rate and pickup threshold drive the
+      // screens they use daily. Reading configuration is not changing it.
+      allow read: if isEmployee();
+      allow create, update: if isOwner();
+      allow delete: if false;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * termsVersions — immutable once written
+     *
+     * Reservations reference a version by id and snapshot its text. Editing a
+     * version in place would silently rewrite the terms a customer already
+     * agreed to, so a change means a NEW version.
+     * ------------------------------------------------------------------ */
+
+    match /termsVersions/{versionId} {
+      allow read: if isEmployee();
+      allow create: if isOwner();
+      allow update, delete: if false;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * counters — transaction-safe number allocation
+     * ------------------------------------------------------------------ */
+
+    match /counters/{counterId} {
+      allow read: if isEmployee();
+      allow create: if isEmployee() && request.resource.data.current == 1;
+      // Strictly +1. A client cannot rewind a sequence to reissue a number that
+      // an existing invoice or reservation already carries.
+      allow update: if isEmployee()
+        && request.resource.data.current == resource.data.current + 1;
+      allow delete: if false;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * dresses — operational inventory
+     * ------------------------------------------------------------------ */
+
+    match /dresses/{dressId} {
+      allow read: if isEmployee();
+      allow create, update: if isEmployee();
+      allow delete: if isOwner();
+
+      /*
+       * Purchase cost is commercially sensitive and staff must not see it.
+       * Firestore rules cannot hide one field of a document, so the cost lives
+       * in its own subcollection where a rule can actually cover it. A rule on
+       * the parent would be unenforceable theatre.
+       */
+      match /private/{documentId} {
+        allow read, write: if isOwner();
+      }
+    }
+
+    /* ------------------------------------------------------------------ *
+     * customers
+     * ------------------------------------------------------------------ */
+
+    match /customers/{customerId} {
+      allow read: if isEmployee();
+      allow create, update: if isEmployee();
+      allow delete: if isOwner();
+    }
+
+    /* ------------------------------------------------------------------ *
+     * reservations
+     *
+     * Never deletable, by anyone. A reservation carries payments, an invoice and
+     * agreed terms; deleting it would orphan financial history. Cancellation is
+     * a status, not a deletion.
+     * ------------------------------------------------------------------ */
+
+    match /reservations/{reservationId} {
+      allow read: if isEmployee();
+      allow create: if isEmployee();
+
+      // Snapshots are frozen at creation (specification §30). A later change to
+      // a dress price, the VAT rate or the business profile must not reach back
+      // into an existing reservation.
+      allow update: if isEmployee()
+        && unchanged([
+          'code',
+          'pricing',
+          'termsVersionId',
+          'termsSnapshot',
+          'businessSnapshot',
+          'createdAt',
+          'createdBy'
+        ]);
+
+      allow delete: if false;
+    }
+
+    match /reservationItems/{itemId} {
+      allow read: if isEmployee();
+      allow create, update: if isEmployee();
+      // Deletable: removing a dress from a reservation before pickup is ordinary
+      // operational work, and the blocking interval must go with it.
+      allow delete: if isEmployee();
+    }
+
+    /* ------------------------------------------------------------------ *
+     * fittings · accessories · waitlist — operational
+     * ------------------------------------------------------------------ */
+
+    match /fittings/{fittingId} {
+      allow read: if isEmployee();
+      allow create, update, delete: if isEmployee();
+    }
+
+    match /accessories/{accessoryId} {
+      allow read: if isEmployee();
+      allow create, update: if isEmployee();
+      allow delete: if isOwner();
+    }
+
+    match /waitlist/{entryId} {
+      allow read: if isEmployee();
+      allow create, update, delete: if isEmployee();
+    }
+
+    /* ------------------------------------------------------------------ *
+     * payments — append-only ledger
+     *
+     * Created by staff, never deleted by anyone, and amended only by voiding.
+     * `amount`, `method`, `type` and the reservation link are immutable after
+     * creation: a ledger whose entries can be edited is not a ledger.
+     * ------------------------------------------------------------------ */
+
+    match /payments/{paymentId} {
+      allow read: if isEmployee();
+      allow create: if isEmployee() && actorIsSelf();
+
+      // Only the owner, and only the void fields.
+      allow update: if isOwner()
+        && onlyChanges(['voided', 'voidedAt', 'voidedBy', 'voidReason', 'updatedAt', 'updatedBy']);
+
+      allow delete: if false;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * invoices — issued and frozen by a Cloud Function
+     *
+     * Number allocation and immutability cannot be trusted to a client, so no
+     * client write path exists at all. The Admin SDK bypasses these rules.
+     * ------------------------------------------------------------------ */
+
+    match /invoices/{invoiceId} {
+      allow read: if isEmployee();
+      allow create, update, delete: if false;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * damageLogs — evidence, retained
+     * ------------------------------------------------------------------ */
+
+    match /damageLogs/{damageLogId} {
+      allow read: if isEmployee();
+      allow create, update: if isEmployee();
+      allow delete: if false;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * notificationLogs
+     *
+     * WhatsApp V1 is click-to-chat, so the log records only that a message was
+     * Prepared and that the employee Opened the link. `openedAt` is the one
+     * field that changes afterwards; the recorded message body must not.
+     * ------------------------------------------------------------------ */
+
+    match /notificationLogs/{logId} {
+      allow read: if isEmployee();
+      allow create: if isEmployee();
+      allow update: if isEmployee() && onlyChanges(['openedAt']);
+      allow delete: if false;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * auditLogs — append-only, owner-readable
+     *
+     * Employees append (their own actions produce entries) but cannot read the
+     * trail, edit it or delete from it. An audit log that its subjects can amend
+     * records nothing.
+     * ------------------------------------------------------------------ */
+
+    match /auditLogs/{auditLogId} {
+      allow read: if isOwner();
+      allow create: if isEmployee()
+        && request.resource.data.actorUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Deny by default. This block is always last.
+     * ------------------------------------------------------------------ */
 
     match /{document=**} {
       allow read, write: if false;
