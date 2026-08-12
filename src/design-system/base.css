@@ -1,0 +1,187 @@
+/*
+ * Azhary Boutique — Base layer
+ *
+ * Global element defaults, bidirectional typography, focus treatment and
+ * print reset. Everything here uses tokens from tokens.css.
+ */
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-canvas);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.55;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /*
+   * Arabic typography.
+   *
+   * Font switching keys off the lang attribute rather than the direction, so a
+   * bilingual document can render Arabic and English side by side with each in
+   * its correct typeface. Arabic sits slightly larger and looser than Latin at
+   * the same nominal size — without this it reads noticeably smaller.
+   */
+  :lang(ar) {
+    font-family: var(--font-arabic);
+    line-height: 1.8;
+    letter-spacing: 0;
+  }
+
+  :lang(ar) h1,
+  :lang(ar) h2,
+  :lang(ar) h3 {
+    font-family: var(--font-arabic-display);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 0;
+    font-weight: 500;
+    line-height: 1.25;
+    letter-spacing: var(--tracking-display);
+    color: var(--color-text-primary);
+  }
+
+  p {
+    margin: 0;
+  }
+
+  /*
+   * Financial figures are always Western-Arabic digits, tabular and
+   * left-to-right, even inside Arabic RTL text. An amount must be unambiguous
+   * regardless of the surrounding language (specification §10, §44).
+   */
+  .numeric,
+  [data-numeric] {
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  img,
+  svg,
+  video {
+    display: block;
+    max-width: 100%;
+  }
+
+  /* Visible, on-brand focus. Never removed — keyboard operation is not optional. */
+  :focus-visible {
+    outline: 2px solid var(--color-gold-500);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background-color: var(--color-gold-300);
+    color: var(--color-ink-900);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /*
+   * Small caps label — the editorial detail that carries the brand.
+   * Used for field labels and section eyebrows.
+   */
+  .label-caps {
+    font-size: var(--text-xs);
+    font-weight: 500;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  :lang(ar) .label-caps {
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: var(--tracking-display);
+  }
+
+  :lang(ar) .display {
+    font-family: var(--font-arabic-display);
+  }
+
+  /* Gold hairline — the only decorative use of gold in the system. */
+  .rule-gold {
+    height: 1px;
+    background: linear-gradient(
+      to inline-end,
+      var(--color-gold-400),
+      var(--color-gold-300) 40%,
+      transparent
+    );
+    border: 0;
+  }
+}
+
+/*
+ * Screen-only chrome. Print output is produced by dedicated A4 components in
+ * src/print/ — the application interface itself is never printed
+ * (specification §32).
+ */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff;
+  }
+}

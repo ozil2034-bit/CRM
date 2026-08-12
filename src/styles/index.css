@@ -1,0 +1,8 @@
+/*
+ * Azhary Boutique — stylesheet entry point.
+ *
+ * Order matters: tokens declare the vocabulary (and pull in Tailwind),
+ * base applies it to elements.
+ */
+@import '../design-system/tokens.css';
+@import '../design-system/base.css';

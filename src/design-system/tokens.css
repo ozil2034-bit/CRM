@@ -1,0 +1,133 @@
+/*
+ * Azhary Boutique — Design Tokens
+ *
+ * Brand direction: Luxury Bridal Boutique · Modern Fashion Editorial · Premium Minimal.
+ *
+ * The discipline this file enforces:
+ *   - White dominates. It is the canvas, not an accent.
+ *   - Gold is a punctuation mark, never a fill. Hairlines, small marks, focus states.
+ *   - Beige is a whisper. Used to separate, never to decorate.
+ *   - Charcoal carries the typography. Pure black is too harsh against warm neutrals.
+ *   - Restraint over ornament: few borders, few shadows, generous space.
+ *
+ * Every colour, size and duration used anywhere in the application resolves to a
+ * token declared here. No component invents a value.
+ */
+
+@import 'tailwindcss';
+
+@theme {
+  /* ---------------------------------------------------------------------
+   * Colour
+   * ------------------------------------------------------------------ */
+
+  /* Canvas — white dominates the interface */
+  --color-canvas: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+
+  /* Warm beige — a whisper of warmth, used for separation and rest states.
+     Kept desaturated so large areas never read as "beige boxes". */
+  --color-sand-50: #fbf9f6;
+  --color-sand-100: #f5f1ea;
+  --color-sand-200: #ebe4d8;
+  --color-sand-300: #dbd0be;
+  --color-sand-400: #c4b69f;
+
+  /* Champagne gold — punctuation only. Never a background fill for large areas. */
+  --color-gold-300: #e3d3ae;
+  --color-gold-400: #d2bc8c;
+  --color-gold-500: #bfa367; /* primary brand gold */
+  --color-gold-600: #a4874c;
+  --color-gold-700: #856c3a;
+
+  /* Dark charcoal — carries typography and primary actions.
+     Warm-shifted, not neutral grey, so it sits correctly against sand. */
+  --color-ink-900: #1a1917;
+  --color-ink-800: #2a2825;
+  --color-ink-700: #3d3a35;
+  --color-ink-600: #56524b;
+  --color-ink-500: #6f6a61;
+  --color-ink-400: #918b80;
+  --color-ink-300: #b5afa4;
+  --color-ink-200: #d8d3ca;
+  --color-ink-100: #ebe8e2;
+
+  /* Semantic status — desaturated to sit inside a luxury palette rather than
+     shouting over it. Still meets contrast requirements on white. */
+  --color-success: #4a7c59;
+  --color-success-soft: #eef4ef;
+  --color-warning: #a8762c;
+  --color-warning-soft: #fbf3e6;
+  --color-danger: #9c3a3a;
+  --color-danger-soft: #f9eeee;
+  --color-info: #3f6479;
+  --color-info-soft: #eef3f6;
+
+  /* Roles */
+  --color-text-primary: var(--color-ink-900);
+  --color-text-secondary: var(--color-ink-600);
+  --color-text-muted: var(--color-ink-400);
+  --color-text-inverse: #ffffff;
+  --color-border-subtle: var(--color-ink-100);
+  --color-border-default: var(--color-ink-200);
+  --color-border-strong: var(--color-ink-300);
+  --color-border-gold: var(--color-gold-400);
+
+  /* ---------------------------------------------------------------------
+   * Typography
+   *
+   * English body:     Inter
+   * English display:  Cormorant Garamond  (used sparingly — headings only)
+   * Arabic body:      IBM Plex Sans Arabic
+   * Arabic display:   Noto Kufi Arabic
+   * ------------------------------------------------------------------ */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Cormorant Garamond', 'Times New Roman', serif;
+  --font-arabic: 'IBM Plex Sans Arabic', 'Segoe UI', 'Noto Sans Arabic', sans-serif;
+  --font-arabic-display: 'Noto Kufi Arabic', 'IBM Plex Sans Arabic', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+
+  /* Type scale — restrained. A boutique tool needs hierarchy, not spectacle. */
+  --text-2xs: 0.6875rem; /* 11px — table meta, timestamps */
+  --text-xs: 0.75rem; /* 12px — labels, badges */
+  --text-sm: 0.8125rem; /* 13px — secondary body */
+  --text-base: 0.9375rem; /* 15px — body */
+  --text-lg: 1.0625rem; /* 17px — emphasised body */
+  --text-xl: 1.375rem; /* 22px — section headings */
+  --text-2xl: 1.75rem; /* 28px — page titles */
+  --text-3xl: 2.25rem; /* 36px — display */
+  --text-4xl: 3rem; /* 48px — hero display, used rarely */
+
+  --tracking-display: -0.015em;
+  --tracking-label: 0.08em; /* small caps labels */
+
+  /* ---------------------------------------------------------------------
+   * Space, radius, elevation
+   * ------------------------------------------------------------------ */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 10px;
+  --radius-full: 9999px;
+
+  /*
+   * Shadows are nearly absent by design. The specification calls out excessive
+   * cards, borders, rounded boxes and shadows as things to avoid. Depth comes
+   * from spacing and hairlines, not from drop shadows.
+   */
+  --shadow-hairline: 0 0 0 1px var(--color-ink-100);
+  --shadow-sm: 0 1px 2px rgba(26, 25, 23, 0.04);
+  --shadow-md: 0 2px 8px rgba(26, 25, 23, 0.06);
+  --shadow-overlay: 0 8px 32px rgba(26, 25, 23, 0.12);
+
+  /* Motion — quick and quiet */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 280ms;
+
+  /* Touch target floor for phone and tablet use (specification §45) */
+  --size-touch-target: 44px;
+}
