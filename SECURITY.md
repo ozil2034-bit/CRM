@@ -4,23 +4,30 @@
 
 ## 1. Principles
 
-1. **Authorisation is enforced server-side.** Firestore Security Rules, Storage Rules
-   and Cloud Functions are the controls. Hiding a button is a usability choice with
-   **zero** security value — a hidden button is still a reachable SDK call.
-2. **Deny by default.** The rules file ends with a catch-all denial. A collection
+1. **Authorisation is enforced server-side.** Firestore Security Rules, Storage
+   Rules and Cloud Functions are the controls. Hiding a button is a usability
+   choice with **zero** security value — a hidden button is still a reachable
+   SDK call.
+2. **Deny by default.** Both rules files end with a catch-all denial. A path
    that is not explicitly allowed is unreachable.
 3. **`allow read, write: if true` is never written.** Not in development, not
-   temporarily, not "just for the emulator". The emulator is where role behaviour is
-   tested; open rules there would test nothing.
-4. **The role claim is the authority.** Firestore role fields are display mirrors.
-5. **Financial and legal history is not deletable** — by anyone, including OWNER.
+   temporarily, not "just for the emulator".
+4. **Roles are confirmed by two independent sources**, and the lower of the two
+   wins. See §2.
+5. **Financial and legal history is not deletable** — by anyone, including
+   OWNER.
+6. **A security rule that cannot be tested is not shipped.** Where a stronger
+   construct could not be verified in the emulator, the weaker verifiable one
+   was chosen and the gap documented rather than hidden (§6).
 
 ---
 
 ## 2. Identity
 
 Firebase Authentication owns credentials. The application never stores, hashes,
-transmits or logs a password, and `users/{uid}` contains no credential material (§8).
+transmits or logs a password. `users/{uid}` contains no credential material, and
+an integration test asserts the absence of `password`, `passwordHash`, `salt`
+and `token` fields on a freshly created profile.
 
 ### Roles
 
@@ -29,183 +36,297 @@ transmits or logs a password, and `users/{uid}` contains no credential material 
 | `OWNER` | Full access, including settings, VAT, business profile, T&C, users |
 | `STAFF` | Full day-to-day boutique operations                                |
 
-Roles are carried in a **Firebase Auth custom claim**:
+### Where a role lives — and why in two places
 
-```json
-{ "role": "STAFF", "active": true }
-```
+Every request's role is resolved from **both** of:
 
-Claims are set **only** by a Cloud Function using the Admin SDK. No client path can
-write a claim. Rules read `request.auth.token.role`, never a Firestore document, which
-also avoids an extra document read on every rule evaluation.
+- the Firebase Auth **custom claim** `{ role, active }`, writable only by the
+  Admin SDK inside a Cloud Function; and
+- the **`users/{uid}` document**, which no client can write (the rules refuse
+  every client write to `users`, including the owner's).
 
-A user disabled by the owner gets `active: false`; rules reject every request from an
-inactive user, and the claim is refreshed so the change takes effect on next token
-refresh (≤1 hour, or immediately via forced token refresh on the client).
+`resolveEffectiveRole` (src/domain/authorization.ts), `effectiveRole`
+(functions/src/lib/guards.ts) and `isOwner()` / `isEmployee()`
+(firestore.rules) implement the same resolution in the three places it is
+needed. They are deliberate mirrors, independently enforced.
 
-### First-owner initialisation (§8)
+**The claim alone is not enough.** Claims are minted into the ID token and stay
+valid until it expires — up to an hour. An employee dismissed at 09:00 would
+keep full access until 10:00. Firestore therefore reads `active` live from the
+user document, and revocation applies on the employee's very next request.
 
-No owner email or password is hard-coded, and no owner account is seeded.
+**The document alone is not enough.** A role stored only in a database field is
+one rule bug away from being client-writable. The claim is unreachable from any
+client under any rule.
 
-1. On first launch, the app calls a callable Function `checkBootstrapState`.
-2. The Function reports whether any user carries the `OWNER` claim.
-3. If none exists, the setup screen is shown; the operator creates an account with
-   Firebase Auth (email + password, or a provider).
-4. The client calls `claimInitialOwnership`. The Function **re-verifies server-side**
-   that no OWNER exists, then grants the claim to the caller and writes
-   `users/{uid}` and an audit record.
-5. Every subsequent call fails — the bootstrap is a one-time transition guarded by a
-   Firestore transaction on a `bootstrap` sentinel document, so two simultaneous
-   callers cannot both become owner.
+**The lower of the two roles wins**, which makes the stale-token window fail
+safe in both directions:
 
-The client-side check in step 2 is a UX affordance. Step 4's server-side re-check is
-the actual control.
+| Situation                 | Document | Claim   | Effective | Consequence                           |
+| ------------------------- | -------- | ------- | --------- | ------------------------------------- |
+| Normal owner              | `OWNER`  | `OWNER` | `OWNER`   | —                                     |
+| Normal staff              | `STAFF`  | `STAFF` | `STAFF`   | —                                     |
+| Promotion, token stale    | `OWNER`  | `STAFF` | `STAFF`   | Under-privileged until refresh — safe |
+| **Demotion, token stale** | `STAFF`  | `OWNER` | `STAFF`   | **Privilege removed immediately**     |
+| Deactivated               | inactive | any     | none      | Refused everywhere                    |
+| Claim but no profile      | absent   | `OWNER` | none      | Refused everywhere                    |
+| Forged claim value        | `STAFF`  | `ADMIN` | none      | Refused everywhere                    |
+
+Every row is covered by tests in `tests/rules/firestore.identity.test.ts`.
+
+### How claims refresh
+
+A role or activation change is applied in three steps by the Cloud Function:
+
+1. The `users/{uid}` document is updated inside a transaction, together with the
+   audit record. **Firestore honours this immediately.**
+2. `setCustomUserClaims` writes the new claim. It reaches the client on the next
+   token refresh.
+3. `revokeRefreshTokens` invalidates outstanding refresh tokens, so no further
+   ID token can be minted under the old claim. Deactivation additionally sets
+   `disabled: true` on the Auth account.
+
+On the client, `refreshIdToken()` calls `getIdToken(true)` after a role change so
+the current session picks up the new claim without signing out. The application
+also subscribes to the signed-in user's own profile document, so a deactivation
+performed on another device changes the interface immediately rather than leaving
+a working-looking screen whose writes all fail.
+
+Activation is carried forward on a role change: promoting or demoting a
+deactivated employee does not silently restore their access.
+
+### First-owner initialisation
+
+No owner email, password or account is hard-coded or seeded.
+
+1. The client calls `getBootstrapState` — an unauthenticated callable returning a
+   single boolean and no business data. This is why no read rule for `system`
+   exists anywhere in the database.
+2. If no owner exists, the setup screen is shown. The operator creates a Firebase
+   Auth account, which on its own grants **nothing**: with no claim and no
+   profile, every request is refused.
+3. The client calls `claimInitialOwnership` with a **setup token**.
+4. The Function opens a Firestore transaction on `system/bootstrap`, re-checks
+   every condition server-side, writes the sentinel, the owner profile and an
+   audit record atomically, then sets the claim.
+
+**Why a setup token is required.** Firebase email/password sign-up is open by
+default, so without a shared secret the bootstrap endpoint grants ownership of
+the boutique to whoever reaches the URL first. The specification requires that
+only the _intended_ first owner can initialise the business, and a first-come
+race does not satisfy that. The token is what makes the caller intended. It is
+stored as a Functions secret (`AZHARY_BOOTSTRAP_TOKEN`), never in the browser
+bundle, never in this repository.
+
+It is compared in constant time. A naive `===` short-circuits at the first
+differing byte, which over many attempts reveals the expected value one
+character at a time.
+
+**Why a transaction.** Two operators submitting simultaneously both read the
+sentinel, but only one commit succeeds; the loser retries, observes `completed`,
+and is refused. Checking "does an owner exist?" outside a transaction is a
+time-of-check/time-of-use race that hands out two owners.
+
+**Idempotent replay.** The recorded owner may re-run the call. The claim is
+written after the transaction commits, because custom claims cannot participate
+in a Firestore transaction; if that step fails, the operator would hold a profile
+with no claim and be locked out. Replay repairs it. Any _other_ caller is refused
+with `already-exists`.
+
+**The token is checked before bootstrap state is revealed**, so the endpoint does
+not become an oracle for "has this boutique been set up yet".
 
 ---
 
-## 3. Permission matrix (§6)
+## 3. Permission matrix
 
-| Capability                                     |     OWNER     |     STAFF     | Unauthenticated |
-| ---------------------------------------------- | :-----------: | :-----------: | :-------------: |
-| Read customers / dresses / reservations        |      ✅       |      ✅       |       ❌        |
-| Create & edit customers                        |      ✅       |      ✅       |       ❌        |
-| Create & edit dresses                          |      ✅       |      ✅       |       ❌        |
-| Read dress purchase cost                       |      ✅       |      ❌       |       ❌        |
-| Create & edit reservations                     |      ✅       |      ✅       |       ❌        |
-| Change reservation status                      |      ✅       |      ✅       |       ❌        |
-| Schedule / edit fittings                       |      ✅       |      ✅       |       ❌        |
-| Record payments                                |      ✅       |      ✅       |       ❌        |
-| Pickup / return workflows                      |      ✅       |      ✅       |       ❌        |
-| Record damage                                  |      ✅       |      ✅       |       ❌        |
-| Prepare WhatsApp messages                      |      ✅       |      ✅       |       ❌        |
-| Operational reports                            |      ✅       |      ✅       |       ❌        |
-| **Void / delete payments**                     |   Void only   |      ❌       |       ❌        |
-| **Void / delete invoices**                     |   Void only   |      ❌       |       ❌        |
-| **Delete financial history**                   |      ❌       |      ❌       |       ❌        |
-| **Change VAT settings**                        |      ✅       |      ❌       |       ❌        |
-| **Change business profile**                    |      ✅       |      ❌       |       ❌        |
-| **Change global pricing / numbering settings** |      ✅       |      ❌       |       ❌        |
-| **Edit Terms & Conditions**                    |      ✅       |      ❌       |       ❌        |
-| **Manage users / roles**                       |      ✅       |      ❌       |       ❌        |
-| **Financial reports (revenue, cost)**          |      ✅       |      ❌       |       ❌        |
-| Read audit logs                                |      ✅       |      ❌       |       ❌        |
-| Write audit logs                               | Function only | Function only |       ❌        |
+| Capability                                    |     OWNER     | STAFF | Unauthenticated |
+| --------------------------------------------- | :-----------: | :---: | :-------------: |
+| Read customers / dresses / reservations       |      ✅       |  ✅   |       ❌        |
+| Create & edit customers                       |      ✅       |  ✅   |       ❌        |
+| Create & edit dresses                         |      ✅       |  ✅   |       ❌        |
+| Read dress purchase cost                      |      ✅       |  ❌   |       ❌        |
+| Create & edit reservations                    |      ✅       |  ✅   |       ❌        |
+| Change reservation status                     |      ✅       |  ✅   |       ❌        |
+| Schedule / edit fittings                      |      ✅       |  ✅   |       ❌        |
+| Record payments                               |      ✅       |  ✅   |       ❌        |
+| Pickup / return workflows                     |      ✅       |  ✅   |       ❌        |
+| Record damage                                 |      ✅       |  ✅   |       ❌        |
+| Prepare WhatsApp messages                     |      ✅       |  ✅   |       ❌        |
+| Operational reports                           |      ✅       |  ✅   |       ❌        |
+| Read settings (VAT rate, thresholds)          |      ✅       |  ✅   |       ❌        |
+| Delete a dress / customer / accessory         |      ✅       |  ❌   |       ❌        |
+| **Void payments**                             |      ✅       |  ❌   |       ❌        |
+| **Delete payments**                           |      ❌       |  ❌   |       ❌        |
+| **Delete invoices**                           |      ❌       |  ❌   |       ❌        |
+| **Delete reservations**                       |      ❌       |  ❌   |       ❌        |
+| **Delete damage evidence**                    |      ❌       |  ❌   |       ❌        |
+| **Change VAT settings**                       |      ✅       |  ❌   |       ❌        |
+| **Change business profile**                   |      ✅       |  ❌   |       ❌        |
+| **Change pricing / cancellation / late fees** |      ✅       |  ❌   |       ❌        |
+| **Change numbering settings**                 |      ✅       |  ❌   |       ❌        |
+| **Create Terms & Conditions version**         |      ✅       |  ❌   |       ❌        |
+| **Modify an existing T&C version**            |      ❌       |  ❌   |       ❌        |
+| **Manage users / roles**                      | Function only |  ❌   |       ❌        |
+| Read audit logs                               |      ✅       |  ❌   |       ❌        |
+| Append audit entries                          |      ✅       |  ✅   |       ❌        |
+| Amend or delete audit entries                 |      ❌       |  ❌   |       ❌        |
 
-"Void only" means even the owner cannot destroy a record; voiding preserves it with a
-reason and is itself audited.
+"Function only" means even the owner cannot do it by writing to Firestore; the
+request must go through a Cloud Function, which audits it.
 
 ---
 
-## 4. Firestore rules structure
+## 4. Firestore rules
+
+Structure:
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn()  { return request.auth != null; }
-    function isActive()    { return isSignedIn() && request.auth.token.active == true; }
-    function role()        { return request.auth.token.role; }
-    function isOwner()     { return isActive() && role() == 'OWNER'; }
-    function isStaff()     { return isActive() && role() == 'STAFF'; }
-    function isEmployee()  { return isOwner() || isStaff(); }
+    function isActive()   { …exists(users/{uid}) && profile().active == true }
+    function claimRole()  { request.auth.token.get('role', '') }
+    function documentRole() { profile().get('role', '') }
+    function isOwner()    { isActive() && claimRole() == 'OWNER' && documentRole() == 'OWNER' }
+    function isEmployee() { isActive() && both sources name a defined role }
+    function isStaff()    { isEmployee() && !isOwner() }
 
     // …explicit per-collection rules…
 
-    match /{document=**} {
-      allow read, write: if false;   // deny by default
-    }
+    match /{document=**} { allow read, write: if false; }   // always last
   }
 }
 ```
 
 Per-collection posture:
 
-| Collection             | Read               | Create            | Update                    | Delete    |
-| ---------------------- | ------------------ | ----------------- | ------------------------- | --------- |
-| `users`                | own doc; OWNER all | Function          | Function (role/active)    | Function  |
-| `businessProfile`      | employee           | OWNER             | OWNER                     | never     |
-| `settings`             | employee           | OWNER             | OWNER                     | never     |
-| `counters`             | employee           | guarded           | +1 only, guarded          | never     |
-| `dresses`              | employee           | employee          | employee                  | OWNER     |
-| `dresses/{id}/private` | OWNER              | OWNER             | OWNER                     | OWNER     |
-| `customers`            | employee           | employee          | employee                  | OWNER     |
-| `reservations`         | employee           | employee          | employee (guarded fields) | never     |
-| `reservationItems`     | employee           | employee          | employee                  | employee  |
-| `fittings`             | employee           | employee          | employee                  | employee  |
-| `accessories`          | employee           | employee          | employee                  | OWNER     |
-| `payments`             | employee           | employee          | void fields only, OWNER   | **never** |
-| `invoices`             | employee           | Function          | Function                  | **never** |
-| `damageLogs`           | employee           | employee          | employee                  | never     |
-| `waitlist`             | employee           | employee          | employee                  | employee  |
-| `notificationLogs`     | employee           | employee          | `openedAt` only           | never     |
-| `auditLogs`            | OWNER              | employee (append) | **never**                 | **never** |
-| `termsVersions`        | employee           | OWNER             | **never**                 | never     |
+| Collection             | Read               | Create       | Update                     | Delete    |
+| ---------------------- | ------------------ | ------------ | -------------------------- | --------- |
+| `system`               | **never**          | **never**    | **never**                  | **never** |
+| `users`                | own doc; OWNER all | **never**    | **never**                  | **never** |
+| `businessProfile`      | employee           | OWNER        | OWNER                      | never     |
+| `settings`             | employee           | OWNER        | OWNER                      | never     |
+| `termsVersions`        | employee           | OWNER        | **never**                  | **never** |
+| `counters`             | employee           | `current==1` | `+1` exactly               | never     |
+| `dresses`              | employee           | employee     | employee                   | OWNER     |
+| `dresses/{id}/private` | OWNER              | OWNER        | OWNER                      | OWNER     |
+| `customers`            | employee           | employee     | employee                   | OWNER     |
+| `reservations`         | employee           | employee     | employee, snapshots frozen | **never** |
+| `reservationItems`     | employee           | employee     | employee                   | employee  |
+| `fittings`             | employee           | employee     | employee                   | employee  |
+| `accessories`          | employee           | employee     | employee                   | OWNER     |
+| `waitlist`             | employee           | employee     | employee                   | employee  |
+| `payments`             | employee           | employee     | OWNER, void fields only    | **never** |
+| `invoices`             | employee           | **never**    | **never**                  | **never** |
+| `damageLogs`           | employee           | employee     | employee                   | **never** |
+| `notificationLogs`     | employee           | employee     | `openedAt` only            | **never** |
+| `auditLogs`            | OWNER              | employee¹    | **never**                  | **never** |
+
+¹ `actorUid` must equal the caller's uid — an employee cannot forge an entry
+attributed to someone else.
 
 ### Field-level guards
 
-Rules validate not just _who_ but _what_:
+Rules validate not only _who_ but _what_:
 
-- `reservations`: `pricing`, `termsSnapshot`, `businessSnapshot` and `code` are
-  immutable after creation — `request.resource.data.pricing == resource.data.pricing`.
-- `payments`: after creation only `voided`, `voidedBy`, `voidedAt`, `voidReason` may
-  change, and only by OWNER. `amount` is immutable.
-- `deposit`: `refundedAmount + forfeitedAmount <= originalAmount` is asserted in the
-  rule, not only in application code.
-- `users`: clients may never write `role` or `active`.
-- `settings`: staff writes are rejected outright.
-- `counters`: `request.resource.data.current == resource.data.current + 1`.
-
-Enforcing the deposit invariant in rules matters because it is a money-conservation
-property. If a bug in the client ever tried to refund more than was held, the database
-refuses the write.
+- **`reservations`**: `code`, `pricing`, `termsVersionId`, `termsSnapshot`,
+  `businessSnapshot`, `createdAt` and `createdBy` are immutable after creation.
+  A later price change, VAT change or business-profile edit cannot reach back
+  into an existing reservation.
+- **`payments`**: after creation only `voided`, `voidedAt`, `voidedBy`,
+  `voidReason` may change, and only by OWNER. `amount` is immutable — a ledger
+  whose entries can be edited is not a ledger.
+- **`counters`**: `current` must increase by exactly one, so a client cannot
+  rewind a sequence and reissue a number an existing invoice already carries.
+- **`users`**: no client write path exists at all. Attempting to allow a "safe
+  subset" of fields on a privilege-bearing document is a worse design than
+  refusing the whole write.
+- **`notificationLogs`**: only `openedAt` may change, so the recorded message
+  body stays truthful.
 
 ---
 
 ## 5. Cloud Functions (trusted operations)
 
-Operations that cannot be safely client-authorised, even with good rules:
+| Function                | Why it must be server-side                                                   |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `getBootstrapState`     | Avoids any public read rule on the sentinel document                         |
+| `claimInitialOwnership` | Grants OWNER; must verify no owner exists, transactionally, once ever        |
+| `createEmployee`        | Creates an Auth account and writes a custom claim — impossible from a client |
+| `setUserRole`           | Writes custom claims and revokes tokens; audits the change                   |
+| `setUserActive`         | Same, plus disabling the Auth account                                        |
 
-| Function                      | Why it must be server-side                                                                                              |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `claimInitialOwnership`       | Grants OWNER; must verify no owner exists, transactionally                                                              |
-| `setUserRole`                 | Writes custom claims — impossible from a client                                                                         |
-| `createReservation`           | Availability check + booking must be one atomic operation over a **query**; client SDK transactions cannot read queries |
-| `issueInvoice`                | Allocates the invoice number and freezes the document immutably                                                         |
-| `voidPayment` / `voidInvoice` | Financial reversal with mandatory audit                                                                                 |
-| `settleDeposit`               | Enforces the refund/forfeit invariant with the trusted clock                                                            |
-| `processWaitlist`             | Triggered on availability change; runs with elevated read scope                                                         |
+Planned for later phases, for the same reason — they cannot be safely
+client-authorised even with good rules:
 
-`createReservation` is the critical one. The client SDK cannot run a query inside a
-transaction, so a client-side availability check is inherently a
-time-of-check/time-of-use race. The Admin SDK **can** query inside a transaction, so
-the Function re-queries blocking intervals and commits the booking atomically. Two
-employees reserving the same dress for overlapping dates: one succeeds, one receives a
-conflict error naming the clashing reservation (§19).
+| Function                      | Why                                                                                                                                                                                    |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createReservation` (Phase 4) | Availability check and booking must be atomic over a **query**; the client SDK cannot read a query inside a transaction, making any client-side check a time-of-check/time-of-use race |
+| `issueInvoice` (Phase 6)      | Allocates the invoice number and freezes the document                                                                                                                                  |
+| `voidPayment` / `voidInvoice` | Financial reversal with mandatory audit                                                                                                                                                |
+| `settleDeposit` (Phase 5)     | Enforces the refund/forfeit invariant with the trusted clock                                                                                                                           |
+
+### Lockout guards
+
+An owner cannot change their own role or deactivate their own account. Role
+assignment requires an existing owner, so self-demotion can leave the boutique
+with nobody able to reach settings, terms or user management — and no
+in-application route back. Recovery would require a developer with Admin SDK
+credentials. Enforced in the Function, and mirrored in the interface so the
+control is disabled with an explanation rather than failing on click.
 
 ---
 
-## 6. Storage rules (§57)
+## 6. Storage rules
 
 ```
-match /dresses/{dressId}/{size}/{file} {
-  allow read:   if isEmployee();
-  allow write:  if isEmployee()
-                && request.resource.size < 10 * 1024 * 1024
-                && request.resource.contentType.matches('image/(jpeg|png|webp)');
-  allow delete: if isEmployee();
-}
-match /business/logo/{file} { allow read: if isEmployee(); allow write: if isOwner() && …; }
-match /damage/{damageLogId}/{file} { allow read, write: if isEmployee() && …; }
-match /{allPaths=**} { allow read, write: if false; }
+match /business/logo/{file}          { read: employee; write: owner + valid image; delete: owner }
+match /dresses/{dressId}/{size}/{f}  { read: employee; write: employee + valid image; delete: employee }
+match /damage/{damageLogId}/{file}   { read: employee; write: employee + valid image; delete: owner }
+match /{allPaths=**}                 { read, write: if false }
 ```
 
-Validated on every write: authentication, role, content type allow-list, size ceiling,
-and path. Content type is checked against an allow-list rather than a deny-list so a
-novel type cannot slip through.
+Validated on every write: authentication, role, content-type allow-list and a
+10 MB ceiling. SVG is excluded deliberately — it is an image type that can carry
+script. Dress images are **not** public: a public bucket would expose the
+boutique's entire inventory and any customer-identifying damage photography.
 
-Dress images are **not** public. A public bucket would expose the boutique's entire
-inventory and any customer-identifying damage photographs.
+Staff may add damage evidence but not delete it, so the person who recorded a
+charge cannot remove what justifies it.
+
+### Documented limitation: Storage identity comes from the claim
+
+The Firestore rules read `active` live from the user document. The Storage rules
+**cannot**: `firestore.get()` in Storage rules is valid in production but is not
+implemented by the Storage emulator, so every rule using it evaluates to a denial
+locally. A rule written that way could never have its ALLOW path tested, and
+untestable rules are how a deploy silently breaks every image in the application —
+or silently opens the bucket — with a green build either way.
+
+Storage therefore resolves identity from the custom claim, which the emulator
+evaluates exactly as production does, and both directions are covered by tests.
+
+**The residual exposure:** a deactivated employee holding an unexpired ID token
+can fetch objects whose exact paths they already know, for up to one hour.
+
+**What bounds it:**
+
+1. `setUserActive` writes `active: false` into the claim, so any newly minted
+   token is refused.
+2. It revokes refresh tokens, so no new ID token can be obtained.
+3. It disables the Auth account outright.
+4. Object paths are discovered through Firestore
+   (`dresses.photos[].storagePath`), and Firestore revokes immediately — so a
+   stale token cannot enumerate anything it did not already hold.
+
+All three behaviours are asserted in
+`tests/rules/storage.test.ts › documented limitation`, so any change to the
+window surfaces as a failing test rather than a silent regression.
+
+Revisit if the Storage emulator gains cross-service support: the stronger
+document-based rule is a two-line change.
 
 ---
 
@@ -213,78 +334,122 @@ inventory and any customer-identifying damage photographs.
 
 Client checks improve experience; they are never the control.
 
-- Environment variables are validated at startup with Zod; a missing Firebase key
-  fails loudly rather than producing confusing runtime errors.
-- Firebase Web API keys are **not secrets** — they identify the project. Security
-  comes from rules. No service-account key, admin credential or private key is ever
-  placed in `src/` or in any `VITE_`-prefixed variable, because everything with that
-  prefix is compiled into the public bundle.
-- `.env*` files are git-ignored except `.env.example`, which contains only key names.
-- No sensitive data is cached in the service worker (§53): the offline shell caches
-  application assets only. Firestore's own IndexedDB persistence holds business data
-  and is cleared on sign-out.
-- Sign-out clears Firestore persistence, TanStack Query cache and Zustand state, so a
-  shared boutique tablet does not leak one session's data into the next.
+- `src/domain/authorization.ts` decides what renders. Its header says, in the
+  file, that it is not a security control.
+- Environment variables are validated at startup with Zod; production refuses to
+  start with demo mode or emulators enabled.
+- Firebase Web API keys are **not secrets** — they identify the project. No
+  service-account key, admin credential or private key is ever placed in `src/`
+  or in any `VITE_`-prefixed variable, because everything with that prefix is
+  compiled into the public bundle. The bootstrap setup token is a Functions
+  secret and never appears client-side.
+- Sign-out terminates Firestore and clears its IndexedDB cache, so one
+  employee's cached customers and payments do not survive into the next
+  employee's session on a shared boutique tablet.
+- Sign-in reports the same message for an unknown email and a wrong password;
+  distinguishing them would let an attacker enumerate staff accounts. Password
+  reset is silent for the same reason.
 
 ---
 
-## 8. Security testing (§56)
+## 8. Security testing
 
-Every rule is tested against the emulator with `@firebase/rules-unit-testing`, for
-three identities: **unauthenticated**, **STAFF**, **OWNER**.
+Three suites, all against the emulator.
 
-Required assertions:
+```bash
+npm run test            # 377 unit tests, including the authorization matrix
+npm run test:rules      # 662 rules assertions (Firestore + Storage)
+npm run test:functions  #  31 Cloud Function integration tests
+```
 
-- Unauthenticated reads of `dresses`, `customers`, `reservations`, `payments`,
-  `invoices`, `settings` and `auditLogs` **fail**.
-- Unauthenticated writes anywhere **fail**.
-- STAFF can create a customer, dress, reservation, fitting and payment.
-- STAFF writing `settings/app` **fails**.
+### Identities covered
+
+unauthenticated · signed-in with no claim · STAFF · OWNER · deactivated STAFF ·
+deactivated OWNER · deactivated with a stale token · demoted owner with a stale
+OWNER claim · promoted staff awaiting refresh · valid claim with no profile ·
+forged role value.
+
+### Required assertions — all present and passing
+
+- Unauthenticated reads and writes fail on **every** collection.
+- STAFF can create customers, dresses, reservations, fittings and payments.
+- STAFF writing `settings/app` **fails** — including every individual setting:
+  VAT rate, pickup threshold, late fee, cancellation tiers, numbering.
 - STAFF writing `businessProfile/main` **fails**.
-- STAFF writing `termsVersions` **fails**.
-- STAFF deleting a payment **fails**.
-- STAFF deleting an invoice **fails**.
-- STAFF writing `users/{uid}.role` **fails**.
-- STAFF reading `auditLogs` **fails**.
+- STAFF creating or modifying `termsVersions` **fails**.
+- STAFF deleting a payment **fails**; **OWNER deleting a payment also fails**.
+- STAFF deleting an invoice **fails**; **OWNER deleting an invoice also fails**.
+- Creating or modifying an issued invoice **fails for every role**.
+- STAFF granting themselves OWNER **fails**; so does modifying another user's
+  role, and so does the OWNER writing `users` directly.
+- STAFF reading `auditLogs` **fails**; amending or deleting an audit entry
+  **fails for every role**; forging an entry attributed to another actor
+  **fails**.
 - STAFF reading `dresses/{id}/private/cost` **fails**.
-- OWNER deleting a payment **fails** (nobody may delete financial history).
-- OWNER updating an issued invoice **fails**.
-- Updating an `auditLogs` document **fails** for every role.
-- Mutating `reservations.pricing` after creation **fails**.
-- A deposit settlement exceeding `originalAmount` **fails**.
-- An inactive user (`active: false`) is denied everywhere.
+- Mutating `reservations.pricing`, `termsSnapshot` or `businessSnapshot` after
+  creation **fails for every role**.
+- Deleting a reservation **fails for every role**.
+- A deactivated user is denied everywhere, immediately, on the same token.
+- A demoted owner with a stale OWNER claim is denied every owner operation.
+- A valid claim with no profile grants nothing, and cannot create its own
+  profile to satisfy the check.
+- Unauthenticated Storage read and write **fail**; non-image and SVG uploads
+  **fail**; undeclared Storage paths **fail** for every role.
 
-Tests run in CI against the emulator. A rules change that breaks any assertion fails
-the build.
+### Bootstrap assertions
+
+| Case                                       | Expected                   | Where             |
+| ------------------------------------------ | -------------------------- | ----------------- |
+| First owner, correct token                 | ALLOW                      | guards + emulator |
+| Second owner bootstrap                     | DENY `already-exists`      | guards + emulator |
+| Unauthenticated bootstrap                  | DENY `unauthenticated`     | guards + emulator |
+| Wrong / missing setup token                | DENY                       | guards + emulator |
+| No token configured on the deployment      | DENY                       | guards            |
+| Replay by the recorded owner               | ALLOW (idempotent)         | guards + emulator |
+| Non-owner claiming OWNER via `setUserRole` | DENY `permission-denied`   | emulator          |
+| Client modifying its own role in Firestore | DENY                       | rules + emulator  |
+| Client modifying another user's role       | DENY                       | rules + emulator  |
+| Client writing the bootstrap sentinel      | DENY                       | rules + emulator  |
+| Owner changing their own role              | DENY `failed-precondition` | guards + emulator |
+| Owner deactivating themselves              | DENY `failed-precondition` | guards + emulator |
+
+### Audit assertions
+
+Role changes and deactivations record actor, target, old value, new value,
+server timestamp and reason. Verified against real Firestore writes in the
+Functions integration suite.
 
 ---
 
 ## 9. Operational security
 
 - Three isolated Firebase projects: local emulator, development, production.
-  Production credentials are never used in development, and demo data never touches
-  production (§58).
-- Production requires `VITE_DEMO_MODE=false`; the seed script refuses to run unless
-  it is pointed at the emulator.
+  Production credentials are never used in development.
+- Production requires `VITE_DEMO_MODE=false`; the environment validator refuses
+  to start otherwise.
+- `AZHARY_BOOTSTRAP_TOKEN` is set as a Functions secret before first run and
+  rotated afterwards; it is single-use in effect, since bootstrap can only
+  complete once.
 - Firestore daily backups are enabled in production; restore is rehearsed and
   documented in `OPERATIONS.md`.
-- Audit logs give a complete who/when/what/before/after trail for every financially
-  or legally significant change (§50).
-- Dependencies are kept current; `npm audit` runs in CI.
 
 ---
 
 ## 10. Threat notes
 
-| Threat                                    | Mitigation                                                                              |
-| ----------------------------------------- | --------------------------------------------------------------------------------------- |
-| Staff escalating to owner                 | Claims are Function-only; `users.role` is unwritable by clients and is a display mirror |
-| Double booking one dress                  | Admin-SDK transaction re-queries blocking intervals and commits atomically              |
-| Duplicate payment on retry / double click | Unique `idempotencyKey` enforced in the transaction                                     |
-| Deleting evidence of a refund             | Payments and invoices are undeletable; void preserves the record                        |
-| Altering an issued invoice                | Rules deny update; all figures are snapshots                                            |
-| Retroactive VAT change                    | Rate and amount stored per invoice, never referenced                                    |
-| Refunding more than the deposit held      | Invariant asserted in domain, service **and** rules                                     |
-| Leaked inventory or customer photos       | Storage is authenticated-only; no public read                                           |
-| Stale session on a shared tablet          | Sign-out clears persistence, query cache and app state                                  |
-| Secrets in the bundle                     | Only `VITE_`-prefixed public config is bundled; admin keys never leave Functions        |
+| Threat                                   | Mitigation                                                                            |
+| ---------------------------------------- | ------------------------------------------------------------------------------------- |
+| Staff escalating to owner                | Claims are Function-only; `users` is unwritable by every client                       |
+| Stranger claiming ownership at first run | Setup token, constant-time compared, plus a transactional one-time sentinel           |
+| Two people bootstrapping simultaneously  | Firestore transaction on `system/bootstrap` — one commit wins                         |
+| Dismissed employee retaining access      | `active` read live from Firestore; tokens revoked; Auth account disabled              |
+| Demoted owner acting on a stale token    | Effective role is the lower of claim and document                                     |
+| Owner locking the boutique out of itself | Self-demotion and self-deactivation refused in the Function and the UI                |
+| Deleting evidence of a refund            | Payments and invoices undeletable; void preserves the record                          |
+| Altering an issued invoice               | No client write path at all; all figures are snapshots                                |
+| Retroactive VAT change                   | Rate and amount stored per invoice, never referenced                                  |
+| Forged audit entries                     | `actorUid` must equal the caller; entries are append-only                             |
+| Leaked inventory or customer photos      | Storage is authenticated-only; no public read                                         |
+| Staff account enumeration                | Sign-in and reset return identical messages regardless of account existence           |
+| Stale session on a shared tablet         | Sign-out clears persistence, query cache and app state                                |
+| Secrets in the bundle                    | Only `VITE_`-prefixed public config is bundled; the setup token is a Functions secret |

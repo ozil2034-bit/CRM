@@ -33,6 +33,24 @@ a mistaken write in development must not be able to reach real customer records.
 4. **Storage** → create the default bucket.
 5. **Project settings → Your apps → Web** → register an app and copy the config.
 6. Record the project ID in `.firebaserc`.
+7. Set the owner bootstrap secret (see below) **before** anyone opens the app.
+
+### The owner bootstrap secret
+
+```bash
+npx firebase functions:secrets:set AZHARY_BOOTSTRAP_TOKEN --project <project>
+```
+
+Generate a high-entropy value — e.g. `openssl rand -base64 32` — and give it to
+the boutique owner through a channel separate from the application URL.
+
+Without it, `claimInitialOwnership` refuses every request: with no configured
+secret there is no way to distinguish the intended owner from whoever reaches the
+URL first, so bootstrap fails closed rather than opening.
+
+The secret lives only in the Functions runtime. It is never a `VITE_` variable,
+never in the browser bundle, and never committed. Rotate it after the owner
+account exists; bootstrap can only complete once, so it has no further use.
 
 ---
 
@@ -104,10 +122,11 @@ Deployment is blocked until all of these pass:
 npm run verify          # lint + typecheck + test + build
 ```
 
-Plus, from Phase 2 onward:
+Plus:
 
 ```bash
-npm run test:rules      # security rules against the emulator
+npm run test:rules      # Firestore + Storage rules against the emulator
+npm run test:functions  # Cloud Function integration against the emulator
 ```
 
 Production additionally requires:
@@ -116,6 +135,8 @@ Production additionally requires:
 - [ ] No dummy or demo records in the target project
 - [ ] Firestore rules reviewed and rules tests green
 - [ ] Storage rules reviewed
+- [ ] `AZHARY_BOOTSTRAP_TOKEN` set, and rotated once the owner exists
+- [ ] Cloud Functions deployed
 - [ ] Business profile configured by the owner (no placeholder VAT or CR numbers)
 - [ ] Daily backups enabled
 - [ ] Owner account created through the bootstrap flow
@@ -125,6 +146,10 @@ Production additionally requires:
 ```bash
 # Rules and indexes — deploy these before the application that depends on them.
 npx firebase deploy --only firestore:rules,firestore:indexes,storage --project development
+
+# Cloud Functions — required before first run; bootstrap depends on them.
+npm run build:functions
+npx firebase deploy --only functions --project development
 
 # Application
 npm run build
@@ -149,11 +174,12 @@ copy is `firestore.rules` in this repository, so revert the commit and redeploy.
 
 ## 6. First run in a new project
 
-1. Deploy rules and hosting.
+1. Deploy rules, Functions and hosting, and set `AZHARY_BOOTSTRAP_TOKEN`.
 2. Open the application. It reports that no owner exists.
-3. Create the owner account — the flow verifies server-side that no OWNER claim
-   exists anywhere before granting one, inside a transaction, so the bootstrap
-   cannot be claimed twice (SECURITY.md §2).
+3. Create the owner account and enter the setup token. The Function verifies
+   server-side, inside a transaction, that no owner exists — so the bootstrap
+   cannot be claimed twice, and cannot be claimed by someone who merely found the
+   URL (SECURITY.md §2).
 4. Sign in as the owner and complete **Settings → Business Profile**: names,
    address, contact details, VAT registration number, CR number, logo.
 5. Configure **Settings**: VAT rate, minimum pickup payment percentage,

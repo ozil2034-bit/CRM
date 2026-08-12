@@ -31,11 +31,17 @@ that a staff member cannot change the VAT rate.
 npm run test            # unit + component (no emulator required)
 npm run test:watch      # watch mode
 npm run test:coverage   # coverage report
+npm run test:rules      # Firestore + Storage rules, against the emulator
+npm run test:functions  # Cloud Function integration, against the emulator
 npm run emulators       # start the Firebase emulator suite
 ```
 
-Emulator-backed suites are added in Phase 2, when the first rules and services exist.
-Adding them earlier would mean asserting against nothing.
+Three suites, three configs. `npm run test` deliberately needs no emulator, Java
+or open port, so the fast feedback loop stays fast; the emulator-backed suites run
+under their own Vitest configs on a single worker, because they share one emulator
+and describe ordered lifecycles.
+
+Current totals: **377** unit · **662** rules · **31** Functions integration.
 
 ---
 

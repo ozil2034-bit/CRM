@@ -11,8 +11,9 @@ fittings, payments, security deposits and invoicing for a bridal boutique.
 
 ## Status
 
-**Phase 1 of 10 complete** — architecture, project setup, design system, Firebase
-configuration and documentation. Business features begin in Phase 2.
+**Phase 2 of 10 complete** — architecture, design system, Firebase configuration,
+and now authentication, roles, owner bootstrap and full Firestore/Storage
+authorization with 1,070 tests behind them. Boutique features begin in Phase 3.
 
 See [PROJECT_PLAN.md](./PROJECT_PLAN.md) for the full phase plan.
 
@@ -69,19 +70,21 @@ project data is read or written in this mode.
 
 ## Commands
 
-| Command                 | Purpose                                         |
-| ----------------------- | ----------------------------------------------- |
-| `npm run dev`           | Development server                              |
-| `npm run build`         | Type-check and produce a production build       |
-| `npm run preview`       | Serve the production build locally              |
-| `npm run lint`          | ESLint                                          |
-| `npm run typecheck`     | TypeScript, no emit                             |
-| `npm run test`          | Unit and component tests                        |
-| `npm run test:watch`    | Tests in watch mode                             |
-| `npm run test:coverage` | Coverage report                                 |
-| `npm run format`        | Prettier write                                  |
-| `npm run emulators`     | Firebase Emulator Suite                         |
-| **`npm run verify`**    | **Phase gate: lint + typecheck + test + build** |
+| Command                  | Purpose                                         |
+| ------------------------ | ----------------------------------------------- |
+| `npm run dev`            | Development server                              |
+| `npm run build`          | Type-check and produce a production build       |
+| `npm run preview`        | Serve the production build locally              |
+| `npm run lint`           | ESLint                                          |
+| `npm run typecheck`      | TypeScript, no emit                             |
+| `npm run test`           | Unit and component tests                        |
+| `npm run test:watch`     | Tests in watch mode                             |
+| `npm run test:coverage`  | Coverage report                                 |
+| `npm run test:rules`     | Security rules against the emulator             |
+| `npm run test:functions` | Cloud Function integration tests                |
+| `npm run format`         | Prettier write                                  |
+| `npm run emulators`      | Firebase Emulator Suite                         |
+| **`npm run verify`**     | **Phase gate: lint + typecheck + test + build** |
 
 `npm run verify` must pass before any phase is considered complete.
 
@@ -109,6 +112,13 @@ domain layer cannot import Firebase, React or services.
 
 **Security is enforced server-side.** Firestore and Storage rules are the control.
 Hiding a button is a usability choice with no security value.
+
+**Roles are confirmed twice.** Every request's role must be agreed by both the
+Firebase Auth custom claim and the `users/{uid}` document, and the lower of the
+two wins — so a demotion applies immediately while a promotion waits for the
+token to refresh. `active` is read live from Firestore, so deactivating an
+employee takes effect on their very next request rather than when their ID token
+expires. See [SECURITY.md §2](./SECURITY.md).
 
 **No demo data in production.** `VITE_DEMO_MODE` must be `false` in production; the
 environment validator refuses to start a production build otherwise.

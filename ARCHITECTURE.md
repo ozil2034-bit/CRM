@@ -238,9 +238,13 @@ legal and accounting requirement, not a convenience.
 Authorisation is enforced in **Firestore Security Rules and Cloud Functions**, not in
 the UI. Hidden buttons are a usability affordance with no security value.
 
-- Roles live in **Firebase Auth custom claims** (`role: 'OWNER' | 'STAFF'`), set only
-  by a Cloud Function. A user document in Firestore mirrors the role for display;
-  rules trust the claim, never the mirror.
+- Roles are confirmed by **two independent sources**: the Firebase Auth custom
+  claim (`{ role, active }`, writable only by a Cloud Function) and the
+  `users/{uid}` document (writable by no client at all). The **lower** of the two
+  roles wins, so a demotion applies immediately while a promotion waits for the
+  token to refresh. `active` is read live from Firestore, which is what makes
+  deactivation take effect on the employee's next request rather than when their
+  ID token expires — up to an hour later.
 - Operations that must not be client-trusted run as Cloud Functions with the Admin
   SDK: role assignment, invoice issuing, deposit forfeiture, financial deletion.
 - Storage rules validate content type, size and path ownership.
