@@ -19,6 +19,7 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'firebase/storage';
+import { getFunctions, connectFunctionsEmulator, type Functions } from 'firebase/functions';
 
 import type { AppEnvironment } from '@/config/env';
 
@@ -27,6 +28,7 @@ export interface FirebaseClient {
   readonly auth: Auth;
   readonly db: Firestore;
   readonly storage: FirebaseStorage;
+  readonly functions: Functions;
 }
 
 const EMULATOR_HOST = '127.0.0.1';
@@ -34,7 +36,11 @@ const EMULATOR_PORTS = {
   auth: 9099,
   firestore: 8080,
   storage: 9199,
+  functions: 5001,
 } as const;
+
+/** Must match `setGlobalOptions({ region })` in functions/src/index.ts. */
+export const FUNCTIONS_REGION = 'europe-west1';
 
 let client: FirebaseClient | null = null;
 
@@ -71,12 +77,13 @@ export function initializeFirebase(env: AppEnvironment): FirebaseClient {
 
   const auth = getAuth(app);
   const storage = getStorage(app);
+  const functions = getFunctions(app, FUNCTIONS_REGION);
 
   if (env.useEmulators) {
-    connectToEmulators({ auth, db, storage });
+    connectToEmulators({ auth, db, storage, functions });
   }
 
-  client = { app, auth, db, storage };
+  client = { app, auth, db, storage, functions };
   return client;
 }
 
@@ -104,16 +111,19 @@ function connectToEmulators({
   auth,
   db,
   storage,
+  functions,
 }: {
   auth: Auth;
   db: Firestore;
   storage: FirebaseStorage;
+  functions: Functions;
 }): void {
   connectAuthEmulator(auth, `http://${EMULATOR_HOST}:${EMULATOR_PORTS.auth}`, {
     disableWarnings: true,
   });
   connectFirestoreEmulator(db, EMULATOR_HOST, EMULATOR_PORTS.firestore);
   connectStorageEmulator(storage, EMULATOR_HOST, EMULATOR_PORTS.storage);
+  connectFunctionsEmulator(functions, EMULATOR_HOST, EMULATOR_PORTS.functions);
 
   console.warn(
     `[Azhary Boutique] Connected to the Firebase Emulator Suite on ${EMULATOR_HOST}. ` +
