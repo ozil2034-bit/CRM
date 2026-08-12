@@ -48,9 +48,15 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     css: false,
     include: ['src/**/*.test.{ts,tsx}', 'tests/**/*.test.{ts,tsx}'],
-    // Rules tests need a running emulator; they run via `npm run test:rules`
-    // so the fast unit suite stays free of Java and port dependencies.
-    exclude: ['**/node_modules/**', '**/dist/**', 'tests/rules/**'],
+    // Emulator-backed suites run under their own configs (`npm run test:rules`,
+    // `npm run test:functions`) so the fast unit suite stays free of Java, open
+    // ports and a built functions/lib.
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'tests/rules/**',
+      'tests/functions-emulator/**',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
