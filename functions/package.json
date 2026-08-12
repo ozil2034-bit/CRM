@@ -1,0 +1,23 @@
+{
+  "name": "azhary-boutique-functions",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Trusted server-side operations for Azhary Boutique",
+  "main": "lib/index.js",
+  "type": "commonjs",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "serve": "npm run build && firebase emulators:start --only functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.6.0",
+    "firebase-functions": "^7.0.1"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2"
+  }
+}

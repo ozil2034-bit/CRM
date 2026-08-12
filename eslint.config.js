@@ -102,6 +102,21 @@ export default tseslint.config(
     },
   },
 
+  // Cloud Functions run on Node with the Admin SDK, which legitimately bypasses
+  // security rules. They are the trusted server-side layer, so the browser-side
+  // boundary rules do not apply to them.
+  {
+    files: ['functions/src/**/*.ts'],
+    languageOptions: {
+      globals: globals.node,
+    },
+    rules: {
+      'no-restricted-imports': 'off',
+      'no-restricted-globals': 'off',
+      'no-console': 'off',
+    },
+  },
+
   // Node-side configuration and scripts.
   {
     files: ['vite.config.ts', 'scripts/**/*.ts', 'eslint.config.js'],

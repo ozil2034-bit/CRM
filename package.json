@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Azhary Boutique — production wedding dress management platform",
+  "description": "Azhary Boutique \u2014 production wedding dress management platform",
   "engines": {
     "node": ">=22.12.0"
   },
@@ -11,7 +11,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --force",
+    "typecheck": "tsc -b --force && npm run typecheck:functions",
+    "typecheck:functions": "tsc -p functions/tsconfig.json --noEmit",
+    "build:functions": "tsc -p functions/tsconfig.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx,css,json,md}\"",
@@ -19,9 +21,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-azhary-rules \"vitest run --config vitest.rules.config.ts\"",
+    "test:rules": "firebase emulators:exec --only firestore,storage --project demo-azhary-rules \"vitest run --config vitest.rules.config.ts\"",
     "emulators": "firebase emulators:start",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "test:functions": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts\""
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",
