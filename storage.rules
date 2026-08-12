@@ -1,0 +1,51 @@
+rules_version = '2';
+
+/**
+ * Azhary Boutique — Firebase Storage Security Rules
+ *
+ * PHASE 1 POSTURE: everything is denied.
+ *
+ * Dress photographs, damage evidence and the business logo are never publicly
+ * readable. A public bucket would expose the boutique's entire inventory and any
+ * customer-identifying damage photography (SECURITY.md §6).
+ *
+ * Phase 3 adds the dress photo paths together with content-type, size and role
+ * validation. Until an upload path exists, nothing is allowed.
+ */
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isActive() {
+      return isSignedIn() && request.auth.token.active == true;
+    }
+
+    function isOwner() {
+      return isActive() && request.auth.token.role == 'OWNER';
+    }
+
+    function isEmployee() {
+      return isActive() &&
+        (request.auth.token.role == 'OWNER' || request.auth.token.role == 'STAFF');
+    }
+
+    // Content types are validated against an allow-list rather than a
+    // deny-list, so a novel or spoofed type cannot slip through.
+    function isAllowedImage() {
+      return request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
+    function isWithinSizeLimit() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Deny by default. Phase 3 inserts explicit path rules above this block.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,84 @@
+rules_version = '2';
+
+/**
+ * Azhary Boutique — Firestore Security Rules
+ *
+ * PHASE 1 POSTURE: everything is denied.
+ *
+ * No collection rules exist yet because no collections are written yet. The
+ * closed default is deliberate — an open rule added "temporarily" during setup
+ * is how production databases end up world-readable. Collection rules are added
+ * in Phase 2, together with the emulator tests that prove each role can do
+ * exactly what it should and nothing more.
+ *
+ * Invariants that hold in every phase (SECURITY.md):
+ *   - `allow read, write: if true` is never written. Not even for the emulator.
+ *   - The authoritative role is the Firebase Auth custom claim, never a
+ *     Firestore field. A `users` document role is a display mirror only.
+ *   - Financial and legal history (payments, invoices, audit logs) is never
+ *     deletable by any role, including OWNER. Voiding preserves the record.
+ *   - The final match block denies everything not explicitly allowed above it.
+ */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------------
+    // Identity helpers (used from Phase 2 onward)
+    // ---------------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // A user disabled by the owner carries active:false and is refused
+    // everywhere, not merely hidden from the interface.
+    function isActive() {
+      return isSignedIn() && request.auth.token.active == true;
+    }
+
+    function userRole() {
+      return request.auth.token.role;
+    }
+
+    function isOwner() {
+      return isActive() && userRole() == 'OWNER';
+    }
+
+    function isStaff() {
+      return isActive() && userRole() == 'STAFF';
+    }
+
+    function isEmployee() {
+      return isOwner() || isStaff();
+    }
+
+    // ---------------------------------------------------------------------
+    // Field-level helpers (used from Phase 2 onward)
+    // ---------------------------------------------------------------------
+
+    // True when none of `fields` differ between the stored and incoming document.
+    // Used to freeze pricing snapshots, terms snapshots and issued amounts.
+    function unchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(fields.toSet());
+    }
+
+    // True when the write touches only the listed fields.
+    function onlyChanges(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(fields.toSet());
+    }
+
+    // ---------------------------------------------------------------------
+    // Deny by default.
+    //
+    // Phase 2 inserts explicit per-collection rules ABOVE this block.
+    // This block always remains last.
+    // ---------------------------------------------------------------------
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
