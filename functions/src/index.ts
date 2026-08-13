@@ -52,3 +52,17 @@ export {
  * path — an invoice whose figures the browser chose is not evidence of anything.
  */
 export { issueDocument, voidDocument, recordPrintIntent } from './documents';
+
+/*
+ * Phase 7. Accessories and alterations change what a customer owes, so they
+ * reprice through the same `computePricing` the booking used and take the same
+ * `financialVersion` lock every payment takes. They are refused once an invoice
+ * has been issued: the customer is holding a document that must not quietly
+ * stop matching the system.
+ */
+export {
+  addReservationAccessory,
+  removeReservationAccessory,
+  addReservationAlteration,
+  removeReservationAlteration,
+} from './amendments';

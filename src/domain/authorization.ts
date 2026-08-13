@@ -130,6 +130,11 @@ export type Permission =
   // Fittings
   | 'fittings.view'
   | 'fittings.manage'
+  // Accessories and alterations
+  | 'accessories.view'
+  | 'accessories.manage'
+  | 'accessories.retire'
+  | 'alterations.record'
   // Operations
   | 'pickup.process'
   | 'return.process'
@@ -189,6 +194,16 @@ const STAFF_PERMISSIONS: ReadonlySet<Permission> = new Set([
 
   'fittings.view',
   'fittings.manage',
+
+  /*
+   * Staff maintain the accessory catalogue and record alterations. Both are
+   * shop-floor work: the alteration is discovered at the fitting, by the person
+   * doing the fitting. Retiring a catalogue entry is the owner's call, because
+   * it changes what the whole boutique can sell.
+   */
+  'accessories.view',
+  'accessories.manage',
+  'alterations.record',
 
   'pickup.process',
   'return.process',

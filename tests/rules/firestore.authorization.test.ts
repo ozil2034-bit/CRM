@@ -902,6 +902,57 @@ describe('fittings, accessories and waitlist', () => {
     await seedDocument(testEnv, `accessories/${id}`, { name: 'Veil' });
     await assertSucceeds(deleteDoc(doc(dbAs(testEnv, 'owner'), 'accessories', id)));
   });
+
+  /*
+   * Accessory prices reach an invoice through the reservation's pricing
+   * snapshot. A fractional or negative one would break the integer-baisa
+   * invariant the whole financial engine rests on, from the catalogue inwards.
+   */
+  it('REFUSES a fractional accessory price — money is whole baisa', async () => {
+    const id = uniqueId('acc');
+    await assertFails(
+      setDoc(doc(dbAs(testEnv, 'staff'), 'accessories', id), {
+        name: 'Veil',
+        rentalPrice: 20_000.5,
+      }),
+    );
+  });
+
+  it('REFUSES a negative accessory price or deposit', async () => {
+    await assertFails(
+      setDoc(doc(dbAs(testEnv, 'staff'), 'accessories', uniqueId('acc')), {
+        name: 'Veil',
+        rentalPrice: -1,
+      }),
+    );
+    await assertFails(
+      setDoc(doc(dbAs(testEnv, 'staff'), 'accessories', uniqueId('acc')), {
+        name: 'Veil',
+        securityDeposit: -1,
+      }),
+    );
+  });
+
+  it('REFUSES a fractional price on an update, not only on create', async () => {
+    const id = uniqueId('acc');
+    await seedDocument(testEnv, `accessories/${id}`, { name: 'Veil', rentalPrice: 20_000 });
+
+    await assertFails(
+      updateDoc(doc(dbAs(testEnv, 'staff'), 'accessories', id), { rentalPrice: 0.5 }),
+    );
+  });
+
+  it('ALLOWS whole-baisa prices, a zero price, and a null sale price', async () => {
+    // A rental-only accessory has no sale price at all; null is not a violation.
+    await assertSucceeds(
+      setDoc(doc(dbAs(testEnv, 'staff'), 'accessories', uniqueId('acc')), {
+        name: 'Veil',
+        rentalPrice: 20_000,
+        salePrice: null,
+        securityDeposit: 0,
+      }),
+    );
+  });
 });
 
 /* ------------------------------------------------------------------------ *

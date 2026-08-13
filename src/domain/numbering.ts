@@ -14,7 +14,7 @@
  * Pure: no I/O, no Firebase, no clock.
  */
 
-export type SequenceKind = 'dress' | 'customer' | 'reservation' | 'invoice';
+export type SequenceKind = 'dress' | 'customer' | 'reservation' | 'invoice' | 'accessory';
 
 export interface NumberFormat {
   readonly prefix: string;
@@ -33,6 +33,7 @@ export const DEFAULT_NUMBER_FORMATS: Readonly<Record<SequenceKind, NumberFormat>
   customer: { prefix: 'CU', separator: '-', padding: 4 },
   reservation: { prefix: 'RSV', separator: '-', padding: 4 },
   invoice: { prefix: 'INV', separator: '-', padding: 4, includeYear: true },
+  accessory: { prefix: 'ACC', separator: '-', padding: 4 },
 };
 
 export class NumberingError extends Error {

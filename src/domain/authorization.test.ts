@@ -199,6 +199,9 @@ const STAFF_ALLOWED: readonly Permission[] = [
   'damage.record',
   'reports.operational',
   'whatsapp.prepare',
+  'accessories.view',
+  'accessories.manage',
+  'alterations.record',
 ];
 
 /** The specification's "Staff cannot" list, asserted item by item. */
@@ -226,6 +229,8 @@ const STAFF_DENIED: readonly Permission[] = [
   'reports.financial',
   'data.export',
   'data.import',
+  // Retiring a catalogue entry changes what the whole boutique can sell.
+  'accessories.retire',
 ];
 
 describe('can() — STAFF', () => {

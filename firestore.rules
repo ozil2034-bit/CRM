@@ -327,9 +327,35 @@ service cloud.firestore {
       allow delete: if isEmployee();
     }
 
+    /*
+     * Accessory money must be whole, non-negative baisa — never a rial float.
+     *
+     * Checked per field and only when the field is present, so a write that does
+     * not mention a price still passes. A fractional price here would reach an
+     * invoice through the reservation's pricing snapshot, and the integer-baisa
+     * invariant the whole financial engine rests on would be broken from the
+     * catalogue inwards.
+     */
+    function accessoryMoneyIsWellFormed(field) {
+      return !(field in request.resource.data)
+        || request.resource.data[field] == null
+        || (request.resource.data[field] is int && request.resource.data[field] >= 0);
+    }
+
     match /accessories/{accessoryId} {
       allow read: if isEmployee();
-      allow create, update: if isEmployee();
+
+      allow create, update: if isEmployee()
+        && accessoryMoneyIsWellFormed('rentalPrice')
+        && accessoryMoneyIsWellFormed('salePrice')
+        && accessoryMoneyIsWellFormed('securityDeposit');
+
+      /*
+       * Deletion is owner-only and remains available for a mistyped entry that
+       * was never used. The application itself never calls it: `setAccessoryStatus`
+       * retires instead, because past reservations reference accessories by id
+       * and a deleted entry would leave their revenue unattributable.
+       */
       allow delete: if isOwner();
     }
 

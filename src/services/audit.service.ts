@@ -41,7 +41,20 @@ export type AuditAction =
   | 'reservation.status_changed'
   | 'reservation.dates_changed'
   | 'fitting.scheduled'
-  | 'fitting.status_changed';
+  | 'fitting.status_changed'
+  | 'accessory.created'
+  | 'accessory.updated'
+  | 'accessory.retired'
+  | 'accessory.restored'
+  /*
+   * Written server-side by the amendment Functions. Listed here so the audit
+   * trail can label them, and so adding a new one means editing this union
+   * rather than inventing a string at a call site.
+   */
+  | 'reservation.accessory_added'
+  | 'reservation.accessory_removed'
+  | 'reservation.alteration_added'
+  | 'reservation.alteration_removed';
 
 export interface AuditActor {
   readonly uid: string;
@@ -52,7 +65,7 @@ export interface AuditActor {
 export interface AuditInput {
   readonly actor: AuditActor;
   readonly action: AuditAction;
-  readonly entityType: 'dress' | 'customer' | 'reservation';
+  readonly entityType: 'dress' | 'customer' | 'reservation' | 'accessory';
   readonly entityId: string;
   readonly entityCode: string;
   readonly before?: Record<string, unknown> | null;

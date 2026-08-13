@@ -35,6 +35,7 @@ import {
 } from '@/domain/availability';
 import { toMuscatWallTime, type EpochMs } from '@/domain/datetime';
 import type { PricingSnapshot } from '@/domain/reservation-pricing';
+import type { ReservationAccessory, ReservationAlteration } from '@/domain/amendment';
 
 export interface ReservationItem {
   readonly id: string;
@@ -68,6 +69,10 @@ export interface Reservation {
   readonly actualReturnAt: EpochMs | null;
   readonly eventDate: string;
   readonly pricing: PricingSnapshot;
+  /** The accessory lines the pricing snapshot was computed from. */
+  readonly accessories: readonly ReservationAccessory[];
+  /** The alteration lines, each frozen at the amount agreed when recorded. */
+  readonly alterations: readonly ReservationAlteration[];
   readonly notes: string;
   readonly createdBy: string;
 }
@@ -137,9 +142,48 @@ function toReservation(snapshot: QueryDocumentSnapshot): Reservation {
       securityDepositTotal: int(pricing['securityDepositTotal']),
       grandTotal: int(pricing['grandTotal']),
     },
+    accessories: readAccessories(pricing),
+    alterations: readAlterations(pricing),
     notes: str(data['notes']),
     createdBy: str(data['createdBy']),
   };
+}
+
+/*
+ * The amendment lines live inside the reservation's pricing snapshot rather
+ * than in their own collection, because they ARE the snapshot: the totals were
+ * computed from exactly these lines, and splitting them apart would let the two
+ * drift.
+ */
+function readAccessories(pricing: Record<string, unknown>): ReservationAccessory[] {
+  const lines = pricing['accessories'];
+  if (!Array.isArray(lines)) return [];
+
+  return (lines as Record<string, unknown>[]).map((line) => ({
+    lineId: str(line['lineId']),
+    accessoryId: str(line['accessoryId']),
+    name: str(line['name']),
+    nameAr: str(line['nameAr']),
+    unitPrice: int(line['unitPrice']),
+    quantity: typeof line['quantity'] === 'number' ? line['quantity'] : 1,
+    securityDeposit: int(line['securityDeposit']),
+  }));
+}
+
+function readAlterations(pricing: Record<string, unknown>): ReservationAlteration[] {
+  const lines = pricing['alterations'];
+  if (!Array.isArray(lines)) return [];
+
+  return (lines as Record<string, unknown>[]).map((line) => ({
+    id: str(line['id']),
+    description: str(line['description']),
+    descriptionAr: str(line['descriptionAr']),
+    amount: int(line['amount']),
+    notes: str(line['notes']),
+    employeeId: str(line['employeeId']),
+    employeeName: str(line['employeeName']),
+    createdAt: millis(line['createdAt']),
+  }));
 }
 
 function toItem(snapshot: QueryDocumentSnapshot): ReservationItem {
