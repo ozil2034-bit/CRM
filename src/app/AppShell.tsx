@@ -29,6 +29,12 @@ export function AppShell() {
       visible: can('reservations.view'),
       end: false,
     },
+    {
+      to: '/settings',
+      label: t('nav.settings'),
+      visible: can('businessProfile.edit'),
+      end: false,
+    },
     { to: '/users', label: t('nav.staff'), visible: can('users.view'), end: false },
   ].filter((entry) => entry.visible);
 

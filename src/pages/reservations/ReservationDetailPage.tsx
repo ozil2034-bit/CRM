@@ -136,9 +136,20 @@ export function ReservationDetailPage() {
           <h1 className="display mt-2 font-mono text-3xl text-ink-900">{booking.code}</h1>
         </div>
 
-        <Badge tone={RESERVATION_STATUS_TONE[booking.status]}>
-          {t(`status.${booking.status}`)}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge tone={RESERVATION_STATUS_TONE[booking.status]}>
+            {t(`status.${booking.status}`)}
+          </Badge>
+
+          {can('invoices.issue') && (
+            <Link
+              to={`/reservations/${booking.id}/documents`}
+              className={buttonClasses('secondary', 'sm')}
+            >
+              {t('document.issue')}
+            </Link>
+          )}
+        </div>
       </header>
 
       {error && (

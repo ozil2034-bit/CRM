@@ -42,6 +42,7 @@ export interface ReservationItem {
   readonly dressId: string;
   readonly dressCode: string;
   readonly dressName: string;
+  readonly designer: string;
   readonly pickupAt: EpochMs;
   readonly returnAt: EpochMs;
   readonly cleaningBufferDays: number;
@@ -49,6 +50,9 @@ export interface ReservationItem {
   readonly blockEndAt: EpochMs;
   readonly blocking: boolean;
   readonly rentalPriceSnapshot: Baisa;
+  readonly securityDepositSnapshot: Baisa;
+  /** Storage path of the gown's photograph as it was when booked. */
+  readonly dressPhotoPath: string | null;
 }
 
 export interface Reservation {
@@ -147,6 +151,7 @@ function toItem(snapshot: QueryDocumentSnapshot): ReservationItem {
     dressId: str(data['dressId']),
     dressCode: str(data['dressCode']),
     dressName: str(data['dressName']),
+    designer: str(data['designer']),
     pickupAt: millis(data['pickupAt']),
     returnAt: millis(data['returnAt']),
     cleaningBufferDays:
@@ -155,6 +160,8 @@ function toItem(snapshot: QueryDocumentSnapshot): ReservationItem {
     blockEndAt: millis(data['blockEndAt']),
     blocking: data['blocking'] === true,
     rentalPriceSnapshot: int(data['rentalPriceSnapshot']),
+    securityDepositSnapshot: int(data['securityDepositSnapshot']),
+    dressPhotoPath: str(data['dressPhotoPath']).length > 0 ? str(data['dressPhotoPath']) : null,
   };
 }
 

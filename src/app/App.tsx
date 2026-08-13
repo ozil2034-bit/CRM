@@ -24,6 +24,9 @@ import { CustomerFormPage } from '@/pages/customers/CustomerFormPage';
 import { ReservationsPage } from '@/pages/reservations/ReservationsPage';
 import { BookingPage } from '@/pages/reservations/BookingPage';
 import { ReservationDetailPage } from '@/pages/reservations/ReservationDetailPage';
+import { DocumentPreviewPage } from '@/pages/documents/DocumentPreviewPage';
+import { DocumentPage } from '@/pages/documents/DocumentPage';
+import { BusinessSettingsPage } from '@/pages/settings/BusinessSettingsPage';
 
 export interface AppProps {
   readonly environment: EnvironmentResult;
@@ -186,6 +189,32 @@ function AuthenticatedApp({ isProduction }: { isProduction: boolean }) {
           element: (
             <RequirePermission permission="reservations.view">
               <ReservationDetailPage />
+            </RequirePermission>
+          ),
+        },
+
+        {
+          path: 'reservations/:reservationId/documents',
+          element: (
+            <RequirePermission permission="invoices.issue">
+              <DocumentPreviewPage />
+            </RequirePermission>
+          ),
+        },
+        {
+          path: 'documents/:documentId',
+          element: (
+            <RequirePermission permission="invoices.view">
+              <DocumentPage />
+            </RequirePermission>
+          ),
+        },
+
+        {
+          path: 'settings',
+          element: (
+            <RequirePermission permission="businessProfile.edit">
+              <BusinessSettingsPage />
             </RequirePermission>
           ),
         },
