@@ -15,6 +15,12 @@ import { LoginPage } from '@/pages/auth/LoginPage';
 import { BootstrapPage } from '@/pages/auth/BootstrapPage';
 import { NoAccessPage } from '@/pages/auth/NoAccessPage';
 import { UsersPage } from '@/pages/users/UsersPage';
+import { InventoryPage } from '@/pages/inventory/InventoryPage';
+import { DressDetailPage } from '@/pages/inventory/DressDetailPage';
+import { DressFormPage } from '@/pages/inventory/DressFormPage';
+import { CustomersPage } from '@/pages/customers/CustomersPage';
+import { CustomerDetailPage } from '@/pages/customers/CustomerDetailPage';
+import { CustomerFormPage } from '@/pages/customers/CustomerFormPage';
 
 export interface AppProps {
   readonly environment: EnvironmentResult;
@@ -89,6 +95,73 @@ function AuthenticatedApp({ isProduction }: { isProduction: boolean }) {
       errorElement: <AppErrorBoundary />,
       children: [
         { index: true, element: <FoundationPage isProduction={isProduction} /> },
+
+        {
+          path: 'inventory',
+          element: (
+            <RequirePermission permission="dresses.view">
+              <InventoryPage />
+            </RequirePermission>
+          ),
+        },
+        {
+          path: 'inventory/new',
+          element: (
+            <RequirePermission permission="dresses.create">
+              <DressFormPage />
+            </RequirePermission>
+          ),
+        },
+        {
+          path: 'inventory/:dressId',
+          element: (
+            <RequirePermission permission="dresses.view">
+              <DressDetailPage />
+            </RequirePermission>
+          ),
+        },
+        {
+          path: 'inventory/:dressId/edit',
+          element: (
+            <RequirePermission permission="dresses.edit">
+              <DressFormPage />
+            </RequirePermission>
+          ),
+        },
+
+        {
+          path: 'customers',
+          element: (
+            <RequirePermission permission="customers.view">
+              <CustomersPage />
+            </RequirePermission>
+          ),
+        },
+        {
+          path: 'customers/new',
+          element: (
+            <RequirePermission permission="customers.create">
+              <CustomerFormPage />
+            </RequirePermission>
+          ),
+        },
+        {
+          path: 'customers/:customerId',
+          element: (
+            <RequirePermission permission="customers.view">
+              <CustomerDetailPage />
+            </RequirePermission>
+          ),
+        },
+        {
+          path: 'customers/:customerId/edit',
+          element: (
+            <RequirePermission permission="customers.edit">
+              <CustomerFormPage />
+            </RequirePermission>
+          ),
+        },
+
         {
           path: 'users',
           element: (

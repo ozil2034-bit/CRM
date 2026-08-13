@@ -1,5 +1,6 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/utils/cn';
+import { SIZE_CLASSES, VARIANT_CLASSES } from './button-classes';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -19,30 +20,6 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   readonly leadingIcon?: ReactNode;
   readonly className?: string;
 }
-
-/*
- * Charcoal carries primary actions; gold appears only as a hairline on the
- * secondary variant. Corners are barely rounded and shadows are absent — the
- * specification asks for restraint with cards, borders, rounded boxes and
- * shadows, so weight comes from typography and space instead.
- */
-const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary:
-    'bg-ink-900 text-white hover:bg-ink-800 active:bg-ink-900 disabled:bg-ink-300 disabled:text-white',
-  secondary:
-    'bg-white text-ink-900 ring-1 ring-inset ring-ink-200 hover:ring-gold-400 hover:bg-sand-50 disabled:text-ink-300 disabled:ring-ink-100 disabled:bg-white',
-  ghost:
-    'bg-transparent text-ink-700 hover:bg-sand-100 hover:text-ink-900 disabled:text-ink-300 disabled:bg-transparent',
-  danger:
-    'bg-danger text-white hover:brightness-110 active:brightness-95 disabled:bg-ink-300 disabled:text-white',
-};
-
-const SIZE_CLASSES: Record<ButtonSize, string> = {
-  // Heights meet the 44px touch-target floor from size `md` upward (§45).
-  sm: 'h-9 px-3 text-xs gap-1.5',
-  md: 'h-11 px-5 text-sm gap-2',
-  lg: 'h-12 px-6 text-base gap-2',
-};
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   {

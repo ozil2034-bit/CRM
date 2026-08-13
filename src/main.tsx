@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from '@/app/App';
+import { I18nProvider } from '@/lib/i18n/I18nProvider';
 import { readEnvironment } from '@/config/env';
 import { initializeFirebase } from '@/lib/firebase/client';
 import '@/styles/index.css';
@@ -27,6 +28,8 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <App environment={environment} />
+    <I18nProvider>
+      <App environment={environment} />
+    </I18nProvider>
   </StrictMode>,
 );
