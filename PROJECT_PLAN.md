@@ -140,35 +140,32 @@ Each phase ends with the **phase gate** (§7) and at least one Git commit.
 | 2   | Identity & security   | Auth, OWNER/STAFF roles, owner bootstrap, Firestore + Storage rules, emulator rules tests       | Complete        |
 | 3   | Catalogue             | Dress inventory, customers, CRUD, photo pipeline                                                | Complete        |
 | 4   | Reservation engine    | Lifecycle state machine, availability + cleaning buffer, concurrency safety, fittings, waitlist | Complete        |
-| 5   | Money                 | Payments, deposits, VAT, pickup threshold, late fees, cancellation, pricing snapshots           | **In progress** |
-| 6   | Documents             | Invoices, A4 print, T&C versioning, bilingual documents                                         | Pending         |
+| 5   | Money                 | Payments, deposits, VAT, pickup threshold, late fees, cancellation, pricing snapshots           | Complete        |
+| 6   | Documents             | Invoices, A4 print, T&C versioning, bilingual documents                                         | **In progress** |
 | 7   | Operations UX         | Dashboard, calendar, reports, CSV export, global search                                         | Pending         |
 | 8   | Bilingual & messaging | Arabic, RTL, WhatsApp click-to-chat, notification log                                           | Pending         |
 | 9   | Resilience            | Offline persistence, PWA, backup, import/export                                                 | Pending         |
 | 10  | Production            | Full QA, security testing, deployment                                                           | Pending         |
 
-### Phase 5 scope (current)
+### Phase 6 scope (current)
 
-- [x] Append-only financial ledger; balances derived, never stored
-- [x] One authoritative calculation (`reduceLedger`) shared by client and server
-- [x] Rental account and security deposit tracked separately
-- [x] VAT: discount before tax, deposit outside the base, rounded once, frozen
-- [x] Payments, reversals, refunds, deposit collection, return and forfeiture
-- [x] Late fees with a frozen rate/day snapshot; cancellation tiers from settings
-- [x] Overpayment, over-refund and over-forfeit refused server-side
-- [x] Idempotency via the request key as the event's document id
-- [x] Financial concurrency proven: racing payments, refunds and settlements
-- [x] Owner-only separation for money out and for corrections
-- [x] `financialEvents` closed to all client writes; immutable for every role
-- [x] Reconciliation invariants asserted; reporting aggregations for Phase 7
-- [x] Money panel on the reservation, English and Arabic
-- [x] Documentation: architecture, database, security, testing, operations
+- [x] Invoice, rental agreement and receipt as three templates over ten shared parts
+- [x] `INV-YYYY-NNNN` from a per-year transactional counter; idempotent on the request key
+- [x] Immutable snapshots: business, logo path, customer, dresses, money, terms
+- [x] Figures **copied** from pricing + `reduceLedger`; `reconcileDocument` asserts it
+- [x] A4 print CSS, page-break control, repeated table headers, CSS-counter page numbers
+- [x] English, Arabic and bilingual, with isolated LTR money inside Arabic text
+- [x] Browser print / Save as PDF; no PDF dependency
+- [x] Terms versions: structure only, no supplied legal text, immutable once published
+- [x] Owner-only business profile, logo upload to Storage, and terms
+- [x] Void with a reason; never delete; audit records issue, void and print-initiated
+- [x] Concurrency: eight simultaneous issues, eight unique numbers
 - [x] Phase gate green
 
-**Explicitly not in Phase 5:** the A4 invoice renderer and terms versioning
-(Phase 6); the reports and dashboard screens (Phase 7) — Phase 5 provides the
-aggregations they will read, not the interface; any outgoing message (Phase 8).
-Nothing is deployed and no production project is configured.
+**Explicitly not in Phase 6:** the dashboard, calendar and reports screens
+(Phase 7); WhatsApp and notifications (Phase 8); accessory and alteration line
+capture, which the document already renders but no screen yet creates. Nothing is
+deployed and no production project is configured.
 
 ---
 

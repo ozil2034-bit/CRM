@@ -88,7 +88,7 @@ fittings/{fittingId}
 accessories/{accessoryId}
 financialEvents/{idempotencyKey}
 payments/{paymentId}          (closed — superseded by financialEvents)
-invoices/{invoiceId}
+invoices/{requestKey}         (all three document types)
 damageLogs/{damageLogId}
 waitlist/{waitlistId}
 notificationLogs/{notificationLogId}
@@ -370,6 +370,8 @@ performance-critical query in the system.
 | `dressId` / `dressCode` / `dressName` | string         |                                                          |
 | `dressPhotoPath`                      | string \| null |                                                          |
 | `pickupAt` / `returnAt`               | Timestamp      |                                                          |
+| `designer`                            | string         | snapshotted from the dress at creation                   |
+| `securityDepositSnapshot`             | Baisa          | snapshotted from the dress at creation                   |
 | `cleaningBufferDays`                  | number         | copied from dress at creation                            |
 | `blockStartAt`                        | Timestamp      | `= pickupAt`                                             |
 | `blockEndAt`                          | Timestamp      | `= returnAt + cleaningBufferDays`                        |
@@ -580,29 +582,84 @@ the "eligible balance" used for the pickup threshold (§23).
 
 ---
 
-### 2.12 `invoices/{invoiceId}`
+### 2.12 `invoices/{invoiceId}` — issued documents (Phase 6)
 
-| Field                                       | Type                                          |
-| ------------------------------------------- | --------------------------------------------- |
-| `number`                                    | string — `INV-2026-0001`                      |
-| `year`                                      | number                                        |
-| `reservationId` / `reservationCode`         | string                                        |
-| `customerSnapshot` / `businessSnapshot`     | object                                        |
-| `lines`                                     | `InvoiceLine[]`                               |
-| `subtotal` / `vatRatePercent` / `vatAmount` | Baisa / number / Baisa                        |
-| `securityDepositTotal`                      | Baisa — shown separately, **not** VAT taxable |
-| `grandTotal` / `amountPaid` / `balance`     | Baisa                                         |
-| `termsSnapshot`                             | `{ en, ar }`                                  |
-| `issuedAt` / `issuedBy`                     | Timestamp / string                            |
-| `language`                                  | `'en' \| 'ar' \| 'bilingual'`                 |
-| `voided` / `voidReason`                     |                                               |
+**The document ID is the client's request key**, exactly as for financial
+events: a duplicate submission is a document that already exists rather than a
+race to detect, so a retry after a timeout cannot burn a second invoice number.
 
-Fully self-contained: an invoice renders correctly even if the dress, customer and
-VAT rate all change afterwards. **Changing the VAT setting never alters an issued
-invoice** (§11) because the rate and amount are stored, not referenced.
+One collection holds all three document types. They share a snapshot shape and
+differ only in how they are rendered.
 
-Issuing is a Cloud Function (number allocation + immutability), and rules deny
-`update` and `delete` to all roles.
+| Field                                             | Type                                                       | Notes                                            |
+| ------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------ |
+| `documentType`                                    | `'Tax Invoice' \| 'Rental Agreement' \| 'Payment Receipt'` |                                                  |
+| `documentNumber`                                  | string                                                     | `INV-2026-0001`                                  |
+| `sequence` / `year`                               | number                                                     | from the per-year counter                        |
+| `issuedAt`                                        | Timestamp                                                  |                                                  |
+| `language`                                        | `'en' \| 'ar' \| 'bilingual'`                              | snapshotted, not read live                       |
+| `status`                                          | `'Draft' \| 'Issued' \| 'Voided'`                          |                                                  |
+| `business`                                        | `BusinessSnapshot`                                         | including `logoPath`                             |
+| `customer`                                        | `CustomerSnapshot`                                         |                                                  |
+| `reservationId` / `reservationCode`               | string                                                     |                                                  |
+| `eventDate` / `pickupAt` / `returnAt`             | string / Timestamp                                         |                                                  |
+| `dresses`                                         | array                                                      | code, name, designer, price, deposit, photo path |
+| `accessories` / `alterations`                     | array                                                      |                                                  |
+| `financials`                                      | `DocumentFinancials`                                       | **copied**, never computed — see below           |
+| `payments`                                        | array                                                      | date, kind, method, amount, signed, reference    |
+| `terms`                                           | `TermsSnapshot \| null`                                    | full text, frozen                                |
+| `receiptFor`                                      | payment line \| null                                       | receipts only                                    |
+| `notes` / `issuedByName` / `issuedByUid`          | string                                                     |                                                  |
+| `voided` / `voidedAt` / `voidedBy` / `voidReason` |                                                            |                                                  |
+
+#### The figures are copied, never computed
+
+`financials` is produced by `documentFinancialsFrom(pricing, position)`, which
+reads the reservation's frozen `PricingSnapshot` and the `FinancialPosition`
+that `reduceLedger` produced. There is no arithmetic in the document layer at
+all, and `reconcileDocument` asserts the two agree field for field.
+
+#### Written only by a Cloud Function, and never amended
+
+```
+allow read: if isEmployee();
+allow create, update, delete: if false;
+```
+
+A client that could create one could craft its figures, and an invoice whose
+totals a browser chose is not evidence of anything. Update and delete are
+refused to **every** role including OWNER: voiding goes through `voidDocument`,
+which sets a status and records who and why, leaving the number in its place. A
+deleted invoice number is indistinguishable from tampering.
+
+#### Numbering
+
+`counters/invoice-2026` holds the last issued value for that year, allocated in
+the issuing transaction under the same `current == previous + 1` rule as every
+other counter. Per year, so the sequence restarts on 1 January with no migration
+and `INV-2027-0001` follows `INV-2026-0184` naturally.
+
+---
+
+### 2.12a `termsVersions/{versionId}`
+
+| Field             | Type      | Notes                                       |
+| ----------------- | --------- | ------------------------------------------- |
+| `label`           | string    | e.g. "Autumn 2026"                          |
+| `sections`        | array     | `{ key, titleEn, titleAr, bodyEn, bodyAr }` |
+| `createdAt`       | Timestamp | server clock                                |
+| `createdAtMillis` | number    | for ordering before the server value lands  |
+| `createdBy`       | string    |                                             |
+
+Owner-only create; **no update, no delete, for anyone**. Changing wording means
+publishing a new version, because documents already issued carry a frozen copy
+of the text their customer agreed to.
+
+The section keys are `damageAndLoss`, `lateReturn`, `cancellationAndRefund`,
+`alterations`, `securityDeposit` and `hygieneAndCleaning`. **No default text is
+supplied** — the boutique writes its own. A blank section is not printed.
+
+`settings.activeTermsVersionId` names the version new documents snapshot.
 
 ---
 

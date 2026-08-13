@@ -46,6 +46,7 @@ npm run test:functions:auth          # identity lifecycle only
 npm run test:functions:catalogue     # dress and customer CRUD only
 npm run test:functions:reservations  # the reservation engine only
 npm run test:functions:payments      # the financial engine only
+npm run test:functions:documents     # invoices, agreements and receipts only
 ```
 
 The emulator-backed integration suites run in **separate emulator invocations**,
@@ -53,7 +54,7 @@ not merely separate files. Each bootstraps an owner, and owner bootstrap is a
 one-time transition — sharing one emulator would make whichever suite ran second
 fail against state the first had already consumed.
 
-Current totals: **888** unit · **768** rules · **144** integration.
+Current totals: **979** unit · **802** rules · **182** integration.
 
 ---
 
@@ -272,6 +273,56 @@ Immutability and authorization, against real rules:
 - Staff may record payments and deposits; staff are refused refunds, reversals
   and forfeitures
 - Staff cannot change the VAT rate, and the owner cannot set it to 15%
+
+---
+
+## 4b. Documents (§35–38)
+
+Component tests (`src/print/documents.test.tsx`) render every document type in
+every language mode and cover the content that breaks layouts:
+
+- Tax invoice, rental agreement and receipt × `en` / `ar` / `bilingual`
+- An Arabic document is `dir="rtl"`; a **bilingual** one stays `dir="ltr"` with
+  its Arabic passages marked RTL, because mirroring the page would reverse the
+  English column too
+- Money is isolated so the bidirectional algorithm cannot move `OMR` to the wrong
+  end of an amount inside Arabic text
+- No logo → the business name, never a broken image; no dress photograph → no
+  image element at all
+- An unconfigured VAT or CR number is absent; `OM123456789` and `CR-1098234`
+  appear nowhere
+- No internal event id is printed on a customer document
+- The security deposit is in its own block, is not inside the totals, and says
+  it is refundable and untaxed
+- Ten dresses, twenty-five payments, long English and long Arabic names, long
+  terms in all three languages, long notes, and a short invoice with nothing paid
+- The agreement carries signature lines and omits the payment history; the
+  receipt says plainly it is not a tax invoice
+- A voided document still renders, marked, with its original figures intact
+
+Emulator tests (`npm run test:functions:documents`):
+
+| Test                                | Asserted outcome                             |
+| ----------------------------------- | -------------------------------------------- |
+| Eight simultaneous issues           | Eight **unique** `INV-YYYY-NNNN` numbers     |
+| Same request key twice              | One document; the second reports `duplicate` |
+| Eight simultaneous sends of one key | One document                                 |
+| Duplicate request                   | The invoice counter does **not** advance     |
+
+Immutability, against real rules:
+
+- Changing the business name, address, VAT number and logo, the VAT rate, and
+  the customer's name leaves an issued document **byte-identical**
+- A later payment does not alter an already-issued document's figures
+- Editing, deleting or creating an invoice from a client is refused, for staff
+  and for the owner
+- A published terms version cannot be edited; a new active version does not
+  change what an issued document carries
+
+Financial reconciliation (§36) runs against the emulator: the stored document's
+`financials` is compared field by field with `reduceLedger` recomputed
+independently from the reservation and the ledger. `reconcileDocument` must
+return an empty list.
 
 ---
 

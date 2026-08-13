@@ -388,6 +388,123 @@ next month cannot re-price a fee already agreed. Charged once per reservation.
 
 ---
 
+## 3c. Documents
+
+An invoice, a rental agreement and a receipt. All three are **snapshots**: they
+capture the business, the customer, the dresses, the money and the terms exactly
+as they stood at the moment of issue, and nothing that changes afterwards can
+reach back into them. That is the entire point of a document a customer keeps.
+
+### A document computes nothing
+
+`documentFinancialsFrom(pricing, position)` **copies**. There is no VAT
+arithmetic in the document layer, no balance subtraction, no summing of
+payments — every figure has exactly one origin: the reservation's frozen
+`PricingSnapshot`, or the `FinancialPosition` that `reduceLedger` produced.
+
+`reconcileDocument` asserts it, field by field, and the tests run it over ten
+scenarios plus a live emulator issue. A document that recomputed its own totals
+would be a second financial engine, and when two engines disagree the wrong one
+is the copy the customer is holding.
+
+### Why issuing is a Cloud Function
+
+Three reasons, each sufficient:
+
+1. **The number.** `INV-2026-0001` comes from a per-year counter allocated
+   inside the transaction, with the same `current == previous + 1` rule the
+   other counters use. Two simultaneous issues conflict rather than taking the
+   same number.
+2. **One instant.** The reservation, the ledger, the customer, the business
+   profile and the terms are all read inside one transaction. Assembled from
+   separate reads, an invoice could show a balance from before a payment beside
+   a payment list that includes it.
+3. **Immutability.** The rules refuse every client write to `invoices`. A client
+   that could create one could craft its figures, and an invoice whose totals a
+   browser chose is not evidence of anything.
+
+Idempotent on the request key, which is the document's id — the same mechanism
+as Phase 5. A retry after a timeout returns the original document rather than
+issuing a second one and burning a second number.
+
+### Voiding, not deleting
+
+An issued document is never deleted and its contents are never altered. Voiding
+sets a status and records who and why. The number keeps its place in the
+sequence, so a gap is explicable rather than indistinguishable from tampering.
+
+Voiding withdraws the **document**. It does not reverse any payment; that is a
+separate Phase 5 operation with its own record.
+
+### Three templates, ten shared parts
+
+`TaxInvoice`, `RentalAgreement` and `PaymentReceipt` compose `DocumentHeader`,
+`BusinessInfo`, `CustomerInfo`, `ReservationInfo`, `DressInfo`,
+`FinancialSummary`, `PaymentSummary`, `TermsAndConditions`, `SignatureSection`
+and `DocumentFooter`.
+
+Three components rather than one branching on a type. A single conditional
+document grows a thicket of "if receipt hide this, if agreement show that", and
+the one thing a printed document must be is predictable. The differences are
+real: the agreement ends in signatures and omits the payment history because a
+contract records an undertaking rather than a settlement; the receipt is a short
+slip that says plainly it is not a tax invoice.
+
+### A4
+
+`src/print/print.css` is self-contained rather than built on the application's
+utilities. Paper is a different medium — physical page breaks, no scrolling, a
+fixed 210mm width — and expressing that through screen utilities produces output
+that looks right in a browser and wrong on paper.
+
+```css
+@page {
+  size: A4 portrait;
+  margin: 12mm 12mm 16mm;
+}
+```
+
+Table rows, totals blocks and signature blocks carry `break-inside: avoid`;
+headings carry `break-after: avoid`; `thead` repeats on every page a table
+continues onto, because a column of amounts with no headings above it is
+unreadable. Page numbers come from CSS counters (`counter(page) / counter(pages)`)
+rather than a count computed in JavaScript — the application cannot know where
+the printer will break the flow, and a wrong "Page 1 of 2" is worse than none.
+
+### PDF
+
+There is no PDF library. `window.print()` gives the browser's own dialogue,
+which offers Save as PDF, shapes Arabic and bilingual text with the platform's
+own text engine, and needs no font embedding. Adding a library would introduce a
+dependency and a second text-shaping implementation to obtain something the
+browser already does properly — and Arabic shaping is precisely where such
+libraries tend to fail.
+
+### Language
+
+`en`, `ar` and `bilingual`. A bilingual document stays **LTR as a whole** and
+marks only its Arabic passages RTL: setting the page RTL would mirror the
+English column too, and an English address read right-to-left is not a document
+anyone would accept.
+
+Money and dates carry `direction: ltr; unicode-bidi: isolate` so the
+bidirectional algorithm cannot move `OMR` to the wrong end of an amount inside
+an Arabic paragraph, and `font-variant-numeric: tabular-nums` so columns align.
+
+The language follows the customer's preference, with an employee override, and
+is snapshotted — changing the boutique's default later cannot alter a document
+already given to somebody.
+
+### Nothing invented
+
+An unconfigured VAT or CR number is **omitted entirely**, never rendered as a
+placeholder. A missing logo falls back to the business name rather than a broken
+image. A dress with no photograph renders no image at all. Terms ship with
+structure and **no legal text**: the boutique writes its own, because a claim it
+never made should not appear on a contract it asks a customer to sign.
+
+---
+
 ## 4. The service layer
 
 Services are the only place that:

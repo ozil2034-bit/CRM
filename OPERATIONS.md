@@ -283,6 +283,37 @@ right now, so a payment saved offline and synced later could be committed
 against a reservation that has since been refunded or cancelled. Nothing is
 queued, so nothing will surprise you an hour later.
 
+### Giving a customer their paperwork
+
+Open the reservation and choose **Issue a document**. Pick the document and the
+language, check the preview — it is exactly what will print — and issue.
+
+Three documents, for three purposes:
+
+- **Tax invoice** — the full record: what was rented, VAT, what has been paid,
+  what is left. This is the document for the customer's records and the
+  boutique's.
+- **Rental agreement** — the contract. Carries the terms and the signature
+  lines, and omits the payment history, because it records an undertaking rather
+  than a settlement.
+- **Payment receipt** — a short slip acknowledging one payment. It says on its
+  face that it is **not** a tax invoice, so a customer does not leave believing
+  they have one.
+
+The language follows the customer's preference and can be overridden per
+document. Bilingual puts English and Arabic side by side on one page.
+
+### Printing and PDFs
+
+**Print / Save as PDF** opens the browser's own print dialogue; choose "Save as
+PDF" there for a file. There is no separate download button, because the browser
+already does this correctly — including Arabic shaping, which is exactly where
+add-on PDF tools tend to go wrong.
+
+The system records that printing was _started_. It cannot know whether paper
+came out, whether the dialogue was cancelled, or whether it went to a file, so
+the log says "print initiated" and not "printed".
+
 ### An invoice has the wrong amount
 
 Issued invoices are immutable. Void it with a reason and issue a corrected one.
@@ -300,6 +331,51 @@ created before the change keep their snapshot pricing.
 The application shows: _Offline — Changes are saved locally and will synchronize
 when connection returns._ Reads work from cache. Writes queue. **Nothing is
 reported as saved until the server confirms it.** WhatsApp requires a connection.
+
+---
+
+## 7a. Documents, the logo and the terms
+
+### The boutique's details on documents
+
+**Settings → Business profile**, owner only. Whatever is filled in appears on
+every document; whatever is left blank is simply omitted.
+
+**Leave the VAT and CR numbers blank until the boutique has the real ones.** The
+system will never invent or default them, and a guessed registration number on a
+tax invoice is a false statement to a customer and to the tax authority.
+
+### The logo
+
+Upload a PNG, JPEG or WebP under 2 MB. Replacing it does **not** change any
+invoice already issued: each document holds the logo it was printed with, so old
+paperwork keeps its own header. Only the owner can change it.
+
+If no logo is uploaded, documents show the business name in its place. Nothing
+is broken; that is the intended fallback.
+
+### The terms
+
+**Settings → Terms and conditions**, owner only. Six topics are prompted —
+damage and loss, late return, cancellation and refunds, alterations, security
+deposit, hygiene and cleaning — and **no wording is supplied**. The boutique
+writes its own, in English and in Arabic. A section left blank is not printed.
+
+Publishing creates a **new version** and makes it active. A published version is
+never edited: documents already issued carry a frozen copy of the wording their
+customer agreed to, and editing it would silently rewrite signed contracts.
+
+To change a clause, edit the text and publish again. Old agreements keep their
+own text, and each document prints the version it used.
+
+### Voiding a document
+
+Only the owner, and only with a reason. The document is kept, marked VOIDED, and
+its number stays in the sequence — a missing invoice number is indistinguishable
+from tampering, which is exactly what an auditor would ask about.
+
+Voiding withdraws the **document**. It does not reverse a payment; if money needs
+to go back, record a refund separately.
 
 ---
 

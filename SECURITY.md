@@ -277,6 +277,9 @@ Rules validate not only _who_ but _what_:
 | `postLateFee`                  | Reads the configured rate and freezes the calculation onto the event                                                                                                                   |
 | `quoteCancellationFor`         | Read-only quote, using the configured tiers                                                                                                                                            |
 | `cancelReservationFinancially` | Owner-only. Posts the charge waiver; does not pay the refund                                                                                                                           |
+| `issueDocument`                | Allocates the invoice number from a per-year transactional counter and captures the whole snapshot at one instant                                                                      |
+| `voidDocument`                 | Owner-only. Sets a status and a reason; never deletes or alters the document                                                                                                           |
+| `recordPrintIntent`            | Audit only. Records that printing was _started_ — the browser never reports whether paper emerged                                                                                      |
 
 ### Money: what staff may and may not do
 
@@ -313,6 +316,31 @@ reservation document (`financialVersion`), for the same phantom-read reason
 booking does. Idempotency is structural: the client's request key **is** the
 event's document id, so a duplicate submission is a document that already exists
 rather than a race to detect. See ARCHITECTURE §3b.
+
+### Documents: issued means frozen
+
+`invoices` refuses **all** client writes, and refuses update and delete to every
+role including OWNER.
+
+A client that could create a document could craft its figures, and an invoice
+whose totals a browser chose is not evidence of anything. A client that could
+edit one could change what a customer already holds. Withdrawal goes through
+`voidDocument`, which is owner-only, requires a reason, and leaves the number in
+its place — a deleted invoice number is indistinguishable from tampering.
+
+`termsVersions` permits owner create but **no update or delete for anyone**:
+documents carry a frozen copy of the wording their customer agreed to, and a
+version that could be edited would silently rewrite signed contracts. Changing
+the terms means publishing a new version.
+
+`businessProfile` is owner-only, including the logo path. It decides what appears
+on every document the boutique issues, so the shop floor must not be able to
+change it. In Storage, `business/logo/**` is owner-write and employee-read.
+
+Nothing is ever fabricated on a document: an unconfigured VAT or CR number is
+omitted rather than filled with a placeholder, and no default terms text ships.
+Documents are readable by employees only — there is no public or guessable URL
+for a customer's invoice, and no customer data is placed in a QR code.
 
 ### Reservations: the client write path is closed
 
