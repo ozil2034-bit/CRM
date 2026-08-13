@@ -138,3 +138,12 @@ function connectToEmulators({
 export function resetFirebaseClientForTests(): void {
   client = null;
 }
+
+/**
+ * Install emulator-connected handles so integration tests exercise the real
+ * service layer. Not used by application code.
+ * @internal
+ */
+export function setFirebaseClientForTests(next: FirebaseClient): void {
+  client = next;
+}
