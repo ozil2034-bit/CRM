@@ -246,6 +246,26 @@ export function observeReservationItems(
 }
 
 /**
+ * Every reservation item in the boutique.
+ *
+ * Reporting needs the whole set: revenue is attributed per dress, and
+ * utilisation divides blocked days by operating days across the inventory.
+ * Unbounded, like the reservation listener it accompanies — see
+ * `operations.service.ts` for the scale this assumes and what to change when it
+ * no longer holds.
+ */
+export function observeAllReservationItems(
+  onChange: (items: ReservationItem[]) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return onSnapshot(
+    collection(db(), 'reservationItems'),
+    (snapshot) => onChange(snapshot.docs.map(toItem)),
+    onError,
+  );
+}
+
+/**
  * Blocking intervals for one dress, for the availability hint shown while
  * booking.
  *

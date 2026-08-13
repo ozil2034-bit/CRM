@@ -41,6 +41,7 @@ import { formatOmr } from '@/domain/money';
 import { observePickupThreshold } from '@/services/payments.service';
 import { ConflictPanel } from './ConflictPanel';
 import { MoneyPanel } from './MoneyPanel';
+import { AmendmentsPanel } from './AmendmentsPanel';
 import { FITTING_STATUS_TONE, RESERVATION_STATUS_TONE } from './status-tone';
 
 export function ReservationDetailPage() {
@@ -335,6 +336,12 @@ export function ReservationDetailPage() {
        * happened since.
        */}
       <MoneyPanel reservation={booking} minPickupPaymentPercent={pickupThreshold} />
+
+      {/*
+       * Accessories and alterations. Below the money on purpose: they change
+       * what is owed, so the balance they affect should already be on screen.
+       */}
+      <AmendmentsPanel reservation={booking} />
 
       {/* Status ------------------------------------------------------------ */}
       {can('reservations.edit') && nextStatuses.length > 0 && (

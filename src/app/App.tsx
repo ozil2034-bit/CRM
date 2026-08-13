@@ -10,7 +10,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { getBootstrapState } from '@/services/auth.service';
 
 import { SetupRequiredPage } from '@/pages/setup/SetupRequiredPage';
-import { FoundationPage } from '@/pages/setup/FoundationPage';
+import { DashboardPage } from '@/pages/dashboard/DashboardPage';
+import { CalendarPage } from '@/pages/calendar/CalendarPage';
+import { AccessoriesPage } from '@/pages/accessories/AccessoriesPage';
+import { AccessoryFormPage } from '@/pages/accessories/AccessoryFormPage';
+import { ReportsPage } from '@/pages/reports/ReportsPage';
+import { SheetsPage } from '@/pages/operations/SheetsPage';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { BootstrapPage } from '@/pages/auth/BootstrapPage';
 import { NoAccessPage } from '@/pages/auth/NoAccessPage';
@@ -100,7 +105,56 @@ function AuthenticatedApp({ isProduction }: { isProduction: boolean }) {
       element: <AppShell />,
       errorElement: <AppErrorBoundary />,
       children: [
-        { index: true, element: <FoundationPage isProduction={isProduction} /> },
+        /*
+         * Phase 7 replaces the foundation screen with the employee dashboard.
+         * It renders correctly with zero records: an empty boutique is told so,
+         * rather than shown zeroes that look like measurements.
+         */
+        { index: true, element: <DashboardPage isProduction={isProduction} /> },
+
+        { path: 'calendar', element: <CalendarPage /> },
+
+        {
+          path: 'accessories',
+          element: (
+            <RequirePermission permission="accessories.view">
+              <AccessoriesPage />
+            </RequirePermission>
+          ),
+        },
+        {
+          path: 'accessories/new',
+          element: (
+            <RequirePermission permission="accessories.manage">
+              <AccessoryFormPage />
+            </RequirePermission>
+          ),
+        },
+        {
+          path: 'accessories/:accessoryId',
+          element: (
+            <RequirePermission permission="accessories.view">
+              <AccessoryFormPage />
+            </RequirePermission>
+          ),
+        },
+
+        {
+          path: 'reports',
+          element: (
+            <RequirePermission permission="reports.operational">
+              <ReportsPage />
+            </RequirePermission>
+          ),
+        },
+        {
+          path: 'sheets',
+          element: (
+            <RequirePermission permission="reports.operational">
+              <SheetsPage />
+            </RequirePermission>
+          ),
+        },
 
         {
           path: 'inventory',

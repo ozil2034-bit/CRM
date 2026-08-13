@@ -123,6 +123,44 @@ export function observeFinancialEvents(
 }
 
 /**
+ * Every event in the boutique, grouped by reservation.
+ *
+ * One listener for the whole ledger, because the dashboard needs a balance for
+ * every live booking and forty per-reservation queries would be forty round
+ * trips. See `operations.service.ts` for the scale this assumes and what to
+ * change when it no longer holds.
+ */
+export function observeFinancialEventsForAll(
+  onChange: (byReservation: Map<string, DisplayEvent[]>) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return onSnapshot(
+    collection(db(), EVENTS),
+    (snapshot) => {
+      const grouped = new Map<string, DisplayEvent[]>();
+
+      for (const document of snapshot.docs) {
+        const event = toEvent(document);
+        const bucket = grouped.get(event.reservationId);
+
+        if (bucket === undefined) {
+          grouped.set(event.reservationId, [event]);
+        } else {
+          bucket.push(event);
+        }
+      }
+
+      for (const bucket of grouped.values()) {
+        bucket.sort((a, b) => a.occurredAt - b.occurredAt);
+      }
+
+      onChange(grouped);
+    },
+    onError,
+  );
+}
+
+/**
  * The reservation's financial position.
  *
  * Derived, never stored. A stored balance is a cache that goes stale the moment

@@ -16,6 +16,7 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  Timestamp,
   setDoc,
   updateDoc,
   where,
@@ -25,6 +26,7 @@ import {
 
 import { getFirebaseClient } from '@/lib/firebase/client';
 import { baisa, type Baisa } from '@/domain/money';
+import type { EpochMs } from '@/domain/datetime';
 import {
   DEFAULT_CLEANING_BUFFER_DAYS,
   dressSearchFields,
@@ -64,6 +66,15 @@ export interface Dress {
   readonly status: DressStatus;
   readonly createdBy: string;
   readonly updatedBy: string;
+  /**
+   * When the gown entered the inventory.
+   *
+   * Utilisation divides by the days a dress was actually available, so a gown
+   * bought on the 20th must not be measured against the whole month. Zero when
+   * the server timestamp has not landed yet, which reporting reads as "in
+   * service for the whole period" rather than inventing a date.
+   */
+  readonly createdAt: EpochMs;
 }
 
 export class DressServiceError extends Error {
@@ -77,6 +88,11 @@ export class DressServiceError extends Error {
 }
 
 const DRESSES = 'dresses';
+
+const millis = (value: unknown): EpochMs => {
+  if (value instanceof Timestamp) return value.toMillis();
+  return typeof value === 'number' ? value : 0;
+};
 
 function db(): Firestore {
   return getFirebaseClient().db;
@@ -124,6 +140,7 @@ function toDress(snapshot: QueryDocumentSnapshot): Dress {
     // the dangerous direction to fail in.
     status: isDressStatus(data['status']) ? data['status'] : 'Retired',
     createdBy: str(data['createdBy']),
+    createdAt: millis(data['createdAt']),
     updatedBy: str(data['updatedBy']),
   };
 }
