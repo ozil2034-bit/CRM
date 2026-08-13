@@ -1,0 +1,457 @@
+/**
+ * A4 document styling.
+ *
+ * These styles are deliberately **self-contained** rather than built on the
+ * application's Tailwind utilities. A printed document is a different medium
+ * with different constraints — physical page breaks, no scrolling, no hover, a
+ * fixed 210mm width — and expressing that through screen utilities produces
+ * output that looks right in the browser and wrong on paper.
+ *
+ * The palette and typography are the Phase 1 design system's, referenced
+ * through the same custom properties, so a document reads as the same brand as
+ * the application.
+ */
+
+/* ------------------------------------------------------------------------ *
+ * The page
+ * ------------------------------------------------------------------------ */
+
+@page {
+  size: A4 portrait;
+  /*
+   * 12mm on three sides, 16mm at the foot to leave room for the footer rule and
+   * the page number without them touching the edge of the paper.
+   */
+  margin: 12mm 12mm 16mm;
+}
+
+.doc {
+  /*
+   * On screen the sheet is shown at its true width so what an employee reviews
+   * is what will come out of the printer. 186mm is 210mm less the two 12mm
+   * margins.
+   */
+  width: 186mm;
+  margin: 0 auto;
+  background: #ffffff;
+  color: var(--color-ink-900, #1a1917);
+  font-family: var(--font-sans, 'Inter', sans-serif);
+  font-size: 9.5pt;
+  line-height: 1.5;
+
+  /* Physical paper is not elastic: nothing may spill sideways. */
+  overflow-wrap: anywhere;
+}
+
+.doc--ar {
+  direction: rtl;
+  font-family: var(--font-arabic, 'IBM Plex Sans Arabic', sans-serif);
+}
+
+/*
+ * A bilingual document stays left-to-right as a whole and marks only its Arabic
+ * column RTL. Mirroring the page would reverse the English column too, and an
+ * English address read right-to-left is not a document anyone would accept.
+ */
+.doc--bilingual {
+  direction: ltr;
+}
+
+.doc__ar-text {
+  direction: rtl;
+  text-align: right;
+  font-family: var(--font-arabic, 'IBM Plex Sans Arabic', sans-serif);
+}
+
+/* ------------------------------------------------------------------------ *
+ * Typography
+ * ------------------------------------------------------------------------ */
+
+.doc h1 {
+  font-family: var(--font-display, 'Cormorant Garamond', serif);
+  font-size: 22pt;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+.doc--ar h1,
+.doc__ar-text h1 {
+  font-family: var(--font-arabic-display, 'Noto Kufi Arabic', sans-serif);
+  font-size: 18pt;
+}
+
+.doc h2 {
+  font-size: 8pt;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink-400, #918b80);
+  margin: 0 0 3mm;
+  /* A heading alone at the foot of a page is an orphan. */
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.doc--ar h2 {
+  /* Arabic has no letter case, and tracking it out harms legibility. */
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--font-arabic-display, 'Noto Kufi Arabic', sans-serif);
+}
+
+.doc h3 {
+  font-size: 10pt;
+  font-weight: 600;
+  margin: 0 0 1.5mm;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.doc p {
+  margin: 0 0 2mm;
+}
+
+.doc__muted {
+  color: var(--color-ink-500, #6f6a61);
+}
+
+.doc__small {
+  font-size: 8pt;
+}
+
+/**
+ * Money and dates.
+ *
+ * `unicode-bidi: isolate` with `direction: ltr` keeps `OMR 180.000` reading
+ * left-to-right inside an Arabic paragraph. Without it the bidirectional
+ * algorithm can move the currency code to the wrong end of the amount, which
+ * on an invoice is not a cosmetic problem.
+ *
+ * Tabular figures keep columns of amounts aligned on the decimal point.
+ */
+.doc__amount,
+.doc__numeric {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------------ *
+ * Rules and structure
+ * ------------------------------------------------------------------------ */
+
+.doc__rule {
+  border: 0;
+  border-top: 0.4mm solid var(--color-gold-500, #bfa367);
+  margin: 4mm 0;
+}
+
+.doc__hairline {
+  border: 0;
+  border-top: 0.2mm solid var(--color-ink-200, #d8d3ca);
+  margin: 3mm 0;
+}
+
+.doc__section {
+  margin-top: 6mm;
+}
+
+/** A block that must never be split across a page break. */
+.doc__keep {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.doc__grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6mm;
+}
+
+.doc__grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5mm;
+}
+
+/* ------------------------------------------------------------------------ *
+ * Header
+ * ------------------------------------------------------------------------ */
+
+.doc__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8mm;
+}
+
+.doc__logo {
+  /*
+   * Constrained by height with width auto, so a wide or tall logo keeps its
+   * aspect ratio rather than being squashed into a box.
+   */
+  height: 18mm;
+  width: auto;
+  max-width: 60mm;
+  object-fit: contain;
+}
+
+.doc__identity {
+  text-align: end;
+}
+
+/* ------------------------------------------------------------------------ *
+ * Tables
+ * ------------------------------------------------------------------------ */
+
+.doc__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+}
+
+.doc__table thead th {
+  font-size: 7.5pt;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-400, #918b80);
+  text-align: start;
+  padding: 0 0 1.5mm;
+  border-bottom: 0.2mm solid var(--color-ink-300, #b5afa4);
+}
+
+.doc--ar .doc__table thead th {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.doc__table tbody td {
+  padding: 1.8mm 0;
+  border-bottom: 0.2mm solid var(--color-ink-100, #ebe8e2);
+  vertical-align: top;
+}
+
+.doc__table .doc__col-amount {
+  text-align: end;
+  white-space: nowrap;
+}
+
+/*
+ * A row is never split across pages, and the header repeats on every page a
+ * table continues onto — a column of amounts with no headings above it is
+ * unreadable.
+ */
+.doc__table tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.doc__table thead {
+  display: table-header-group;
+}
+
+.doc__table tfoot {
+  display: table-footer-group;
+}
+
+/* ------------------------------------------------------------------------ *
+ * Financial summary
+ * ------------------------------------------------------------------------ */
+
+.doc__totals {
+  width: 78mm;
+  margin-inline-start: auto;
+  font-size: 9.5pt;
+}
+
+.doc__totals-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6mm;
+  padding: 1.2mm 0;
+}
+
+.doc__totals-row--sum {
+  border-top: 0.2mm solid var(--color-ink-300, #b5afa4);
+  margin-top: 1mm;
+  padding-top: 2mm;
+  font-weight: 600;
+}
+
+.doc__totals-row--grand {
+  border-top: 0.4mm solid var(--color-gold-500, #bfa367);
+  margin-top: 1.5mm;
+  padding-top: 2mm;
+  font-size: 11pt;
+  font-weight: 600;
+}
+
+/**
+ * The security deposit block.
+ *
+ * Set apart from the totals deliberately. A deposit is the customer's money
+ * held against damage — not revenue, not VAT-taxable — and a document that
+ * lets it blend into a rental total invites exactly the confusion the whole
+ * financial model exists to prevent.
+ */
+.doc__deposit {
+  margin-top: 4mm;
+  padding: 3mm 4mm;
+  background: var(--color-sand-50, #fbf9f6);
+  border-inline-start: 0.6mm solid var(--color-gold-500, #bfa367);
+}
+
+/* ------------------------------------------------------------------------ *
+ * Dress lines
+ * ------------------------------------------------------------------------ */
+
+.doc__dress-photo {
+  width: 22mm;
+  height: 30mm;
+  object-fit: cover;
+  background: var(--color-sand-100, #f5f1ea);
+}
+
+/* ------------------------------------------------------------------------ *
+ * Terms
+ * ------------------------------------------------------------------------ */
+
+.doc__terms-section {
+  margin-bottom: 3.5mm;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.doc__terms-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6mm;
+}
+
+/* ------------------------------------------------------------------------ *
+ * Signatures
+ * ------------------------------------------------------------------------ */
+
+.doc__signatures {
+  margin-top: 10mm;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12mm;
+  /* A signature block split across pages leaves a line to sign on page 2. */
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.doc__signature-line {
+  margin-top: 14mm;
+  border-top: 0.2mm solid var(--color-ink-400, #918b80);
+  padding-top: 1.5mm;
+  font-size: 8pt;
+  color: var(--color-ink-500, #6f6a61);
+}
+
+/* ------------------------------------------------------------------------ *
+ * Footer
+ * ------------------------------------------------------------------------ */
+
+.doc__footer {
+  margin-top: 8mm;
+  padding-top: 3mm;
+  border-top: 0.2mm solid var(--color-ink-200, #d8d3ca);
+  font-size: 7.5pt;
+  color: var(--color-ink-500, #6f6a61);
+  display: flex;
+  justify-content: space-between;
+  gap: 6mm;
+}
+
+/**
+ * The page number.
+ *
+ * Printed by the browser through CSS counters, not computed in JavaScript.
+ * A count worked out in the application would be a guess — it cannot know where
+ * the printer will break the flow — and a wrong "Page 1 of 2" on a three-page
+ * contract is worse than none.
+ */
+@media print {
+  .doc__page-number::after {
+    content: counter(page) ' / ' counter(pages);
+  }
+}
+
+/*
+ * On screen there are no pages to count, so the label is suppressed rather than
+ * showing a fabricated "1 / 1".
+ */
+@media screen {
+  .doc__page-number {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------------ *
+ * Screen preview
+ * ------------------------------------------------------------------------ */
+
+@media screen {
+  .doc {
+    box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+    padding: 12mm;
+    margin-block: 8mm;
+    /* The preview shows the full sheet including its margins. */
+    width: 210mm;
+  }
+}
+
+/* ------------------------------------------------------------------------ *
+ * Print
+ * ------------------------------------------------------------------------ */
+
+@media print {
+  /*
+   * Everything that is application rather than document disappears: navigation,
+   * buttons, the language picker, the shell. The page that prints contains the
+   * document and nothing else.
+   */
+  .no-print,
+  nav,
+  header.app-chrome,
+  .doc-toolbar {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #ffffff;
+    margin: 0;
+    padding: 0;
+  }
+
+  .doc {
+    width: auto;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  /*
+   * Backgrounds and rules are part of the design, not decoration to be dropped.
+   * Without this the gold rules and the sand deposit block print as nothing on
+   * most browsers' default settings.
+   */
+  .doc__deposit,
+  .doc__rule,
+  .doc__totals-row--grand {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* One document per sheet when several are rendered together. */
+  .doc + .doc {
+    break-before: page;
+    page-break-before: always;
+  }
+}

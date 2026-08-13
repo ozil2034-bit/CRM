@@ -126,6 +126,8 @@ interface LoadedDress {
   readonly rentalPrice: Baisa;
   readonly securityDeposit: Baisa;
   readonly cleaningBufferDays: number;
+  /** Storage path of the primary photograph, snapshotted onto each item. */
+  readonly primaryPhotoPath: string | null;
 }
 
 const DEFAULT_BUFFER_DAYS = 3;
@@ -142,6 +144,7 @@ function toLoadedDress(id: string, data: FirebaseFirestore.DocumentData | undefi
       rentalPrice: baisa(0),
       securityDeposit: baisa(0),
       cleaningBufferDays: DEFAULT_BUFFER_DAYS,
+      primaryPhotoPath: null,
     };
   }
 
@@ -160,7 +163,35 @@ function toLoadedDress(id: string, data: FirebaseFirestore.DocumentData | undefi
       typeof data['cleaningBufferDays'] === 'number' && Number.isInteger(data['cleaningBufferDays'])
         ? data['cleaningBufferDays']
         : DEFAULT_BUFFER_DAYS,
+    primaryPhotoPath: readPrimaryPhotoPath(data),
   };
+}
+
+/**
+ * The storage path of the dress's main photograph, or null.
+ *
+ * Falls back to the first photograph when no primary has been chosen, and to
+ * null when there are none — a document renders nothing rather than a broken
+ * image.
+ */
+function readPrimaryPhotoPath(data: FirebaseFirestore.DocumentData): string | null {
+  const photos = data['photos'];
+  if (!Array.isArray(photos) || photos.length === 0) return null;
+
+  const primaryId = typeof data['primaryPhotoId'] === 'string' ? data['primaryPhotoId'] : null;
+
+  const chosen =
+    (primaryId === null
+      ? undefined
+      : photos.find(
+          (photo: unknown) =>
+            typeof photo === 'object' &&
+            photo !== null &&
+            (photo as Record<string, unknown>)['id'] === primaryId,
+        )) ?? photos[0];
+
+  const path = (chosen as Record<string, unknown> | undefined)?.['storagePath'];
+  return typeof path === 'string' && path.length > 0 ? path : null;
 }
 
 function isDressStatus(value: unknown): value is DressStatus {
@@ -441,6 +472,14 @@ export const createReservation = onCall(
           dressId: dress.id,
           dressCode: dress.code,
           dressName: dress.name,
+          /*
+           * The designer, the deposit and the photograph are snapshotted here
+           * alongside the price, because documents are built from these items
+           * and a document must show the gown as it was when it was booked.
+           * Reading them from the dress at invoice time would let a later edit
+           * change an invoice the customer already holds.
+           */
+          designer: dress.designer,
           pickupAt: Timestamp.fromMillis(pickupAt),
           returnAt: Timestamp.fromMillis(returnAt),
           cleaningBufferDays: dress.cleaningBufferDays,
@@ -448,6 +487,8 @@ export const createReservation = onCall(
           blockEndAt: Timestamp.fromMillis(interval.end),
           blocking: true,
           rentalPriceSnapshot: dress.rentalPrice,
+          securityDepositSnapshot: dress.securityDeposit,
+          dressPhotoPath: dress.primaryPhotoPath,
           createdAt: FieldValue.serverTimestamp(),
           createdBy: actor.uid,
         });

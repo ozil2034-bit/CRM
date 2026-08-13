@@ -44,3 +44,11 @@ export {
   quoteCancellationFor,
   cancelReservationFinancially,
 } from './payments';
+
+/*
+ * Phase 6. Issuing allocates a number from a per-year counter and captures the
+ * whole snapshot at one instant; both need a transaction the client SDK cannot
+ * run. The rules refuse every client write to `invoices`, so this is the only
+ * path — an invoice whose figures the browser chose is not evidence of anything.
+ */
+export { issueDocument, voidDocument, recordPrintIntent } from './documents';
