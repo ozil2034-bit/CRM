@@ -56,8 +56,14 @@ describe('scoreSimilarity', () => {
 
     const rightSize = scoreSimilarity(
       target,
-      dress({ id: 'a', size: 'M', style: 'Mermaid', color: 'Blush', designer: 'Other',
-        rentalPrice: baisa(500_000) }),
+      dress({
+        id: 'a',
+        size: 'M',
+        style: 'Mermaid',
+        color: 'Blush',
+        designer: 'Other',
+        rentalPrice: baisa(500_000),
+      }),
     );
     const everythingElse = scoreSimilarity(
       target,
@@ -145,11 +151,23 @@ describe('findSimilarDresses', () => {
   it('ranks the closest match first', () => {
     const results = findSimilarDresses(target, {
       availableDresses: [
-        dress({ id: 'colour-only', code: 'WD-0003', size: 'XL', style: 'Mermaid',
-          designer: 'Other', rentalPrice: baisa(900_000) }),
+        dress({
+          id: 'colour-only',
+          code: 'WD-0003',
+          size: 'XL',
+          style: 'Mermaid',
+          designer: 'Other',
+          rentalPrice: baisa(900_000),
+        }),
         dress({ id: 'near-twin', code: 'WD-0002' }),
-        dress({ id: 'size-only', code: 'WD-0004', style: 'Mermaid', color: 'Blush',
-          designer: 'Other', rentalPrice: baisa(900_000) }),
+        dress({
+          id: 'size-only',
+          code: 'WD-0004',
+          style: 'Mermaid',
+          color: 'Blush',
+          designer: 'Other',
+          rentalPrice: baisa(900_000),
+        }),
       ],
     });
 

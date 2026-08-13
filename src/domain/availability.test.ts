@@ -278,7 +278,11 @@ describe('overlap matrix', () => {
 
   it('16. rejects a dress Under Repair regardless of dates', () => {
     const conflict = findConflict(
-      request({ dressStatus: 'Under Repair', pickupAt: at('2027-01-01T10:00'), returnAt: at('2027-01-03T10:00') }),
+      request({
+        dressStatus: 'Under Repair',
+        pickupAt: at('2027-01-01T10:00'),
+        returnAt: at('2027-01-03T10:00'),
+      }),
       [],
     );
     expect(conflict?.reason).toBe('DRESS_UNDER_REPAIR');
@@ -305,7 +309,11 @@ describe('overlap matrix', () => {
     // The physical status is not a date conflict; the interval decides.
     expect(
       findConflict(
-        request({ dressStatus: 'Out with Customer', pickupAt: at('2026-10-01T10:00'), returnAt: at('2026-10-03T10:00') }),
+        request({
+          dressStatus: 'Out with Customer',
+          pickupAt: at('2026-10-01T10:00'),
+          returnAt: at('2026-10-03T10:00'),
+        }),
         existing,
       ),
     ).toBeNull();
@@ -440,6 +448,8 @@ describe('nextAvailableFrom()', () => {
       }),
     ];
 
-    expect(nextAvailableFrom(at('2026-09-10T10:00'), 2 * MS_PER_DAY, 3, forever, 30 * MS_PER_DAY)).toBeNull();
+    expect(
+      nextAvailableFrom(at('2026-09-10T10:00'), 2 * MS_PER_DAY, 3, forever, 30 * MS_PER_DAY),
+    ).toBeNull();
   });
 });

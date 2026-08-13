@@ -70,7 +70,11 @@ import {
   DATE_PROBLEM_MESSAGES,
   TRANSITION_REFUSAL_MESSAGES,
 } from '../../src/domain/reservation';
-import { computePricing, NO_DISCOUNT, type PricingInput } from '../../src/domain/reservation-pricing';
+import {
+  computePricing,
+  NO_DISCOUNT,
+  type PricingInput,
+} from '../../src/domain/reservation-pricing';
 import { fromMuscatWallTime, startOfMuscatDay, toMuscatDate } from '../../src/domain/datetime';
 import { formatFor, counterIdFor } from '../../src/domain/numbering';
 import { baisa, type Baisa } from '../../src/domain/money';
@@ -272,237 +276,239 @@ function toConflictDetail(conflict: DressConflict): ConflictDetail {
  * can name the clashing booking and offer alternatives — "unavailable" alone is
  * not an answer an employee can act on.
  */
-export const createReservation = onCall(async (request: CallableRequest<CreateReservationRequest>) => {
-  const actor = await requireEmployee(request);
-  const data = request.data ?? ({} as CreateReservationRequest);
+export const createReservation = onCall(
+  async (request: CallableRequest<CreateReservationRequest>) => {
+    const actor = await requireEmployee(request);
+    const data = request.data ?? ({} as CreateReservationRequest);
 
-  enforce(validateCreateRequest(data));
+    enforce(validateCreateRequest(data));
 
-  const customerId = data.customerId as string;
-  const dressIds = data.dressIds as string[];
+    const customerId = data.customerId as string;
+    const dressIds = data.dressIds as string[];
 
-  // Wall time from the boutique, converted once, here.
-  let pickupAt: number;
-  let returnAt: number;
-  let eventAt: number | null;
+    // Wall time from the boutique, converted once, here.
+    let pickupAt: number;
+    let returnAt: number;
+    let eventAt: number | null;
 
-  try {
-    pickupAt = fromMuscatWallTime(data.pickupAt as string);
-    returnAt = fromMuscatWallTime(data.returnAt as string);
-    eventAt =
-      typeof data.eventDate === 'string' && data.eventDate.length > 0
-        ? startOfMuscatDay(data.eventDate)
-        : null;
-  } catch (error) {
-    throw new HttpsError('invalid-argument', (error as Error).message);
-  }
-
-  const now = Date.now();
-  const dateProblems = findDateProblems({ pickupAt, returnAt, eventAt }, { now });
-
-  if (dateProblems.length > 0) {
-    throw new HttpsError('invalid-argument', DATE_PROBLEM_MESSAGES[dateProblems[0]!]);
-  }
-
-  const outcome = await db().runTransaction(async (transaction) => {
-    /*
-     * READS FIRST. Firestore requires every read in a transaction to precede
-     * every write, and reading the dress documents is what takes the locks that
-     * serialise concurrent bookings of the same gown.
-     */
-    const customerRef = db().doc(`customers/${customerId}`);
-    const customerSnapshot = await transaction.get(customerRef);
-
-    enforce(
-      validateCustomer({
-        exists: customerSnapshot.exists,
-        archived: customerSnapshot.data()?.['archived'],
-        code: customerSnapshot.data()?.['code'],
-      }),
-    );
-
-    const dressRefs = dressIds.map((id) => db().doc(`dresses/${id}`));
-    const dressSnapshots = await transaction.getAll(...dressRefs);
-    const dresses = dressSnapshots.map((snapshot, index) =>
-      toLoadedDress(dressIds[index]!, snapshot.exists ? snapshot.data() : undefined),
-    );
-
-    const missing = findMissingDresses(dresses);
-    if (missing.length > 0) {
-      throw new HttpsError('not-found', 'One of the selected dresses no longer exists.');
+    try {
+      pickupAt = fromMuscatWallTime(data.pickupAt as string);
+      returnAt = fromMuscatWallTime(data.returnAt as string);
+      eventAt =
+        typeof data.eventDate === 'string' && data.eventDate.length > 0
+          ? startOfMuscatDay(data.eventDate)
+          : null;
+    } catch (error) {
+      throw new HttpsError('invalid-argument', (error as Error).message);
     }
 
-    const blocks = await readBlocks(transaction, dressIds, pickupAt);
+    const now = Date.now();
+    const dateProblems = findDateProblems({ pickupAt, returnAt, eventAt }, { now });
 
-    const counterRef = db().doc(`counters/${counterIdFor('reservation')}`);
-    const counterSnapshot = await transaction.get(counterRef);
-
-    const settingsSnapshot = await transaction.get(db().doc('settings/app'));
-    const vatRatePercent = readVatRate(settingsSnapshot.data());
-
-    /* ---- DECIDE (pure, shared with the browser) ---- */
-
-    const availabilityRequests: AvailabilityRequest[] = dresses.map((dress) => ({
-      dressId: dress.id,
-      dressCode: dress.code,
-      dressName: dress.name,
-      dressStatus: dress.status,
-      pickupAt,
-      returnAt,
-      cleaningBufferDays: dress.cleaningBufferDays,
-    }));
-
-    const conflicts = findConflicts(availabilityRequests, blocks);
-
-    if (conflicts.length > 0) {
-      // Nothing has been written; returning here commits an empty transaction.
-      return {
-        success: false as const,
-        reason: 'DRESS_UNAVAILABLE' as const,
-        conflicts: conflicts.map(toConflictDetail),
-      };
+    if (dateProblems.length > 0) {
+      throw new HttpsError('invalid-argument', DATE_PROBLEM_MESSAGES[dateProblems[0]!]);
     }
 
-    const pricingInput: PricingInput = {
-      items: dresses.map((dress) => ({
+    const outcome = await db().runTransaction(async (transaction) => {
+      /*
+       * READS FIRST. Firestore requires every read in a transaction to precede
+       * every write, and reading the dress documents is what takes the locks that
+       * serialise concurrent bookings of the same gown.
+       */
+      const customerRef = db().doc(`customers/${customerId}`);
+      const customerSnapshot = await transaction.get(customerRef);
+
+      enforce(
+        validateCustomer({
+          exists: customerSnapshot.exists,
+          archived: customerSnapshot.data()?.['archived'],
+          code: customerSnapshot.data()?.['code'],
+        }),
+      );
+
+      const dressRefs = dressIds.map((id) => db().doc(`dresses/${id}`));
+      const dressSnapshots = await transaction.getAll(...dressRefs);
+      const dresses = dressSnapshots.map((snapshot, index) =>
+        toLoadedDress(dressIds[index]!, snapshot.exists ? snapshot.data() : undefined),
+      );
+
+      const missing = findMissingDresses(dresses);
+      if (missing.length > 0) {
+        throw new HttpsError('not-found', 'One of the selected dresses no longer exists.');
+      }
+
+      const blocks = await readBlocks(transaction, dressIds, pickupAt);
+
+      const counterRef = db().doc(`counters/${counterIdFor('reservation')}`);
+      const counterSnapshot = await transaction.get(counterRef);
+
+      const settingsSnapshot = await transaction.get(db().doc('settings/app'));
+      const vatRatePercent = readVatRate(settingsSnapshot.data());
+
+      /* ---- DECIDE (pure, shared with the browser) ---- */
+
+      const availabilityRequests: AvailabilityRequest[] = dresses.map((dress) => ({
         dressId: dress.id,
         dressCode: dress.code,
         dressName: dress.name,
-        designer: dress.designer,
-        rentalPrice: dress.rentalPrice,
-        securityDeposit: dress.securityDeposit,
+        dressStatus: dress.status,
+        pickupAt,
+        returnAt,
         cleaningBufferDays: dress.cleaningBufferDays,
-      })),
-      accessories: [],
-      alterations: [],
-      discount: NO_DISCOUNT,
-      vatRatePercent,
-    };
+      }));
 
-    const pricing = computePricing(pricingInput);
+      const conflicts = findConflicts(availabilityRequests, blocks);
 
-    /* ---- WRITE ---- */
+      if (conflicts.length > 0) {
+        // Nothing has been written; returning here commits an empty transaction.
+        return {
+          success: false as const,
+          reason: 'DRESS_UNAVAILABLE' as const,
+          conflicts: conflicts.map(toConflictDetail),
+        };
+      }
 
-    const current = counterSnapshot.exists ? Number(counterSnapshot.data()?.['current'] ?? 0) : 0;
-    const next = current + 1;
-    const code = formatFor('reservation', next);
-
-    if (counterSnapshot.exists) {
-      transaction.update(counterRef, { current: next, updatedAt: FieldValue.serverTimestamp() });
-    } else {
-      transaction.set(counterRef, { current: next, updatedAt: FieldValue.serverTimestamp() });
-    }
-
-    const reservationRef = db().collection('reservations').doc();
-    const customer = customerSnapshot.data() ?? {};
-
-    transaction.set(reservationRef, {
-      code,
-      customerId,
-      customerSnapshot: {
-        code: customer['code'] ?? '',
-        nameEn: customer['nameEn'] ?? '',
-        nameAr: customer['nameAr'] ?? '',
-        phone: customer['phone'] ?? '',
-        preferredLanguage: customer['preferredLanguage'] ?? 'bilingual',
-      },
-      status: 'Reserved' satisfies ReservationStatus,
-      pickupAt: Timestamp.fromMillis(pickupAt),
-      returnAt: Timestamp.fromMillis(returnAt),
-      actualReturnAt: null,
-      eventDate: eventAt === null ? '' : toMuscatDate(eventAt),
-      eventAt: eventAt === null ? null : Timestamp.fromMillis(eventAt),
-      // Frozen at creation. A later price or VAT change cannot reach back in.
-      pricing: {
-        ...pricing,
-        items: pricingInput.items,
+      const pricingInput: PricingInput = {
+        items: dresses.map((dress) => ({
+          dressId: dress.id,
+          dressCode: dress.code,
+          dressName: dress.name,
+          designer: dress.designer,
+          rentalPrice: dress.rentalPrice,
+          securityDeposit: dress.securityDeposit,
+          cleaningBufferDays: dress.cleaningBufferDays,
+        })),
         accessories: [],
         alterations: [],
-      },
-      notes: typeof data.notes === 'string' ? data.notes : '',
-      voided: false,
-      createdAt: FieldValue.serverTimestamp(),
-      createdBy: actor.uid,
-      updatedAt: FieldValue.serverTimestamp(),
-      updatedBy: actor.uid,
-    });
+        discount: NO_DISCOUNT,
+        vatRatePercent,
+      };
 
-    for (const dress of dresses) {
-      const interval = blockedInterval(pickupAt, returnAt, dress.cleaningBufferDays);
+      const pricing = computePricing(pricingInput);
 
-      transaction.set(db().collection('reservationItems').doc(), {
-        reservationId: reservationRef.id,
-        reservationCode: code,
-        dressId: dress.id,
-        dressCode: dress.code,
-        dressName: dress.name,
+      /* ---- WRITE ---- */
+
+      const current = counterSnapshot.exists ? Number(counterSnapshot.data()?.['current'] ?? 0) : 0;
+      const next = current + 1;
+      const code = formatFor('reservation', next);
+
+      if (counterSnapshot.exists) {
+        transaction.update(counterRef, { current: next, updatedAt: FieldValue.serverTimestamp() });
+      } else {
+        transaction.set(counterRef, { current: next, updatedAt: FieldValue.serverTimestamp() });
+      }
+
+      const reservationRef = db().collection('reservations').doc();
+      const customer = customerSnapshot.data() ?? {};
+
+      transaction.set(reservationRef, {
+        code,
+        customerId,
+        customerSnapshot: {
+          code: customer['code'] ?? '',
+          nameEn: customer['nameEn'] ?? '',
+          nameAr: customer['nameAr'] ?? '',
+          phone: customer['phone'] ?? '',
+          preferredLanguage: customer['preferredLanguage'] ?? 'bilingual',
+        },
+        status: 'Reserved' satisfies ReservationStatus,
         pickupAt: Timestamp.fromMillis(pickupAt),
         returnAt: Timestamp.fromMillis(returnAt),
-        cleaningBufferDays: dress.cleaningBufferDays,
-        blockStartAt: Timestamp.fromMillis(interval.start),
-        blockEndAt: Timestamp.fromMillis(interval.end),
-        blocking: true,
-        rentalPriceSnapshot: dress.rentalPrice,
+        actualReturnAt: null,
+        eventDate: eventAt === null ? '' : toMuscatDate(eventAt),
+        eventAt: eventAt === null ? null : Timestamp.fromMillis(eventAt),
+        // Frozen at creation. A later price or VAT change cannot reach back in.
+        pricing: {
+          ...pricing,
+          items: pricingInput.items,
+          accessories: [],
+          alterations: [],
+        },
+        notes: typeof data.notes === 'string' ? data.notes : '',
+        voided: false,
         createdAt: FieldValue.serverTimestamp(),
         createdBy: actor.uid,
-      });
-
-      /*
-       * Writing the dress document is what makes concurrent bookings of the
-       * same gown conflict. `bookingVersion` exists purely to guarantee a write
-       * even when the status does not change.
-       */
-      const nextStatus = dressStatusForTransition(dress.status, 'Reserved');
-
-      transaction.update(db().doc(`dresses/${dress.id}`), {
-        bookingVersion: FieldValue.increment(1),
-        ...(nextStatus === null ? {} : { status: nextStatus }),
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: actor.uid,
       });
+
+      for (const dress of dresses) {
+        const interval = blockedInterval(pickupAt, returnAt, dress.cleaningBufferDays);
+
+        transaction.set(db().collection('reservationItems').doc(), {
+          reservationId: reservationRef.id,
+          reservationCode: code,
+          dressId: dress.id,
+          dressCode: dress.code,
+          dressName: dress.name,
+          pickupAt: Timestamp.fromMillis(pickupAt),
+          returnAt: Timestamp.fromMillis(returnAt),
+          cleaningBufferDays: dress.cleaningBufferDays,
+          blockStartAt: Timestamp.fromMillis(interval.start),
+          blockEndAt: Timestamp.fromMillis(interval.end),
+          blocking: true,
+          rentalPriceSnapshot: dress.rentalPrice,
+          createdAt: FieldValue.serverTimestamp(),
+          createdBy: actor.uid,
+        });
+
+        /*
+         * Writing the dress document is what makes concurrent bookings of the
+         * same gown conflict. `bookingVersion` exists purely to guarantee a write
+         * even when the status does not change.
+         */
+        const nextStatus = dressStatusForTransition(dress.status, 'Reserved');
+
+        transaction.update(db().doc(`dresses/${dress.id}`), {
+          bookingVersion: FieldValue.increment(1),
+          ...(nextStatus === null ? {} : { status: nextStatus }),
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: actor.uid,
+        });
+      }
+
+      writeAudit(transaction, {
+        actorUid: actor.uid,
+        actorName: actor.name,
+        actorRole: actor.role,
+        action: 'reservation.created',
+        entityType: 'reservation',
+        entityId: reservationRef.id,
+        before: null,
+        after: {
+          code,
+          status: 'Reserved',
+          dressCount: dresses.length,
+          grandTotal: pricing.grandTotal,
+        },
+      });
+
+      return {
+        success: true as const,
+        reservationId: reservationRef.id,
+        reservationNumber: code,
+        items: dresses.map((dress) => ({
+          dressId: dress.id,
+          dressCode: dress.code,
+          dressName: dress.name,
+          rentalPrice: dress.rentalPrice,
+        })),
+        total: pricing.grandTotal,
+        conflicts: [] as ConflictDetail[],
+      };
+    });
+
+    if (outcome.success) {
+      logger.info('Reservation created', {
+        code: outcome.reservationNumber,
+        dresses: outcome.items.length,
+        by: actor.uid,
+      });
     }
 
-    writeAudit(transaction, {
-      actorUid: actor.uid,
-      actorName: actor.name,
-      actorRole: actor.role,
-      action: 'reservation.created',
-      entityType: 'reservation',
-      entityId: reservationRef.id,
-      before: null,
-      after: {
-        code,
-        status: 'Reserved',
-        dressCount: dresses.length,
-        grandTotal: pricing.grandTotal,
-      },
-    });
-
-    return {
-      success: true as const,
-      reservationId: reservationRef.id,
-      reservationNumber: code,
-      items: dresses.map((dress) => ({
-        dressId: dress.id,
-        dressCode: dress.code,
-        dressName: dress.name,
-        rentalPrice: dress.rentalPrice,
-      })),
-      total: pricing.grandTotal,
-      conflicts: [] as ConflictDetail[],
-    };
-  });
-
-  if (outcome.success) {
-    logger.info('Reservation created', {
-      code: outcome.reservationNumber,
-      dresses: outcome.items.length,
-      by: actor.uid,
-    });
-  }
-
-  return outcome;
-});
+    return outcome;
+  },
+);
 
 function readVatRate(settings: FirebaseFirestore.DocumentData | undefined): number {
   const value = settings?.['vatRatePercent'];

@@ -42,10 +42,7 @@ const TRANSITIONS: Readonly<Record<ReservationStatus, readonly ReservationStatus
 };
 
 export type TransitionRefusal =
-  | 'SAME_STATUS'
-  | 'TERMINAL'
-  | 'NOT_PERMITTED'
-  | 'PICKED_UP_IS_IRREVERSIBLE';
+  'SAME_STATUS' | 'TERMINAL' | 'NOT_PERMITTED' | 'PICKED_UP_IS_IRREVERSIBLE';
 
 /**
  * May this reservation move to that status?

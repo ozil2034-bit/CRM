@@ -60,11 +60,16 @@ export function ConflictPanel({
 
       <ul className="mt-4 space-y-4">
         {conflicts.map((conflict) => (
-          <li key={conflict.dressId} className="border-t border-current/15 pt-4 first:border-0 first:pt-0">
+          <li
+            key={conflict.dressId}
+            className="border-t border-current/15 pt-4 first:border-0 first:pt-0"
+          >
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className="font-mono text-2xs">{conflict.dressCode}</span>
               <span className="text-sm">{conflict.dressName}</span>
-              <Badge tone="danger">{t(REASON_KEYS[conflict.reason] ?? 'conflict.unavailable')}</Badge>
+              <Badge tone="danger">
+                {t(REASON_KEYS[conflict.reason] ?? 'conflict.unavailable')}
+              </Badge>
             </div>
 
             <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-2xs">
@@ -99,11 +104,7 @@ export function ConflictPanel({
                * a promise the boutique cannot keep.
                */}
               {conflict.availableFrom !== null && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onUseNextFreeDate(conflict)}
-                >
+                <Button variant="ghost" size="sm" onClick={() => onUseNextFreeDate(conflict)}>
                   {t('conflict.findNearestDate')}
                 </Button>
               )}

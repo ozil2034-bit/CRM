@@ -153,15 +153,18 @@ export function validateStatusChangeRequest(request: StatusChangeRequest): Verdi
  * anything.
  */
 export function hasOtherActiveHold(
-  blocks: readonly { reservationId: string; blockStartAt: number; blockEndAt: number; blocking: boolean }[],
+  blocks: readonly {
+    reservationId: string;
+    blockStartAt: number;
+    blockEndAt: number;
+    blocking: boolean;
+  }[],
   excludeReservationId: string,
   now: number,
 ): boolean {
   return blocks.some(
     (block) =>
-      block.blocking &&
-      block.reservationId !== excludeReservationId &&
-      block.blockEndAt > now,
+      block.blocking && block.reservationId !== excludeReservationId && block.blockEndAt > now,
   );
 }
 

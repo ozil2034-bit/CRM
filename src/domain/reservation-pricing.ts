@@ -98,7 +98,9 @@ export class PricingError extends Error {
  */
 export function computePricing(input: PricingInput): PricingSnapshot {
   if (!Number.isFinite(input.vatRatePercent) || input.vatRatePercent < 0) {
-    throw new PricingError(`VAT rate must be a non-negative number, received: ${input.vatRatePercent}`);
+    throw new PricingError(
+      `VAT rate must be a non-negative number, received: ${input.vatRatePercent}`,
+    );
   }
 
   const rentalSubtotal = sum(input.items.map((item) => item.rentalPrice));
@@ -106,7 +108,9 @@ export function computePricing(input: PricingInput): PricingSnapshot {
   const accessorySubtotal = sum(
     input.accessories.map((accessory) => {
       if (!Number.isInteger(accessory.quantity) || accessory.quantity < 0) {
-        throw new PricingError(`Accessory quantity must be a whole number, received: ${accessory.quantity}`);
+        throw new PricingError(
+          `Accessory quantity must be a whole number, received: ${accessory.quantity}`,
+        );
       }
       return baisa(accessory.unitPrice * accessory.quantity);
     }),
@@ -122,9 +126,7 @@ export function computePricing(input: PricingInput): PricingSnapshot {
 
   const securityDepositTotal = sum([
     ...input.items.map((item) => item.securityDeposit),
-    ...input.accessories.map((accessory) =>
-      baisa(accessory.securityDeposit * accessory.quantity),
-    ),
+    ...input.accessories.map((accessory) => baisa(accessory.securityDeposit * accessory.quantity)),
   ]);
 
   return {

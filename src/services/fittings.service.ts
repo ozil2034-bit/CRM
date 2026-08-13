@@ -98,7 +98,8 @@ export function observeFittingsForReservation(
 ): () => void {
   return onSnapshot(
     query(collection(db(), 'fittings'), where('reservationId', '==', reservationId)),
-    (snapshot) => onChange(snapshot.docs.map(toFitting).sort((a, b) => a.scheduledAt - b.scheduledAt)),
+    (snapshot) =>
+      onChange(snapshot.docs.map(toFitting).sort((a, b) => a.scheduledAt - b.scheduledAt)),
     onError,
   );
 }

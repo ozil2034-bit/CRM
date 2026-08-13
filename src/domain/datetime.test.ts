@@ -175,7 +175,10 @@ describe('calendarDaysBetween()', () => {
 
   it('is zero within one day', () => {
     expect(
-      calendarDaysBetween(fromMuscatWallTime('2026-09-10T01:00'), fromMuscatWallTime('2026-09-10T23:00')),
+      calendarDaysBetween(
+        fromMuscatWallTime('2026-09-10T01:00'),
+        fromMuscatWallTime('2026-09-10T23:00'),
+      ),
     ).toBe(0);
   });
 });

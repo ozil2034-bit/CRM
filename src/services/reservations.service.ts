@@ -241,8 +241,7 @@ export function observeDressHistory(
 ): () => void {
   return onSnapshot(
     query(collection(db(), 'reservationItems'), where('dressId', '==', dressId)),
-    (snapshot) =>
-      onChange(snapshot.docs.map(toItem).sort((a, b) => b.pickupAt - a.pickupAt)),
+    (snapshot) => onChange(snapshot.docs.map(toItem).sort((a, b) => b.pickupAt - a.pickupAt)),
     onError,
   );
 }
@@ -323,9 +322,9 @@ export async function updateReservationDates(input: {
   requireConnection();
 
   try {
-    const result = await callable<typeof input, CreateReservationResult>(
-      'updateReservationDates',
-    )(input);
+    const result = await callable<typeof input, CreateReservationResult>('updateReservationDates')(
+      input,
+    );
     return result.data;
   } catch (error) {
     throw toReservationError(error);
@@ -396,9 +395,7 @@ export function observeVatRate(
     doc(db(), 'settings', 'app'),
     (snapshot) => {
       const value = snapshot.data()?.['vatRatePercent'];
-      onChange(
-        typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0,
-      );
+      onChange(typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0);
     },
     onError,
   );
@@ -424,8 +421,7 @@ const MESSAGES: Record<string, string> = {
   'functions/not-found': 'That record no longer exists.',
   'functions/failed-precondition': 'That change is not allowed for this reservation.',
   'functions/invalid-argument': 'Some of the details are not valid.',
-  'functions/unavailable':
-    'An internet connection is required to create or modify a reservation.',
+  'functions/unavailable': 'An internet connection is required to create or modify a reservation.',
 };
 
 function toReservationError(error: unknown): ReservationServiceError {

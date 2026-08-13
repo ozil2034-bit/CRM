@@ -136,10 +136,10 @@ Each phase ends with the **phase gate** (§7) and at least one Git commit.
 
 | #   | Phase                 | Delivers                                                                                        | Status          |
 | --- | --------------------- | ----------------------------------------------------------------------------------------------- | --------------- |
-| 1   | Foundation            | Architecture, project setup, design system, Firebase config, documentation                      | **In progress** |
-| 2   | Identity & security   | Auth, OWNER/STAFF roles, owner bootstrap, Firestore + Storage rules, emulator rules tests       | Pending         |
-| 3   | Catalogue             | Dress inventory, customers, CRUD, photo pipeline, QR codes                                      | Pending         |
-| 4   | Reservation engine    | Lifecycle state machine, availability + cleaning buffer, concurrency safety, fittings, waitlist | Pending         |
+| 1   | Foundation            | Architecture, project setup, design system, Firebase config, documentation                      | Complete        |
+| 2   | Identity & security   | Auth, OWNER/STAFF roles, owner bootstrap, Firestore + Storage rules, emulator rules tests       | Complete        |
+| 3   | Catalogue             | Dress inventory, customers, CRUD, photo pipeline                                                | Complete        |
+| 4   | Reservation engine    | Lifecycle state machine, availability + cleaning buffer, concurrency safety, fittings, waitlist | **In progress** |
 | 5   | Money                 | Payments, deposits, VAT, pickup threshold, late fees, cancellation, pricing snapshots           | Pending         |
 | 6   | Documents             | Invoices, A4 print, T&C versioning, bilingual documents                                         | Pending         |
 | 7   | Operations UX         | Dashboard, calendar, reports, CSV export, global search                                         | Pending         |
@@ -147,21 +147,29 @@ Each phase ends with the **phase gate** (§7) and at least one Git commit.
 | 9   | Resilience            | Offline persistence, PWA, backup, import/export                                                 | Pending         |
 | 10  | Production            | Full QA, security testing, deployment                                                           | Pending         |
 
-### Phase 1 scope (current)
+### Phase 4 scope (current)
 
-- [x] Repository, branch, Node/tooling verification
-- [ ] `PROJECT_PLAN.md`, `ARCHITECTURE.md`, `DATABASE.md`, `SECURITY.md`, `TESTING.md`
-- [ ] Vite + React + TypeScript (strict) project skeleton
-- [ ] ESLint (flat config), Prettier, Vitest
-- [ ] Design system: tokens, typography, primitives
-- [ ] Money domain module + tests (foundation for all later phases)
-- [ ] Firebase project configuration files, emulator suite, rules skeleton in
-      **deny-by-default** posture
-- [ ] Environment configuration with runtime validation
-- [ ] Phase gate green
+- [x] Availability domain: half-open blocked interval, symmetric overlap,
+      cleaning buffer, next-available search
+- [x] Reservation lifecycle: transition table, refusal codes, dress-status
+      coupling
+- [x] Muscat timezone module (fixed UTC+04:00, no DST)
+- [x] Pricing snapshot: discount before VAT, deposit outside the VAT base
+- [x] Similar-dress ranking, with non-offerable statuses excluded
+- [x] `createReservation`, `updateReservationDates`, `changeReservationStatus`,
+      `releaseCleanedDresses`, `checkAvailability` as Cloud Functions
+- [x] Client write path closed in `firestore.rules`; composite indexes added
+- [x] Concurrency proof: 8 simultaneous bookings of one dress, 8 of different
+      dresses
+- [x] Booking workspace, reservation list and detail, conflict UX, fittings,
+      waitlist
+- [x] English and Arabic strings for every new screen
+- [x] Documentation: architecture, database, security, testing, operations
+- [x] Phase gate green
 
-**Explicitly not in Phase 1:** authentication logic, any Firestore reads/writes,
-any business screens. Phase 1 builds the ground the rest stands on.
+**Explicitly not in Phase 4:** payments, deposits, late fees, cancellation
+refunds (Phase 5); invoices (Phase 6); QR codes; any outgoing message — the
+waitlist records interest and sends nothing until Phase 8.
 
 ---
 

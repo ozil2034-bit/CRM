@@ -61,27 +61,25 @@ azhary-boutique/
 │   │   ├── reports/
 │   │   └── settings/
 │   ├── services/               # Application layer — one module per capability
-│   │   ├── availability.service.ts
-│   │   ├── pricing.service.ts
-│   │   ├── payments.service.ts
-│   │   ├── reservations.service.ts
-│   │   ├── invoices.service.ts
-│   │   ├── notifications.service.ts
-│   │   ├── customers.service.ts
+│   │   ├── auth.service.ts
+│   │   ├── users.service.ts
 │   │   ├── dresses.service.ts
-│   │   ├── settings.service.ts
+│   │   ├── customers.service.ts
+│   │   ├── photos.service.ts
+│   │   ├── reservations.service.ts   # reads direct; writes via Cloud Functions
+│   │   ├── fittings.service.ts       # fittings + waitlist (ordinary writes)
 │   │   ├── audit.service.ts
-│   │   └── numbering.service.ts
+│   │   └── write.ts                  # synced / pending / failed outcomes
 │   ├── domain/                 # Pure business logic — the testable core
 │   │   ├── money.ts            # Baisa arithmetic, rounding, formatting
-│   │   ├── vat.ts
+│   │   ├── datetime.ts         # Asia/Muscat wall time ↔ instants
 │   │   ├── availability.ts     # Interval overlap + cleaning buffer
-│   │   ├── pricing.ts
-│   │   ├── late-fee.ts
-│   │   ├── cancellation.ts
-│   │   ├── deposit.ts
-│   │   ├── payment-eligibility.ts
-│   │   └── reservation-lifecycle.ts
+│   │   ├── reservation.ts      # Transition table + date validation
+│   │   ├── reservation-pricing.ts
+│   │   ├── similar-dresses.ts  # Alternatives when a gown is taken
+│   │   ├── authorization.ts
+│   │   ├── dress.ts · customer.ts · phone.ts · search.ts
+│   │   └── (payments, late fees, cancellation — Phase 5)
 │   ├── schemas/                # Zod schemas — validation + inferred types
 │   ├── types/                  # Shared domain types, branded primitives
 │   ├── hooks/                  # Cross-cutting React hooks
@@ -111,20 +109,130 @@ Pure functions over plain data. No `Date.now()` inside them — the current time
 always a parameter, which is what makes them testable without clock mocking.
 
 ```ts
-// src/domain/availability.ts  (illustrative shape, implemented Phase 4)
+// src/domain/availability.ts  (as implemented in Phase 4)
 export function blockedInterval(
-  reservation: { pickupAt: number; returnAt: number },
+  pickupAt: EpochMs,
+  returnAt: EpochMs,
   cleaningBufferDays: number,
 ): Interval;
 
 export function overlaps(a: Interval, b: Interval): boolean;
 
-export function isDressAvailable(request: Interval, existingBlocks: readonly Interval[]): boolean;
+export function findConflict(
+  request: AvailabilityRequest,
+  existing: readonly ExistingBlock[],
+): DressConflict | null;
+
+export function nextAvailableFrom(
+  notBefore: EpochMs,
+  durationMs: number,
+  cleaningBufferDays: number,
+  existing: readonly ExistingBlock[],
+): EpochMs | null;
 ```
 
 Each domain module has a matching `*.test.ts` covering the boundary cases named in
 the specification: exact overlap, start overlap, end overlap, nested overlap and
 cleaning-buffer overlap.
+
+`findConflict` returns the conflict rather than a boolean. "Unavailable" is not
+an answer an employee can act on; the returned value names the reservation
+holding the gown, the instant it comes free, and whether the obstacle is another
+booking or the cleaning buffer — which are different conversations to have with
+a customer.
+
+---
+
+## 3a. The reservation engine
+
+The most safety-critical logic in the platform. Documented here in full because
+its correctness rests on choices that look arbitrary until the failure they
+prevent is named.
+
+### The blocked interval
+
+A booking blocks a dress over the **half-open** interval
+
+```
+[pickupAt, returnAt + cleaningBufferDays)
+```
+
+Half-open is what makes back-to-back bookings possible: a gown returned at 11:00
+on the 12th with a 3-day buffer is free at exactly 11:00 on the 15th, and not a
+moment earlier. A closed interval would waste a day per rental; an open one would
+double-book the boundary.
+
+Overlap is the symmetric test:
+
+```ts
+aStart < bEnd && bStart < aEnd;
+```
+
+The default cleaning buffer is **3 days**, overridable per dress — an
+embroidered gown may need a week, and `cleaningBufferDays` on the dress wins over
+the setting.
+
+### Which statuses block
+
+`Reserved`, `Fitting Scheduled`, `Fitted`, `Picked Up`, `Returned` and `Closed`
+all hold the dress. `Returned` and `Closed` still block because the cleaning
+buffer runs past the return date; the interval, not the status, decides when the
+hold ends.
+
+`Inquiry` deliberately does **not** block. An enquiry is a conversation, and
+letting one take a gown off the market would let an idle browser deprive a paying
+customer.
+
+### Why booking is a Cloud Function
+
+Creating a reservation means checking availability and writing atomically. That
+requires reading a **query** inside a transaction, which the client SDK cannot
+do. A browser-side check followed by a write is a time-of-check/time-of-use race:
+two employees looking at the same free gown both see it free.
+
+So `createReservation`, `updateReservationDates` and `changeReservationStatus`
+are Cloud Functions running with the Admin SDK, and `firestore.rules` closes the
+client write path entirely (`allow create: if false`). The Function is not the
+convenient path; it is the only one.
+
+### The phantom-read defence
+
+This is the subtle part. A Firestore transaction locks the documents a query
+**returns** — not the absence of documents. Two concurrent first-ever bookings of
+the same dress each run a query that returns nothing, each see the gown as free,
+and both commit. Neither transaction conflicts with the other, because they
+touched no common document.
+
+The fix is to give them one. Every booking transaction **reads and writes the
+dress document itself**, incrementing a `bookingVersion` counter. Two bookings of
+the same gown now contend on a real document, the transaction layer sees a
+write-write conflict, and exactly one survives.
+
+Proved rather than asserted: eight simultaneous bookings of one dress leave one
+winner, seven structured conflicts, one blocking item, and no burned reservation
+number.
+
+### Retries
+
+Firestore reports a contended counter refusal as `permission-denied` rather than
+`aborted`, and the SDK does not retry `permission-denied`. Without intervention,
+losers of a counter race fail permanently instead of retrying and succeeding.
+`commitTransactionWithRetry` restores the intended behaviour with bounded,
+randomised backoff.
+
+### Offline
+
+Reservations cannot be created offline, deliberately. Availability can only be
+judged against current server state, so a queued booking could commit against
+stale data and double-book a gown. The attempt fails with a clear message and
+**nothing is queued** — unlike ordinary edits, which sync when the connection
+returns.
+
+### Timezone
+
+All wall-clock input is interpreted in `Asia/Muscat`, a fixed UTC+04:00 with no
+DST. `fromMuscatWallTime` parses deliberately rather than calling
+`new Date(string)`, whose behaviour depends on the host's zone.
 
 ### Why time is a parameter
 
@@ -327,16 +435,20 @@ Detail: [TESTING.md](./TESTING.md).
 
 ## 13. Decisions and trade-offs
 
-| Decision                  | Alternative rejected           | Reason                                                       |
-| ------------------------- | ------------------------------ | ------------------------------------------------------------ |
-| Integer baisa for money   | `number` in OMR                | Floating-point drift in invoice totals is unacceptable       |
-| Pure domain, no Firebase  | Logic inside services only     | Exhaustive testing of edge cases without emulator overhead   |
-| Custom i18n               | i18next                        | Compile-time key safety; smaller bundle; no unused machinery |
-| Browser print             | jsPDF / pdfmake                | Correct Arabic shaping and RTL; no font embedding burden     |
-| Custom design system      | MUI / Chakra                   | A luxury bridal brand must not look like a default kit       |
-| Custom claims for roles   | Firestore role lookup in rules | No extra read per rule evaluation; claim is tamper-proof     |
-| Per-year invoice counters | Single counter + filtering     | Sequence resets on 1 Jan with no migration                   |
-| Vite SPA                  | Next.js                        | No public SEO surface; static hosting is simpler and cheaper |
+| Decision                    | Alternative rejected           | Reason                                                       |
+| --------------------------- | ------------------------------ | ------------------------------------------------------------ |
+| Integer baisa for money     | `number` in OMR                | Floating-point drift in invoice totals is unacceptable       |
+| Pure domain, no Firebase    | Logic inside services only     | Exhaustive testing of edge cases without emulator overhead   |
+| Custom i18n                 | i18next                        | Compile-time key safety; smaller bundle; no unused machinery |
+| Browser print               | jsPDF / pdfmake                | Correct Arabic shaping and RTL; no font embedding burden     |
+| Custom design system        | MUI / Chakra                   | A luxury bridal brand must not look like a default kit       |
+| Custom claims for roles     | Firestore role lookup in rules | No extra read per rule evaluation; claim is tamper-proof     |
+| Per-year invoice counters   | Single counter + filtering     | Sequence resets on 1 Jan with no migration                   |
+| Vite SPA                    | Next.js                        | No public SEO surface; static hosting is simpler and cheaper |
+| Booking via Cloud Function  | Client transaction             | The client SDK cannot read a query inside a transaction      |
+| Dress write per booking     | Query-only availability check  | A transactional query locks returned docs, not their absence |
+| Half-open blocked interval  | Closed interval                | Back-to-back bookings without wasting a day per rental       |
+| Reservations refuse offline | Queue and reconcile            | Availability cannot be judged against stale local state      |
 
 ### Revisit if requirements change
 

@@ -257,23 +257,46 @@ Rules validate not only _who_ but _what_:
 
 ## 5. Cloud Functions (trusted operations)
 
-| Function                | Why it must be server-side                                                   |
-| ----------------------- | ---------------------------------------------------------------------------- |
-| `getBootstrapState`     | Avoids any public read rule on the sentinel document                         |
-| `claimInitialOwnership` | Grants OWNER; must verify no owner exists, transactionally, once ever        |
-| `createEmployee`        | Creates an Auth account and writes a custom claim — impossible from a client |
-| `setUserRole`           | Writes custom claims and revokes tokens; audits the change                   |
-| `setUserActive`         | Same, plus disabling the Auth account                                        |
+| Function                  | Why it must be server-side                                                                                                                                                             |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getBootstrapState`       | Avoids any public read rule on the sentinel document                                                                                                                                   |
+| `claimInitialOwnership`   | Grants OWNER; must verify no owner exists, transactionally, once ever                                                                                                                  |
+| `createEmployee`          | Creates an Auth account and writes a custom claim — impossible from a client                                                                                                           |
+| `setUserRole`             | Writes custom claims and revokes tokens; audits the change                                                                                                                             |
+| `setUserActive`           | Same, plus disabling the Auth account                                                                                                                                                  |
+| `createReservation`       | Availability check and booking must be atomic over a **query**; the client SDK cannot read a query inside a transaction, making any client-side check a time-of-check/time-of-use race |
+| `updateReservationDates`  | Re-runs the same availability check against the new window                                                                                                                             |
+| `changeReservationStatus` | Moves the dress with the booking, and enforces the transition table                                                                                                                    |
+| `releaseCleanedDresses`   | Returns gowns to `Available` once their cleaning buffer has actually expired                                                                                                           |
+| `checkAvailability`       | Read-only, but shares the engine so preview and decision cannot diverge                                                                                                                |
+
+### Reservations: the client write path is closed
+
+`firestore.rules` refuses every client write to `reservations` except `notes`
+(with `updatedAt` / `updatedBy`), and refuses **all** client writes to
+`reservationItems`. This is stricter than the Phase 2 authorization matrix, which
+allowed employees to operate reservations directly; the narrowing is deliberate
+and its three Phase 2 tests were inverted rather than deleted.
+
+Reservation items carry the intervals that decide availability. A client able to
+create one could book a gown already promised to another customer; a client able
+to clear `blocking` could free somebody else's booking without touching their
+reservation, and nothing in the reservation document would show it. Employees
+lose no capability — they book through the Function, which runs with the Admin
+SDK and bypasses rules.
+
+Concurrency is enforced by making every booking transaction read and write the
+dress document (`bookingVersion`), because a transactional query locks the
+documents it returns, not their absence. See ARCHITECTURE §3a.
 
 Planned for later phases, for the same reason — they cannot be safely
 client-authorised even with good rules:
 
-| Function                      | Why                                                                                                                                                                                    |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createReservation` (Phase 4) | Availability check and booking must be atomic over a **query**; the client SDK cannot read a query inside a transaction, making any client-side check a time-of-check/time-of-use race |
-| `issueInvoice` (Phase 6)      | Allocates the invoice number and freezes the document                                                                                                                                  |
-| `voidPayment` / `voidInvoice` | Financial reversal with mandatory audit                                                                                                                                                |
-| `settleDeposit` (Phase 5)     | Enforces the refund/forfeit invariant with the trusted clock                                                                                                                           |
+| Function                      | Why                                                          |
+| ----------------------------- | ------------------------------------------------------------ |
+| `issueInvoice` (Phase 6)      | Allocates the invoice number and freezes the document        |
+| `voidPayment` / `voidInvoice` | Financial reversal with mandatory audit                      |
+| `settleDeposit` (Phase 5)     | Enforces the refund/forfeit invariant with the trusted clock |
 
 ### Lockout guards
 

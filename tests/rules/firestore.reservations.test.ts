@@ -176,7 +176,9 @@ describe('only notes may be edited on a reservation from a client', () => {
     const id = uniqueId('r');
     await seedDocument(testEnv, `reservations/${id}`, reservationBody());
 
-    await assertFails(updateDoc(doc(dbAs(testEnv, 'staff'), 'reservations', id), { code: 'RSV-9999' }));
+    await assertFails(
+      updateDoc(doc(dbAs(testEnv, 'staff'), 'reservations', id), { code: 'RSV-9999' }),
+    );
   });
 
   it('DENIES an OWNER changing the status directly', async () => {

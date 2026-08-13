@@ -58,7 +58,12 @@ describe('refuseStatusChange()', () => {
   });
 
   it('allows cancellation from every pre-collection state', () => {
-    for (const from of ['Inquiry', 'Reserved', 'Fitting Scheduled', 'Fitted'] as ReservationStatus[]) {
+    for (const from of [
+      'Inquiry',
+      'Reserved',
+      'Fitting Scheduled',
+      'Fitted',
+    ] as ReservationStatus[]) {
       expect(refuseStatusChange(from, 'Cancelled'), from).toBeNull();
     }
   });
@@ -172,7 +177,12 @@ describe('findDateProblems()', () => {
   it('allows a past pickup when back-filling or editing a collected reservation', () => {
     expect(
       findDateProblems(
-        { ...valid, pickupAt: at('2026-08-01T10:00'), eventAt: at('2026-08-02T10:00'), returnAt: at('2026-08-05T10:00') },
+        {
+          ...valid,
+          pickupAt: at('2026-08-01T10:00'),
+          eventAt: at('2026-08-02T10:00'),
+          returnAt: at('2026-08-05T10:00'),
+        },
         { now: NOW, allowPastPickup: true },
       ),
     ).toEqual([]);
@@ -191,9 +201,9 @@ describe('findDateProblems()', () => {
   });
 
   it('rejects an event before pickup — almost always transposed fields', () => {
-    expect(
-      findDateProblems({ ...valid, eventAt: at('2026-09-09T18:00') }, { now: NOW }),
-    ).toContain('EVENT_BEFORE_PICKUP');
+    expect(findDateProblems({ ...valid, eventAt: at('2026-09-09T18:00') }, { now: NOW })).toContain(
+      'EVENT_BEFORE_PICKUP',
+    );
   });
 
   it('allows an event before pickup when explicitly permitted', () => {
@@ -221,10 +231,7 @@ describe('findDateProblems()', () => {
   it('rejects a pickup absurdly far ahead', () => {
     const pickupAt = addDays(NOW, 800);
     expect(
-      findDateProblems(
-        { pickupAt, returnAt: addDays(pickupAt, 2), eventAt: null },
-        { now: NOW },
-      ),
+      findDateProblems({ pickupAt, returnAt: addDays(pickupAt, 2), eventAt: null }, { now: NOW }),
     ).toContain('PICKUP_TOO_FAR_AHEAD');
   });
 
@@ -245,10 +252,7 @@ describe('findDateProblems()', () => {
 
   it('accepts a pickup at exactly the current instant', () => {
     expect(
-      findDateProblems(
-        { pickupAt: NOW, returnAt: addDays(NOW, 2), eventAt: null },
-        { now: NOW },
-      ),
+      findDateProblems({ pickupAt: NOW, returnAt: addDays(NOW, 2), eventAt: null }, { now: NOW }),
     ).toEqual([]);
   });
 });

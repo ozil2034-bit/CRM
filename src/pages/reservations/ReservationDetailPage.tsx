@@ -285,7 +285,10 @@ export function ReservationDetailPage() {
       {/* Pricing ----------------------------------------------------------- */}
       <section className="mt-10 border-t border-ink-100 pt-6">
         <dl className="space-y-2 text-sm">
-          <Row label={t('reservations.rentalPrice')} value={formatOmr(booking.pricing.rentalSubtotal)} />
+          <Row
+            label={t('reservations.rentalPrice')}
+            value={formatOmr(booking.pricing.rentalSubtotal)}
+          />
           {booking.pricing.discountAmount > 0 && (
             <Row
               label={t('reservations.discount')}
@@ -300,7 +303,11 @@ export function ReservationDetailPage() {
             label={t('reservations.deposit')}
             value={formatOmr(booking.pricing.securityDepositTotal)}
           />
-          <Row label={t('reservations.grandTotal')} value={formatOmr(booking.pricing.grandTotal)} emphasis />
+          <Row
+            label={t('reservations.grandTotal')}
+            value={formatOmr(booking.pricing.grandTotal)}
+            emphasis
+          />
         </dl>
 
         <p className="mt-3 text-2xs text-ink-400">{t('reservations.depositNote')}</p>
@@ -318,9 +325,7 @@ export function ReservationDetailPage() {
                 variant="secondary"
                 size="sm"
                 disabled={busy}
-                onClick={() =>
-                  void run(() => changeReservationStatus({ reservationId, status }))
-                }
+                onClick={() => void run(() => changeReservationStatus({ reservationId, status }))}
               >
                 {t(`status.${status}`)}
               </Button>
@@ -413,9 +418,7 @@ export function ReservationDetailPage() {
           {trail.map((entry) => (
             <li key={entry.id} className="flex flex-wrap gap-x-4 gap-y-1 text-2xs">
               <span className="numeric w-40 shrink-0 text-ink-400">
-                {entry.at === Number.MAX_SAFE_INTEGER
-                  ? '…'
-                  : formatMuscat(entry.at, language)}
+                {entry.at === Number.MAX_SAFE_INTEGER ? '…' : formatMuscat(entry.at, language)}
               </span>
               <span className="text-ink-900">{entry.action}</span>
               <span className="text-ink-400">{entry.actorName}</span>

@@ -79,10 +79,8 @@ export function BookingPage() {
 
   useEffect(
     () =>
-      observeCustomers(
-        { includeArchived: false },
-        setCustomers,
-        (caught) => setError(caught.message),
+      observeCustomers({ includeArchived: false }, setCustomers, (caught) =>
+        setError(caught.message),
       ),
     [],
   );
@@ -345,8 +343,7 @@ export function BookingPage() {
     [customer, principal, actorName, dates, pickupAt, returnAt, eventDate, t],
   );
 
-  const blocked =
-    customer === null || dates === null || selectedDressIds.length === 0 || saving;
+  const blocked = customer === null || dates === null || selectedDressIds.length === 0 || saving;
 
   async function submit() {
     if (customer === null || dates === null || selectedDressIds.length === 0) return;
@@ -503,9 +500,7 @@ export function BookingPage() {
               <li key={dress.id} className="flex items-center gap-4 py-3">
                 <span className="w-20 shrink-0 font-mono text-2xs text-ink-300">{dress.code}</span>
                 <span className="flex-1 truncate text-sm text-ink-900">{dress.name}</span>
-                <span className="numeric text-sm text-ink-600">
-                  {formatOmr(dress.rentalPrice)}
-                </span>
+                <span className="numeric text-sm text-ink-600">{formatOmr(dress.rentalPrice)}</span>
                 <Button variant="ghost" size="sm" onClick={() => removeDress(dress.id)}>
                   {t('booking.remove')}
                 </Button>
@@ -666,7 +661,9 @@ export function BookingPage() {
           {t('action.cancel')}
         </Link>
 
-        {customer === null && <span className="text-2xs text-ink-400">{t('booking.needsCustomer')}</span>}
+        {customer === null && (
+          <span className="text-2xs text-ink-400">{t('booking.needsCustomer')}</span>
+        )}
       </div>
     </main>
   );

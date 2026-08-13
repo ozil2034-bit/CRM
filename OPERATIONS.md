@@ -153,14 +153,54 @@ cannot see it even by reading the database directly.
 
 Check its status. `In Alteration`, `Under Repair` and `Retired` block booking
 regardless of dates. Also check the cleaning buffer: a dress returned yesterday
-with a two-day buffer is not bookable until the buffer expires. This is intended
-— the buffer exists so a dress is not promised before it has been cleaned.
+with a three-day buffer is not bookable until the buffer expires. This is
+intended — the buffer exists so a dress is not promised before it has been
+cleaned.
+
+The conflict message says which of the two it is. "Already booked for these
+dates" and "still being cleaned after an earlier rental" are different
+conversations to have with the customer, so the system does not blur them.
+
+If a particular gown genuinely needs longer or less than three days, set
+`cleaningBufferDays` on the dress itself. The dress-level value always wins over
+the boutique default.
+
+### The dress came back early and is clean — can we re-let it sooner?
+
+Not by editing the buffer after the fact, which would change the answer for every
+past and future booking of that gown. Move the earlier reservation's **return
+date** to the day it actually came back; the blocked interval is recomputed from
+it, and the gown frees up exactly three days later.
 
 ### Two employees tried to reserve the same dress
 
 One succeeded, one received a conflict naming the clashing reservation. This is
 correct behaviour: the booking is committed inside a server-side transaction that
 re-checks availability, so a double booking cannot occur (SECURITY.md §5).
+
+This holds under genuine simultaneity, not just near-misses — it is tested with
+eight requests fired at once, and exactly one wins.
+
+### "A connection is required to create a reservation"
+
+Correct, and deliberate. Availability can only be judged against current server
+state; a booking saved offline and synced later could be committed against dates
+somebody else has since taken. Nothing is queued, so nothing will surprise you an
+hour later. Edits to dresses, customers and reservation notes **do** work offline
+and sync when the connection returns — it is only booking that refuses.
+
+### The customer wants a dress that is taken
+
+The conflict offers three routes, and an employee can take any of them without
+leaving the screen: open the booking that holds the gown, shift the whole booking
+to the next free date, or pick from similar dresses that are free for the dates
+already entered. Similar means size first — a gown that does not fit is not an
+alternative — then style, colour and designer.
+
+If none will do, add the customer to the waitlist. **This sends no message.** It
+records that they want the gown; somebody must still ring them. Automatic
+notification arrives in a later phase, and until then the system will not claim
+a customer was contacted when nobody was.
 
 ### A payment was recorded twice
 

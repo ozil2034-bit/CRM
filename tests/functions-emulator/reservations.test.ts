@@ -117,7 +117,11 @@ async function asOwner(): Promise<void> {
 /** Create a dress and return its id. */
 async function makeDress(
   name: string,
-  overrides: Partial<{ cleaningBufferDays: number; rentalPrice: number; securityDeposit: number }> = {},
+  overrides: Partial<{
+    cleaningBufferDays: number;
+    rentalPrice: number;
+    securityDeposit: number;
+  }> = {},
 ): Promise<string> {
   const { createDress } = await import('@/services/dresses.service');
   const { EMPTY_DRESS_FORM } = await import('@/schemas/dress');
@@ -139,7 +143,16 @@ async function makeDress(
 
 type CreateResult =
   | { success: true; reservationId: string; reservationNumber: string; total: number }
-  | { success: false; reason: string; conflicts: { dressCode: string; reason: string; conflictingReservationCode: string | null; availableFrom: number | null }[] };
+  | {
+      success: false;
+      reason: string;
+      conflicts: {
+        dressCode: string;
+        reason: string;
+        conflictingReservationCode: string | null;
+        availableFrom: number | null;
+      }[];
+    };
 
 function createReservation(input: {
   customerId?: string;
@@ -186,7 +199,10 @@ describe('creating a reservation', () => {
     expect(reservation.data()).toMatchObject({ status: 'Reserved', customerId });
 
     const items = await getDocs(
-      query(collection(db, 'reservationItems'), where('reservationId', '==', result.data.reservationId)),
+      query(
+        collection(db, 'reservationItems'),
+        where('reservationId', '==', result.data.reservationId),
+      ),
     );
     expect(items.size).toBe(1);
     expect(items.docs[0]!.data()['blocking']).toBe(true);
@@ -216,7 +232,10 @@ describe('creating a reservation', () => {
     if (!result.data.success) throw new Error('expected success');
 
     const items = await getDocs(
-      query(collection(db, 'reservationItems'), where('reservationId', '==', result.data.reservationId)),
+      query(
+        collection(db, 'reservationItems'),
+        where('reservationId', '==', result.data.reservationId),
+      ),
     );
     const item = items.docs[0]!.data();
 
@@ -249,7 +268,11 @@ describe('creating a reservation', () => {
   });
 
   it('books several dresses in one reservation', async () => {
-    const dressIds = await Promise.all([makeDress('Multi A'), makeDress('Multi B'), makeDress('Multi C')]);
+    const dressIds = await Promise.all([
+      makeDress('Multi A'),
+      makeDress('Multi B'),
+      makeDress('Multi C'),
+    ]);
 
     const result = await createReservation({
       pickupAt: SEP(10),
@@ -259,7 +282,10 @@ describe('creating a reservation', () => {
     if (!result.data.success) throw new Error('expected success');
 
     const items = await getDocs(
-      query(collection(db, 'reservationItems'), where('reservationId', '==', result.data.reservationId)),
+      query(
+        collection(db, 'reservationItems'),
+        where('reservationId', '==', result.data.reservationId),
+      ),
     );
     expect(items.size).toBe(3);
   });
@@ -296,9 +322,7 @@ describe('a multi-dress reservation is all or nothing', () => {
 
     expect(result.data.reason).toBe('DRESS_UNAVAILABLE');
     expect(result.data.conflicts).toHaveLength(1);
-    expect(result.data.conflicts[0]!.conflictingReservationCode).toBe(
-      first.data.reservationNumber,
-    );
+    expect(result.data.conflicts[0]!.conflictingReservationCode).toBe(first.data.reservationNumber);
 
     // No half-reservation for the two that were free.
     expect(await countReservations()).toBe(before);
@@ -539,13 +563,17 @@ describe('a failed creation leaves nothing behind', () => {
     await createReservation({ pickupAt: SEP(10), returnAt: SEP(12), dressIds: [dressId] });
 
     const before = (
-      await getDocs(query(collection(db, 'auditLogs'), where('action', '==', 'reservation.created')))
+      await getDocs(
+        query(collection(db, 'auditLogs'), where('action', '==', 'reservation.created')),
+      )
     ).size;
 
     await createReservation({ pickupAt: SEP(11), returnAt: SEP(13), dressIds: [dressId] });
 
     const after = (
-      await getDocs(query(collection(db, 'auditLogs'), where('action', '==', 'reservation.created')))
+      await getDocs(
+        query(collection(db, 'auditLogs'), where('action', '==', 'reservation.created')),
+      )
     ).size;
 
     expect(after).toBe(before);
@@ -560,7 +588,11 @@ describe('validation', () => {
   it('rejects a pickup in the past', async () => {
     const dressId = await makeDress('Past pickup');
     const code = await refusalCode(() =>
-      createReservation({ pickupAt: '2020-01-01T10:00', returnAt: '2020-01-03T10:00', dressIds: [dressId] }),
+      createReservation({
+        pickupAt: '2020-01-01T10:00',
+        returnAt: '2020-01-03T10:00',
+        dressIds: [dressId],
+      }),
     );
     expect(code).toBe('invalid-argument');
   });
@@ -576,7 +608,11 @@ describe('validation', () => {
   it('rejects a date that does not exist', async () => {
     const dressId = await makeDress('Impossible date');
     const code = await refusalCode(() =>
-      createReservation({ pickupAt: `${YEAR}-02-30T10:00`, returnAt: SEP(12), dressIds: [dressId] }),
+      createReservation({
+        pickupAt: `${YEAR}-02-30T10:00`,
+        returnAt: SEP(12),
+        dressIds: [dressId],
+      }),
     );
     expect(code).toBe('invalid-argument');
   });
@@ -795,7 +831,10 @@ describe('editing a reservation', () => {
 
     const { fromMuscatWallTime } = await import('@/domain/datetime');
     const items = await getDocs(
-      query(collection(db, 'reservationItems'), where('reservationId', '==', created.data.reservationId)),
+      query(
+        collection(db, 'reservationItems'),
+        where('reservationId', '==', created.data.reservationId),
+      ),
     );
     expect(items.docs[0]!.data()['blockEndAt'].toMillis()).toBe(
       fromMuscatWallTime(SEP(21, '11:00')),

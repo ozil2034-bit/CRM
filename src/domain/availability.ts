@@ -125,7 +125,9 @@ export function blockedInterval(
   cleaningBufferDays: number,
 ): Interval {
   if (!Number.isInteger(cleaningBufferDays) || cleaningBufferDays < 0) {
-    throw new Error(`Cleaning buffer must be a whole number of days, received: ${cleaningBufferDays}`);
+    throw new Error(
+      `Cleaning buffer must be a whole number of days, received: ${cleaningBufferDays}`,
+    );
   }
   if (returnAt < pickupAt) {
     throw new Error('Return cannot be before pickup.');
@@ -230,11 +232,7 @@ export function findConflict(
     };
   }
 
-  const requested = blockedInterval(
-    request.pickupAt,
-    request.returnAt,
-    request.cleaningBufferDays,
-  );
+  const requested = blockedInterval(request.pickupAt, request.returnAt, request.cleaningBufferDays);
 
   const clashes = existing.filter((block) => {
     if (!block.blocking) return false;

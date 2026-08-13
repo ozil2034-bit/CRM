@@ -42,16 +42,17 @@ under their own Vitest configs on a single worker, because they share one emulat
 and describe ordered lifecycles.
 
 ```bash
-npm run test:functions:auth       # identity lifecycle only
-npm run test:functions:catalogue  # dress and customer CRUD only
+npm run test:functions:auth          # identity lifecycle only
+npm run test:functions:catalogue     # dress and customer CRUD only
+npm run test:functions:reservations  # the reservation engine only
 ```
 
-The two emulator-backed integration suites run in **separate emulator
-invocations**, not merely separate files. Both bootstrap an owner, and owner
-bootstrap is a one-time transition — sharing one emulator would make whichever
-suite ran second fail against state the first had already consumed.
+The emulator-backed integration suites run in **separate emulator invocations**,
+not merely separate files. Each bootstraps an owner, and owner bootstrap is a
+one-time transition — sharing one emulator would make whichever suite ran second
+fail against state the first had already consumed.
 
-Current totals: **525** unit · **684** rules · **47** integration.
+Current totals: **680** unit · **731** rules · **84** integration.
 
 ---
 
@@ -93,8 +94,8 @@ The specification names five cases; each has an explicit test, in both direction
 | End overlap         | 10–14             | 13–16     | unavailable                     |
 | Nested              | 10–20             | 12–14     | unavailable                     |
 | Contains            | 12–14             | 10–20     | unavailable                     |
-| Cleaning buffer     | 10–14, buffer 2   | 15–17     | **unavailable** (blocked to 16) |
-| Clear of buffer     | 10–14, buffer 2   | 17–19     | available                       |
+| Cleaning buffer     | 10–14, buffer 3   | 15–17     | **unavailable** (blocked to 17) |
+| Clear of buffer     | 10–14, buffer 3   | 17–19     | available (boundary is exact)   |
 | Adjacent, no buffer | 10–14, buffer 0   | 14–16     | available (half-open)           |
 | Cancelled existing  | 10–14 (Cancelled) | 10–14     | **available**                   |
 | No-Show existing    | 10–14 (No-Show)   | 10–14     | **available**                   |
@@ -146,25 +147,62 @@ unavailable regardless of dates (§20).
 
 - Every legal transition is accepted
 - Every illegal transition is rejected (exhaustive over the status matrix)
-- `Cancelled` and `No-Show` are terminal except for defined recovery paths
+- `Cancelled`, `No-Show` and `Closed` are terminal
+- `Picked Up` is irreversible — once the gown has left the shop, no status change
+  may pretend otherwise
+- Each refusal carries a distinguishable code (`SAME_STATUS`, `TERMINAL`,
+  `NOT_PERMITTED`, `PICKED_UP_IS_IRREVERSIBLE`), so the interface can explain
+  rather than merely refuse
+
+### 3.10 Similar-dress ranking (§20)
+
+- The unavailable dress is never suggested as its own alternative
+- `Retired`, `Under Repair`, `In Alteration` and `Sold` are never offered
+- A gown with nothing in common is never offered — an unrelated suggestion
+  damages trust in every later one
+- Size outscores style, colour, designer and price **combined**: a gown that does
+  not fit is not an alternative at any price
+- Equal scores are ordered by code, so the same query always returns the same
+  answer
 
 ---
 
-## 4. Service and concurrency tests (Phase 4+)
+## 4. Service and concurrency tests
 
-Run against the Firestore emulator.
+Run against the full emulator suite via `npm run test:functions:reservations`.
 
-**The double-booking test is mandatory** (§19): two concurrent `createReservation`
-calls for the same dress and overlapping dates must produce exactly one success and
-one conflict. Asserted by firing both without awaiting the first, then checking that
-exactly one resolved and exactly one `reservationItem` exists.
+**The double-booking test is mandatory** (§19, §27), and it is the reason this
+suite exists. Nothing short of firing genuinely simultaneous requests at one
+emulator demonstrates that a dress cannot be promised twice.
+
+| Test                                      | Asserted outcome                                                                     |
+| ----------------------------------------- | ------------------------------------------------------------------------------------ |
+| Eight simultaneous, **same** dress        | Exactly 1 success, 7 structured conflicts, exactly 1 blocking item, dress `Reserved` |
+| Eight simultaneous, **different** dresses | All 8 succeed with 8 distinct reservation numbers                                    |
+
+The second case matters as much as the first: a lock coarse enough to serialise
+unrelated bookings would pass the first test and make the boutique unusable on a
+busy morning.
 
 Also covered:
 
-- A counter never issues the same number twice under concurrent creation
-- A failed entity write does not consume a counter value
-- Duplicate `idempotencyKey` produces exactly one payment
-- Every audited action writes exactly one audit record with correct before/after
+- A multi-dress booking is all-or-nothing — one unavailable gown creates
+  **nothing**, not a partial reservation for the two that were free
+- Every unavailable dress is named, not only the first
+- A failed creation consumes no reservation number, writes no audit entry, and
+  leaves no orphan items
+- The blocked interval is stored as pickup through return **plus** the buffer,
+  and a pickup at exactly the buffer's expiry is accepted
+- A dress-level `cleaningBufferDays` overrides the default in both directions
+- A retired dress is refused regardless of dates
+- The lifecycle moves the gown `Reserved → Out with Customer → In Cleaning`, and
+  a cancellation frees it only when no other booking still holds it
+- Editing dates revalidates availability; a colliding edit preserves the original
+- Unauthenticated and non-employee callers are refused, and direct client writes
+  to `reservations` and `reservationItems` are rejected by the rules
+
+A counter never issuing the same number twice under concurrent creation is
+covered by the catalogue suite. Idempotent payments arrive in Phase 5.
 
 ---
 
@@ -242,16 +280,20 @@ proves nothing; tests here assert values, states and denials.
 
 ## 10. Phase gate (§61)
 
-No phase completes until all four pass:
+No phase completes until all of these pass:
 
 ```bash
 npm run lint
 npm run typecheck
 npm run test
+npm run test:rules       # needs Java + the emulator
+npm run test:functions   # needs Java + the emulator
 npm run build
 ```
 
-Or simply `npm run verify`.
+`npm run verify` chains the four that need no emulator; the two emulator-backed
+suites are run separately because they need Java and free ports, which not every
+contributor's machine has ready.
 
 Failures are fixed, not skipped or annotated away. `.skip` in a committed test is a
 defect unless accompanied by a linked reason in the same commit.

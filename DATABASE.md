@@ -146,7 +146,7 @@ is hard-coded in the application.
 | `minimumPickupPaymentPercent` | number 0–100                       | `100`                 | §23                          |
 | `requireDepositBeforePickup`  | boolean                            | `true`                | §23                          |
 | `lateFeePerDay`               | Baisa                              | `0` until configured  | §26                          |
-| `defaultCleaningBufferDays`   | number                             | `2`                   | §18                          |
+| `defaultCleaningBufferDays`   | number                             | `3`                   | §18                          |
 | `numbering.dress`             | `{ prefix, padding, separator }`   | `WD`, 4, `-`          | §5                           |
 | `numbering.customer`          |                                    | `CU`, 4, `-`          | §5                           |
 | `numbering.reservation`       |                                    | `RSV`, 4, `-`         | §5                           |
@@ -299,10 +299,23 @@ Inquiry → Reserved → Fitting Scheduled → Fitted → Picked Up → Returned
                   ↘ No-Show
 ```
 
-Transitions are validated by `src/domain/reservation-lifecycle.ts` and re-validated
+Transitions are validated by `src/domain/reservation.ts` and re-validated
 server-side. Arbitrary jumps (e.g. `Inquiry → Picked Up`) are rejected.
 
-**`Cancelled` and `No-Show` do not block availability** (§18).
+The diagram above is the happy path, not the whole table. Real counter work adds
+shortcuts: `Reserved → Picked Up` and `Fitting Scheduled → Picked Up`, because a
+bride may collect without a fitting; and `Fitted → Fitting Scheduled`, because a
+second fitting is ordinary. `Picked Up` is irreversible — once the gown has left
+the shop, no status change can pretend it did not.
+
+**`Cancelled` and `No-Show` do not block availability** (§18). Neither does
+`Inquiry`: an enquiry is a conversation, and letting one hold a gown would let an
+idle browser deprive a paying customer.
+
+Clients may write **only** `notes` on a reservation (plus `updatedAt` /
+`updatedBy`). Everything else — status, dates, pricing — moves through a Cloud
+Function, because each requires re-running the availability check. See
+ARCHITECTURE §3a.
 
 `PricingSnapshot` — copied at creation, never recomputed from master data:
 
@@ -374,6 +387,30 @@ index simple; the candidate set is small (future bookings for one dress).
 Two intervals overlap when `aStart < bEnd && bStart < aEnd`. Half-open intervals mean
 a dress returning and being collected at the same instant does **not** collide — which
 is correct only because the cleaning buffer already separates them.
+
+#### Written only by Cloud Functions (Phase 4)
+
+`reservationItems` carry the intervals that **decide** availability, so no client
+may write them: `allow create, update, delete: if false`. A client able to create
+one could book a gown already promised to someone else; a client able to clear
+`blocking` could free another customer's booking without touching their
+reservation.
+
+#### Why the dress document is written on every booking
+
+A Firestore transaction locks the documents its query **returns**, not their
+absence. Two concurrent first-ever bookings of one dress each read an empty
+result, each conclude the gown is free, and both commit — they share no document,
+so nothing conflicts.
+
+Every booking transaction therefore reads and writes `dresses/{dressId}`,
+incrementing `bookingVersion`. That turns the phantom read into a write-write
+conflict the transaction layer can actually see, and exactly one of eight
+simultaneous attempts survives.
+
+| Field on `dresses` | Type   | Notes                                                            |
+| ------------------ | ------ | ---------------------------------------------------------------- |
+| `bookingVersion`   | number | Incremented by every booking transaction, never read for display |
 
 ---
 
@@ -498,6 +535,16 @@ Issuing is a Cloud Function (number allocation + immutability), and rules deny
 When a blocking `reservationItem` becomes non-blocking (cancellation, no-show, date
 change), a Cloud Function matches overlapping `Waiting` entries and creates
 notification records (§29).
+
+**Phase 4 stores the interest and nothing more.** No message is sent — the
+notification pipeline is Phase 8, and recording that a customer had been
+contacted when nothing left the building would be worse than not recording it at
+all. The UI says so plainly, so an employee knows to ring the customer.
+
+As implemented, the field names are `requestedPickupAt` / `requestedReturnAt`,
+matching the reservation's own vocabulary, and an entry must be created with
+`status == 'Waiting'` — creating one already `Notified` would assert a message
+that was never sent.
 
 ---
 

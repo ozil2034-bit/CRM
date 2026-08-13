@@ -150,8 +150,7 @@ export function findSimilarDresses(
 
   return options.availableDresses
     .filter(
-      (candidate) =>
-        candidate.id !== target.id && !NON_OFFERABLE_STATUSES.has(candidate.status),
+      (candidate) => candidate.id !== target.id && !NON_OFFERABLE_STATUSES.has(candidate.status),
     )
     .map((candidate) => scoreSimilarity(target, candidate))
     .filter((result) => result.score > 0)
