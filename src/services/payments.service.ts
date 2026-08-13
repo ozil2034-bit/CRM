@@ -345,6 +345,31 @@ function toPaymentError(error: unknown): PaymentServiceError {
   return new PaymentServiceError(code, message);
 }
 
+/**
+ * The configured share of the rental that must be paid before collection.
+ *
+ * Defaults to **100%** when unset — the strict direction. A missing setting
+ * must not let a gown leave the shop for nothing, so an absent or malformed
+ * value fails closed rather than open.
+ */
+export function observePickupThreshold(
+  onChange: (percent: number) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return onSnapshot(
+    doc(db(), 'settings', 'app'),
+    (snapshot) => {
+      const value = snapshot.data()?.['minPickupPaymentPercent'];
+      onChange(
+        typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100
+          ? value
+          : 100,
+      );
+    },
+    onError,
+  );
+}
+
 /** Reference the reservation document, for screens that need its id. */
 export function reservationRef(reservationId: string) {
   return doc(db(), 'reservations', reservationId);

@@ -139,37 +139,36 @@ Each phase ends with the **phase gate** (§7) and at least one Git commit.
 | 1   | Foundation            | Architecture, project setup, design system, Firebase config, documentation                      | Complete        |
 | 2   | Identity & security   | Auth, OWNER/STAFF roles, owner bootstrap, Firestore + Storage rules, emulator rules tests       | Complete        |
 | 3   | Catalogue             | Dress inventory, customers, CRUD, photo pipeline                                                | Complete        |
-| 4   | Reservation engine    | Lifecycle state machine, availability + cleaning buffer, concurrency safety, fittings, waitlist | **In progress** |
-| 5   | Money                 | Payments, deposits, VAT, pickup threshold, late fees, cancellation, pricing snapshots           | Pending         |
+| 4   | Reservation engine    | Lifecycle state machine, availability + cleaning buffer, concurrency safety, fittings, waitlist | Complete        |
+| 5   | Money                 | Payments, deposits, VAT, pickup threshold, late fees, cancellation, pricing snapshots           | **In progress** |
 | 6   | Documents             | Invoices, A4 print, T&C versioning, bilingual documents                                         | Pending         |
 | 7   | Operations UX         | Dashboard, calendar, reports, CSV export, global search                                         | Pending         |
 | 8   | Bilingual & messaging | Arabic, RTL, WhatsApp click-to-chat, notification log                                           | Pending         |
 | 9   | Resilience            | Offline persistence, PWA, backup, import/export                                                 | Pending         |
 | 10  | Production            | Full QA, security testing, deployment                                                           | Pending         |
 
-### Phase 4 scope (current)
+### Phase 5 scope (current)
 
-- [x] Availability domain: half-open blocked interval, symmetric overlap,
-      cleaning buffer, next-available search
-- [x] Reservation lifecycle: transition table, refusal codes, dress-status
-      coupling
-- [x] Muscat timezone module (fixed UTC+04:00, no DST)
-- [x] Pricing snapshot: discount before VAT, deposit outside the VAT base
-- [x] Similar-dress ranking, with non-offerable statuses excluded
-- [x] `createReservation`, `updateReservationDates`, `changeReservationStatus`,
-      `releaseCleanedDresses`, `checkAvailability` as Cloud Functions
-- [x] Client write path closed in `firestore.rules`; composite indexes added
-- [x] Concurrency proof: 8 simultaneous bookings of one dress, 8 of different
-      dresses
-- [x] Booking workspace, reservation list and detail, conflict UX, fittings,
-      waitlist
-- [x] English and Arabic strings for every new screen
+- [x] Append-only financial ledger; balances derived, never stored
+- [x] One authoritative calculation (`reduceLedger`) shared by client and server
+- [x] Rental account and security deposit tracked separately
+- [x] VAT: discount before tax, deposit outside the base, rounded once, frozen
+- [x] Payments, reversals, refunds, deposit collection, return and forfeiture
+- [x] Late fees with a frozen rate/day snapshot; cancellation tiers from settings
+- [x] Overpayment, over-refund and over-forfeit refused server-side
+- [x] Idempotency via the request key as the event's document id
+- [x] Financial concurrency proven: racing payments, refunds and settlements
+- [x] Owner-only separation for money out and for corrections
+- [x] `financialEvents` closed to all client writes; immutable for every role
+- [x] Reconciliation invariants asserted; reporting aggregations for Phase 7
+- [x] Money panel on the reservation, English and Arabic
 - [x] Documentation: architecture, database, security, testing, operations
 - [x] Phase gate green
 
-**Explicitly not in Phase 4:** payments, deposits, late fees, cancellation
-refunds (Phase 5); invoices (Phase 6); QR codes; any outgoing message — the
-waitlist records interest and sends nothing until Phase 8.
+**Explicitly not in Phase 5:** the A4 invoice renderer and terms versioning
+(Phase 6); the reports and dashboard screens (Phase 7) — Phase 5 provides the
+aggregations they will read, not the interface; any outgoing message (Phase 8).
+Nothing is deployed and no production project is configured.
 
 ---
 

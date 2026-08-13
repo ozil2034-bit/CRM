@@ -45,6 +45,7 @@ and describe ordered lifecycles.
 npm run test:functions:auth          # identity lifecycle only
 npm run test:functions:catalogue     # dress and customer CRUD only
 npm run test:functions:reservations  # the reservation engine only
+npm run test:functions:payments      # the financial engine only
 ```
 
 The emulator-backed integration suites run in **separate emulator invocations**,
@@ -52,7 +53,7 @@ not merely separate files. Each bootstraps an owner, and owner bootstrap is a
 one-time transition — sharing one emulator would make whichever suite ran second
 fail against state the first had already consumed.
 
-Current totals: **680** unit · **731** rules · **84** integration.
+Current totals: **888** unit · **768** rules · **144** integration.
 
 ---
 
@@ -114,10 +115,30 @@ unavailable regardless of dates (§20).
 
 ### 3.5 Security deposit (§24)
 
-- `refunded + forfeited ≤ original` — property-tested across random splits
-- Refunding more than held is rejected
-- Forfeiting after a full refund is rejected
-- Status derives correctly: Held / Refunded / Partially Refunded / Forfeited
+- `refunded + forfeited ≤ collected` — the one invariant, enforced by a single
+  comparison against `depositHeld`, so an over-refund and an over-forfeit are the
+  same arithmetic failure rather than two rules that can drift apart
+- Refunding or forfeiting more than is held is rejected
+- A second settlement beyond what remains is rejected
+- Forfeiture without a reason is rejected — keeping a customer's money without
+  recording why is indefensible if it is ever questioned
+- A deposit never settles the rental balance, and a forfeited deposit does not
+  either
+
+### 3.5a The ledger (§3, §21, §33)
+
+- A balance is a reduction over events; nothing is stored
+- `outstanding` and `refundable` are mutually exclusive by construction
+- A reversal leaves the reservation `Unpaid`, not `Refunded` — no money moved
+- A refund shrinks the refundable ceiling, so "refunding twice" needs no special
+  case: the second attempt finds nothing left
+- A late fee can reopen a settled reservation
+- A waiver never drives what is chargeable below zero
+- `reconcile()` balances to zero difference across every scenario: no activity,
+  part payment, full payment, deposit held, reversal, late fee, cancellation with
+  refund, deposit partly kept
+- Precision is carried exactly at 1, 2, 5, 999, 1 001 and 999 999 999 baisa, and
+  across a chain of 97 one-baisa payments
 
 ### 3.6 Late fee (§26)
 
@@ -131,10 +152,18 @@ unavailable regardless of dates (§20).
 ### 3.7 Cancellation (§28)
 
 - Tier selection by days between cancellation date and event date
-- Boundary days land in the correct tier (off-by-one is the classic failure here)
-- Refund amount derives from the **snapshot**, not current pricing
-- Cancellation releases availability
-- An audit record is produced
+- **Every tier boundary** is asserted on both sides — off-by-one is the classic
+  failure, and the day either side of 30, 14 and 7 is tested explicitly
+- Cancelling the day before the event, on the event date, and after it all give
+  the least generous tier
+- Notice is counted in calendar days in Muscat, so 08:00 and 23:00 on the same
+  day give the same answer
+- No tier configured means no refund — refunding by default on a
+  misconfiguration would give money away
+- The retained charge and the waiver **add up to the original exactly**, across
+  odd amounts, because rounding each half independently can miss by a baisa
+- The deposit is returned in full: cancelling damages nothing
+- A quote never reports both a refund and an amount still owed
 
 ### 3.8 Numbering (§5)
 
@@ -202,7 +231,47 @@ Also covered:
   to `reservations` and `reservationItems` are rejected by the rules
 
 A counter never issuing the same number twice under concurrent creation is
-covered by the catalogue suite. Idempotent payments arrive in Phase 5.
+covered by the catalogue suite.
+
+---
+
+## 4a. Financial concurrency and idempotency (§28, §29)
+
+Run against the full emulator suite via `npm run test:functions:payments`.
+
+A balance is a reduction over an event list, so two simultaneous payments each
+read a stale list unless the transactions genuinely conflict. These prove they
+do.
+
+| Test                                       | Asserted outcome                                      |
+| ------------------------------------------ | ----------------------------------------------------- |
+| Eight payments racing for the full balance | Exactly one succeeds; `netPaid` equals the balance    |
+| Six payments racing at half the balance    | Exactly two fit; nothing exceeds what is owed         |
+| Payments on six different reservations     | All succeed — unrelated work is not serialised        |
+| Six refunds racing                         | Exactly one succeeds; `refundable` falls to zero      |
+| A payment racing a refund                  | The position still reconciles                         |
+| Six deposit settlements racing             | Returned + forfeited never exceeds what was collected |
+| A deposit refund racing a forfeiture       | Same invariant holds                                  |
+
+Idempotency:
+
+- The same request key sent twice posts **one** event; the second reports
+  `duplicate: true`
+- Eight simultaneous sends of one key post **one** event — the double-click case
+- Different keys are different payments, as they must be
+- Refunds are idempotent on the same terms
+- A missing key is refused rather than defaulted: a server-generated key would
+  make every retry a fresh payment
+- A key that could not be a document id (`../../system/bootstrap`) is refused
+
+Immutability and authorization, against real rules:
+
+- A posted event is byte-identical before and after a reversal is appended
+- Editing or deleting a posted event is refused, **including for the owner**
+- Writing a financial event directly from a client is refused
+- Staff may record payments and deposits; staff are refused refunds, reversals
+  and forfeitures
+- Staff cannot change the VAT rate, and the owner cannot set it to 15%
 
 ---
 

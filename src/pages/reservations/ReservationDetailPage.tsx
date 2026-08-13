@@ -38,7 +38,9 @@ import { observeAuditTrail, type AuditEntry } from '@/services/audit.service';
 import { allowedTransitionsFrom } from '@/domain/reservation';
 import { formatMuscat, formatMuscatDate } from '@/domain/datetime';
 import { formatOmr } from '@/domain/money';
+import { observePickupThreshold } from '@/services/payments.service';
 import { ConflictPanel } from './ConflictPanel';
+import { MoneyPanel } from './MoneyPanel';
 import { FITTING_STATUS_TONE, RESERVATION_STATUS_TONE } from './status-tone';
 
 export function ReservationDetailPage() {
@@ -63,6 +65,9 @@ export function ReservationDetailPage() {
   const [notes, setNotes] = useState<string | null>(null);
 
   const [fittingAt, setFittingAt] = useState('');
+  const [pickupThreshold, setPickupThreshold] = useState(100);
+
+  useEffect(() => observePickupThreshold(setPickupThreshold, () => setPickupThreshold(100)), []);
 
   useEffect(
     () =>
@@ -312,6 +317,13 @@ export function ReservationDetailPage() {
 
         <p className="mt-3 text-2xs text-ink-400">{t('reservations.depositNote')}</p>
       </section>
+
+      {/*
+       * The money. Separate from the pricing block above deliberately: that one
+       * says what was agreed and never changes, this one says what has actually
+       * happened since.
+       */}
+      <MoneyPanel reservation={booking} minPickupPaymentPercent={pickupThreshold} />
 
       {/* Status ------------------------------------------------------------ */}
       {can('reservations.edit') && nextStatuses.length > 0 && (

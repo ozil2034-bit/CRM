@@ -204,10 +204,84 @@ a customer was contacted when nobody was.
 
 ### A payment was recorded twice
 
-It cannot be, if both submissions came from the same form — a unique idempotency
-key collapses retries into one payment. If two genuinely separate payments were
-entered in error, the owner **voids** one with a reason. Payments are never
-deleted; the void is recorded and audited.
+It cannot be, if both submissions came from the same form. The request key is
+generated when the form opens and becomes the event's identity, so a double
+click, a retry after a timeout and a replayed request all land on the same
+record. The screen says "already recorded" rather than posting a second one.
+
+If two genuinely separate entries were made — the same cash counted twice, or a
+payment put against the wrong booking — the owner **reverses** one with a
+reason. Nothing is deleted and nothing is edited: the original stays exactly as
+posted and the reversal sits beside it, so the statement shows both and they net
+to zero. That is what makes the record answer "what happened" rather than only
+"what do we currently believe".
+
+Reverse only when the payment should never have been recorded. If money
+genuinely went back to the customer, that is a **refund**, and recording it as a
+reversal would leave the balance right and the cash position wrong.
+
+### A customer paid more than the balance
+
+The system refuses it. An amount above the outstanding balance is almost always
+a typing error — an extra zero, or the security deposit entered on the payment
+tab — and accepting it would create a credit the boutique then has to explain
+and give back.
+
+If the customer genuinely wants to pay ahead, take the correct amount now and
+the rest when it falls due.
+
+### The customer paid a deposit — why does the reservation still say unpaid?
+
+Because a security deposit is not payment for anything. It is the customer's
+money, held against damage, and it goes back at the end. It is shown in its own
+block and never counted toward the rental.
+
+This is also why a dress cannot be collected on a deposit alone: collection
+needs the deposit held **and** the configured share of the rental paid.
+
+### The dress came back damaged
+
+Keep part of the deposit — "Keep part of the deposit" on the reservation — and
+give the reason. The reason is required and is recorded: keeping a customer's
+money without a written reason is indefensible if it is ever questioned, and it
+will be.
+
+Keeping the deposit is not the same as charging for the damage. It reduces what
+is returned; it does not settle any rental the customer still owes.
+
+### A dress came back late
+
+Charge the late fee from the reservation, entering the date it actually came
+back. The daily rate comes from settings and the calculation — rate, days and
+dates — is frozen onto the charge, so changing the rate later cannot re-price a
+fee already agreed with a customer.
+
+It can only be charged once per reservation. A gown is returned late once.
+
+### A customer wants to cancel
+
+Open the reservation and choose "Cancel and calculate the refund". The screen
+shows the notice period, which tier applies, what the boutique keeps and what
+goes back — read those figures to the customer before confirming.
+
+Confirming **calculates** the refund; it does not pay it. Record the refund
+separately when the money actually leaves the till, with the method and
+reference. The system will not let you refund more than the cancellation made
+refundable, however many times you try.
+
+### Only the owner can do some of this
+
+Recording money coming in is everyone's job. Money going **out** — refunds,
+returning or keeping a deposit — and any correction to a posted entry needs the
+owner. That is the ordinary separation a boutique keeps over its till, and it is
+enforced by the system rather than by convention.
+
+### "A connection is required to record money"
+
+Correct, and deliberate. Whether a payment is allowed depends on the balance
+right now, so a payment saved offline and synced later could be committed
+against a reservation that has since been refunded or cancelled. Nothing is
+queued, so nothing will surprise you an hour later.
 
 ### An invoice has the wrong amount
 

@@ -257,18 +257,62 @@ Rules validate not only _who_ but _what_:
 
 ## 5. Cloud Functions (trusted operations)
 
-| Function                  | Why it must be server-side                                                                                                                                                             |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `getBootstrapState`       | Avoids any public read rule on the sentinel document                                                                                                                                   |
-| `claimInitialOwnership`   | Grants OWNER; must verify no owner exists, transactionally, once ever                                                                                                                  |
-| `createEmployee`          | Creates an Auth account and writes a custom claim — impossible from a client                                                                                                           |
-| `setUserRole`             | Writes custom claims and revokes tokens; audits the change                                                                                                                             |
-| `setUserActive`           | Same, plus disabling the Auth account                                                                                                                                                  |
-| `createReservation`       | Availability check and booking must be atomic over a **query**; the client SDK cannot read a query inside a transaction, making any client-side check a time-of-check/time-of-use race |
-| `updateReservationDates`  | Re-runs the same availability check against the new window                                                                                                                             |
-| `changeReservationStatus` | Moves the dress with the booking, and enforces the transition table                                                                                                                    |
-| `releaseCleanedDresses`   | Returns gowns to `Available` once their cleaning buffer has actually expired                                                                                                           |
-| `checkAvailability`       | Read-only, but shares the engine so preview and decision cannot diverge                                                                                                                |
+| Function                       | Why it must be server-side                                                                                                                                                             |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getBootstrapState`            | Avoids any public read rule on the sentinel document                                                                                                                                   |
+| `claimInitialOwnership`        | Grants OWNER; must verify no owner exists, transactionally, once ever                                                                                                                  |
+| `createEmployee`               | Creates an Auth account and writes a custom claim — impossible from a client                                                                                                           |
+| `setUserRole`                  | Writes custom claims and revokes tokens; audits the change                                                                                                                             |
+| `setUserActive`                | Same, plus disabling the Auth account                                                                                                                                                  |
+| `createReservation`            | Availability check and booking must be atomic over a **query**; the client SDK cannot read a query inside a transaction, making any client-side check a time-of-check/time-of-use race |
+| `updateReservationDates`       | Re-runs the same availability check against the new window                                                                                                                             |
+| `changeReservationStatus`      | Moves the dress with the booking, and enforces the transition table                                                                                                                    |
+| `releaseCleanedDresses`        | Returns gowns to `Available` once their cleaning buffer has actually expired                                                                                                           |
+| `checkAvailability`            | Read-only, but shares the engine so preview and decision cannot diverge                                                                                                                |
+| `recordPayment`                | Whether a payment is permitted depends on a balance that is a reduction over a query — the same read-then-write the client SDK cannot do transactionally                               |
+| `recordSecurityDeposit`        | Same, and must not be collectable beyond the deposit due                                                                                                                               |
+| `refundPayment`                | Owner-only. Capped at the refundable amount, computed server-side                                                                                                                      |
+| `reversePayment`               | Owner-only. Appends a correction; never edits the original                                                                                                                             |
+| `settleDeposit`                | Owner-only. Enforces refunded + forfeited ≤ collected                                                                                                                                  |
+| `postLateFee`                  | Reads the configured rate and freezes the calculation onto the event                                                                                                                   |
+| `quoteCancellationFor`         | Read-only quote, using the configured tiers                                                                                                                                            |
+| `cancelReservationFinancially` | Owner-only. Posts the charge waiver; does not pay the refund                                                                                                                           |
+
+### Money: what staff may and may not do
+
+Staff **record money coming in** — payments and security deposits. Refusing that
+would stop the shop working, and it is the job.
+
+Staff may **not**: pay a refund, reverse a posted payment, return or forfeit a
+deposit, or apply a cancellation. Those move money out or amend posted history,
+and are the operations that could be used to conceal a shortfall. Separating
+them is the ordinary control any boutique keeps over its own till, and it is
+enforced in the Functions — not merely hidden in the interface.
+
+Staff may not change the VAT rate, the late-fee rate, the cancellation scale or
+the pickup threshold: `settings` is owner-only, and the rules additionally
+refuse a VAT rate outside {0, 5}, a negative or fractional late fee, and a
+pickup threshold outside 0–100. **Even the owner** cannot store a wrong VAT
+rate — an issued invoice carrying one is a matter for the tax authority.
+
+### The ledger is append-only, for everyone
+
+`financialEvents` refuses **all** client writes, and refuses update and delete to
+every role including OWNER. Financial history is never destroyed and never
+edited; a mistake is corrected by appending a reversal that offsets it, leaving
+both entries visible.
+
+This is stricter than Phase 2, which let staff create payments and the owner
+void them. Both tests were inverted rather than deleted: a client write path
+cannot judge a balance safely, and voiding sets a flag on a posted entry, which
+is an edit to history. The owner is exactly the person whose amendments most
+need to leave a trace.
+
+Concurrency is enforced by making every financial transaction read and write the
+reservation document (`financialVersion`), for the same phantom-read reason
+booking does. Idempotency is structural: the client's request key **is** the
+event's document id, so a duplicate submission is a document that already exists
+rather than a race to detect. See ARCHITECTURE §3b.
 
 ### Reservations: the client write path is closed
 

@@ -243,6 +243,151 @@ Functions where the trusted clock differs from the browser's.
 
 ---
 
+## 3b. The financial engine
+
+The highest-risk logic in the platform, and the one place where being merely
+plausible is not good enough: an arithmetic mistake here is a customer charged
+twice, and a design mistake is a record nobody can audit.
+
+### One calculation, everywhere
+
+`reduceLedger(pricing, events)` is the **single authoritative financial
+calculation**. The reservation screen, the payment dialog, the Cloud Functions
+and — in Phase 6 — the invoice all call it. There is deliberately no second
+implementation of any balance formula, because two eventually disagree and the
+copy on the invoice is the one the customer keeps.
+
+### A balance is derived, never stored
+
+Nothing stores `outstanding`. It is a reduction over every event posted against
+a reservation, computed on demand. A stored balance is a cache that goes stale
+the moment an event is appended, and a stale balance is how a customer gets
+asked to pay twice.
+
+### Append-only, with reversals instead of edits
+
+Financial history is never destroyed and never edited. A mistake is corrected by
+appending an event that offsets it, leaving **both** visible, so the record
+answers "what happened" and not merely "what do we currently believe".
+
+Phase 2 modelled corrections as a `voided` flag on a payment. Phase 5 replaced
+it: setting a flag mutates a posted entry, and a ledger whose entries can be
+amended is not a ledger. The owner is exactly the person whose amendments most
+need to leave a trace.
+
+| Kind                        | Effect                                                                      |
+| --------------------------- | --------------------------------------------------------------------------- |
+| `Payment`                   | Money in, rental account                                                    |
+| `PaymentReversal`           | Cancels a payment that should never have been recorded — **no money moves** |
+| `Refund`                    | Money out, rental account                                                   |
+| `SecurityDepositPayment`    | Money in, deposit account                                                   |
+| `SecurityDepositRefund`     | Deposit returned                                                            |
+| `SecurityDepositForfeiture` | Deposit kept against damage, with a reason                                  |
+| `LateFee`                   | Charge added                                                                |
+| `ChargeWaiver`              | Charge removed — cancellation relief                                        |
+
+Every event carries a **positive** amount; the kind decides the direction.
+A signed amount would turn a mistyped minus into a silent reversal, and would
+let "greater than zero" pass on a value that takes money out of the till.
+
+### Two accounts, never mixed
+
+The rental account and the security deposit are tracked separately. A deposit is
+the customer's money held against damage: not revenue, not VAT-taxable, and
+never consumed to make a rental balance look settled. A bride who has paid a
+deposit and nothing else owes the full rental, and `pickupEligibility` says so —
+the deposit does not count toward the collection threshold.
+
+```
+totalChargeable = agreedCharges + lateFees − waivers      (floored at zero)
+netPaid         = payments − reversals − refunds
+outstanding     = max(0, totalChargeable − netPaid)
+refundable      = max(0, netPaid − totalChargeable)
+
+depositHeld     = depositPaid − depositRefunded − depositForfeited
+```
+
+`outstanding` and `refundable` are mutually exclusive by construction, and
+`reconcile()` asserts it.
+
+### VAT
+
+```
+taxableSubtotal = rentals + accessories + alterations − discount
+vatAmount       = round(taxableSubtotal × rate)
+grandTotal      = taxableSubtotal + vatAmount + securityDeposit
+```
+
+The discount is applied **before** VAT — taxing money the customer never paid
+would be wrong — and the deposit sits outside the tax base entirely. VAT is
+rounded **once**, on the discounted base, half away from zero. Rounding each
+line and summing accumulates error, which is how a VAT total ends up disagreeing
+with the sum of its own lines.
+
+Permitted rates are 0% and 5%, enforced in `firestore.rules` as well as in the
+domain: a wrong rate on an issued invoice is a matter for the tax authority.
+
+Rate, taxable base and VAT amount are **frozen onto the reservation** at
+creation. Changing the setting later cannot reach back into an agreed price.
+
+### Concurrency — the same problem, the same answer
+
+Whether a payment is permitted depends on the balance, and the balance is a
+query read followed by a write. The client SDK cannot do that inside a
+transaction, so every financial write is a Cloud Function.
+
+And, as with booking, the transactional query is not enough on its own: it locks
+the documents it **returns**, not their absence. Two simultaneous payments
+against a reservation with no events both read an empty list, both conclude the
+full balance is outstanding, and both commit without ever conflicting.
+
+So every financial transaction **reads and writes the reservation document**,
+incrementing `financialVersion`. Concurrent financial work on one reservation
+becomes a write-write conflict; the loser retries, re-reads the ledger, and is
+judged against the true balance. Work on different reservations runs in parallel.
+
+### Idempotency is structural
+
+The client generates a key when the form opens, and that key **is** the event's
+document id. A duplicate submission is therefore not a race to detect — it is a
+document that already exists. The transaction reads it first and returns the
+original outcome without posting anything.
+
+Generating the key at submission time would give every retry its own key and
+defeat the whole mechanism. Disabling the button is UX; this is the guarantee.
+
+### Separation of duties
+
+Staff record money coming in — that is the job, and refusing it would stop the
+shop working. Money going **out**, and any correction to posted history, needs
+the owner: refunds, reversals, forfeitures, and applying a cancellation. Those
+are the operations that could conceal a shortfall.
+
+Enforced in the Functions, not merely hidden in the interface.
+
+### Cancellation
+
+Tiers are configured, never hard-coded — the percentages are the boutique's
+commercial decision. Notice is measured in **calendar days in Muscat**, so a
+call at 23:00 and one at 08:00 the same morning get the same answer; measuring
+elapsed hours would make the refund depend on the time of the telephone call.
+
+Cancelling posts a `ChargeWaiver` for the relieved share. It does **not** pay
+the refund: money leaving the till is a separate, deliberate act with its own
+method and reference, recorded when it actually happens. After the waiver, what
+the customer owes is exactly the cancellation charge and the refundable amount
+falls out of the ordinary balance arithmetic rather than being computed a second
+way.
+
+### Late fees
+
+`lateDays × dailyRate`, with days rounded **up** — a gown eleven hours overdue
+has cost the boutique the day either way. The rate, the day count and the
+instants it was computed between are frozen onto the event, so raising the rate
+next month cannot re-price a fee already agreed. Charged once per reservation.
+
+---
+
 ## 4. The service layer
 
 Services are the only place that:
@@ -435,20 +580,25 @@ Detail: [TESTING.md](./TESTING.md).
 
 ## 13. Decisions and trade-offs
 
-| Decision                    | Alternative rejected           | Reason                                                       |
-| --------------------------- | ------------------------------ | ------------------------------------------------------------ |
-| Integer baisa for money     | `number` in OMR                | Floating-point drift in invoice totals is unacceptable       |
-| Pure domain, no Firebase    | Logic inside services only     | Exhaustive testing of edge cases without emulator overhead   |
-| Custom i18n                 | i18next                        | Compile-time key safety; smaller bundle; no unused machinery |
-| Browser print               | jsPDF / pdfmake                | Correct Arabic shaping and RTL; no font embedding burden     |
-| Custom design system        | MUI / Chakra                   | A luxury bridal brand must not look like a default kit       |
-| Custom claims for roles     | Firestore role lookup in rules | No extra read per rule evaluation; claim is tamper-proof     |
-| Per-year invoice counters   | Single counter + filtering     | Sequence resets on 1 Jan with no migration                   |
-| Vite SPA                    | Next.js                        | No public SEO surface; static hosting is simpler and cheaper |
-| Booking via Cloud Function  | Client transaction             | The client SDK cannot read a query inside a transaction      |
-| Dress write per booking     | Query-only availability check  | A transactional query locks returned docs, not their absence |
-| Half-open blocked interval  | Closed interval                | Back-to-back bookings without wasting a day per rental       |
-| Reservations refuse offline | Queue and reconcile            | Availability cannot be judged against stale local state      |
+| Decision                     | Alternative rejected           | Reason                                                                |
+| ---------------------------- | ------------------------------ | --------------------------------------------------------------------- |
+| Integer baisa for money      | `number` in OMR                | Floating-point drift in invoice totals is unacceptable                |
+| Pure domain, no Firebase     | Logic inside services only     | Exhaustive testing of edge cases without emulator overhead            |
+| Custom i18n                  | i18next                        | Compile-time key safety; smaller bundle; no unused machinery          |
+| Browser print                | jsPDF / pdfmake                | Correct Arabic shaping and RTL; no font embedding burden              |
+| Custom design system         | MUI / Chakra                   | A luxury bridal brand must not look like a default kit                |
+| Custom claims for roles      | Firestore role lookup in rules | No extra read per rule evaluation; claim is tamper-proof              |
+| Per-year invoice counters    | Single counter + filtering     | Sequence resets on 1 Jan with no migration                            |
+| Vite SPA                     | Next.js                        | No public SEO surface; static hosting is simpler and cheaper          |
+| Booking via Cloud Function   | Client transaction             | The client SDK cannot read a query inside a transaction               |
+| Dress write per booking      | Query-only availability check  | A transactional query locks returned docs, not their absence          |
+| Half-open blocked interval   | Closed interval                | Back-to-back bookings without wasting a day per rental                |
+| Reservations refuse offline  | Queue and reconcile            | Availability cannot be judged against stale local state               |
+| Append-only financial events | Editable payments + void flag  | A ledger whose entries can be amended is not a ledger                 |
+| Balance derived on read      | Stored balance field           | A stored balance is stale the moment an event is appended             |
+| Idempotency key as doc id    | Key stored as a field          | Duplicate detection becomes existence, not a race to detect           |
+| Deposit tracked separately   | One combined balance           | A deposit is not revenue and must never settle a rental               |
+| Overpayment refused          | Accept and hold credit         | Almost always a typing error; credit must be designed, not accidental |
 
 ### Revisit if requirements change
 

@@ -56,12 +56,20 @@ updatedAt   Timestamp   serverTimestamp()
 updatedBy   string      uid
 ```
 
-### Soft deletion
+### Soft deletion, and why the ledger goes further
 
-Financial and legal records (`payments`, `invoices`, `reservations`, `auditLogs`) are
-**never hard-deleted**. They carry `voided: boolean`, `voidedAt`, `voidedBy`,
-`voidReason`. Security rules deny `delete` on these collections to every role
-including OWNER; voiding is the only path, and it is itself audited.
+Legal and operational records (`reservations`, `invoices`, `auditLogs`) are
+**never hard-deleted**. Security rules deny `delete` to every role including
+OWNER.
+
+`financialEvents` is stricter still: it permits no update either. A `voided` flag
+is a mutation of a posted entry, and a ledger whose entries can be amended is not
+a ledger. Corrections are **reversal events** — a new document that offsets the
+original, leaving both visible. See §2.11a.
+
+Phase 2 modelled payment corrections as a void flag; Phase 5 replaced that model,
+and the `payments` collection is closed rather than removed so anything written
+under it stays readable.
 
 ---
 
@@ -78,7 +86,8 @@ reservations/{reservationId}
 reservationItems/{itemId}
 fittings/{fittingId}
 accessories/{accessoryId}
-payments/{paymentId}
+financialEvents/{idempotencyKey}
+payments/{paymentId}          (closed — superseded by financialEvents)
 invoices/{invoiceId}
 damageLogs/{damageLogId}
 waitlist/{waitlistId}
@@ -137,23 +146,23 @@ never alter issued invoices.
 Single document. OWNER-only writes. Every operational constant lives here — nothing
 is hard-coded in the application.
 
-| Field                         | Type                               | Default               | Spec                         |
-| ----------------------------- | ---------------------------------- | --------------------- | ---------------------------- |
-| `vatRatePercent`              | `0 \| 5`                           | `5`                   | §11                          |
-| `vatAppliesToDeposit`         | `false`                            | `false` (constant)    | §11 — deposit is not taxable |
-| `currency`                    | `'OMR'`                            | `'OMR'`               | §10                          |
-| `currencyDecimals`            | `3`                                | `3`                   | §10                          |
-| `minimumPickupPaymentPercent` | number 0–100                       | `100`                 | §23                          |
-| `requireDepositBeforePickup`  | boolean                            | `true`                | §23                          |
-| `lateFeePerDay`               | Baisa                              | `0` until configured  | §26                          |
-| `defaultCleaningBufferDays`   | number                             | `3`                   | §18                          |
-| `numbering.dress`             | `{ prefix, padding, separator }`   | `WD`, 4, `-`          | §5                           |
-| `numbering.customer`          |                                    | `CU`, 4, `-`          | §5                           |
-| `numbering.reservation`       |                                    | `RSV`, 4, `-`         | §5                           |
-| `numbering.invoice`           | `{ prefix, padding, includeYear }` | `INV`, 4, true        | §5                           |
-| `cancellationTiers`           | array (below)                      | `[]` until configured | §28                          |
-| `activeTermsVersionId`        | string \| null                     | `null`                | §33                          |
-| `defaultDocumentLanguage`     | `'en' \| 'ar' \| 'bilingual'`      | `'bilingual'`         | §32                          |
+| Field                        | Type                               | Default               | Spec                         |
+| ---------------------------- | ---------------------------------- | --------------------- | ---------------------------- |
+| `vatRatePercent`             | `0 \| 5`                           | `5`                   | §11                          |
+| `vatAppliesToDeposit`        | `false`                            | `false` (constant)    | §11 — deposit is not taxable |
+| `currency`                   | `'OMR'`                            | `'OMR'`               | §10                          |
+| `currencyDecimals`           | `3`                                | `3`                   | §10                          |
+| `minPickupPaymentPercent`    | number 0–100                       | `100`                 | §23                          |
+| `requireDepositBeforePickup` | boolean                            | `true`                | §23                          |
+| `lateFeePerDay`              | Baisa                              | `0` until configured  | §26                          |
+| `defaultCleaningBufferDays`  | number                             | `3`                   | §18                          |
+| `numbering.dress`            | `{ prefix, padding, separator }`   | `WD`, 4, `-`          | §5                           |
+| `numbering.customer`         |                                    | `CU`, 4, `-`          | §5                           |
+| `numbering.reservation`      |                                    | `RSV`, 4, `-`         | §5                           |
+| `numbering.invoice`          | `{ prefix, padding, includeYear }` | `INV`, 4, true        | §5                           |
+| `cancellationTiers`          | array (below)                      | `[]` until configured | §28                          |
+| `activeTermsVersionId`       | string \| null                     | `null`                | §33                          |
+| `defaultDocumentLanguage`    | `'en' \| 'ar' \| 'bilingual'`      | `'bilingual'`         | §32                          |
 
 `cancellationTiers` entries:
 
@@ -449,7 +458,91 @@ Reservations snapshot accessory lines; editing the catalogue never alters histor
 
 ---
 
-### 2.11 `payments/{paymentId}`
+### 2.11a `financialEvents/{idempotencyKey}` — the ledger (Phase 5)
+
+**The document ID is the client's idempotency key.** That is not a convenience:
+it turns duplicate detection from a race into a question of existence. A double
+click, a retry after a timeout and a replayed request all address the same
+document, and the transaction reads it before doing anything.
+
+Payments, refunds, reversals, deposit movements, late fees and cancellation
+waivers all live here, because they are all answers to "what happened to this
+reservation's money", and a balance is the reduction over them.
+
+| Field                               | Type                                                    | Notes                                       |
+| ----------------------------------- | ------------------------------------------------------- | ------------------------------------------- |
+| `reservationId` / `reservationCode` | string                                                  |                                             |
+| `customerId`                        | string                                                  |                                             |
+| `kind`                              | `FinancialEventKind` (below)                            | decides the direction                       |
+| `amount`                            | Baisa                                                   | **always positive**                         |
+| `method`                            | `'Cash' \| 'Card' \| 'Bank Transfer'` \| null           | null where no money moved                   |
+| `type`                              | `'Deposit' \| 'Installment' \| 'Final Payment'` \| null | rental payments only                        |
+| `occurredAt`                        | Timestamp                                               | may be backdated by staff                   |
+| `reference`                         | string                                                  | receipt / transfer ref                      |
+| `reason`                            | string                                                  | required for forfeiture and reversal        |
+| `employeeId` / `employeeName`       | string                                                  |                                             |
+| `reversesEventId`                   | string \| null                                          | set on a reversal                           |
+| `snapshot`                          | map \| null                                             | frozen late-fee or cancellation calculation |
+| `createdAt` / `createdBy`           | Timestamp / string                                      | server clock                                |
+
+`FinancialEventKind`:
+
+```
+Payment | PaymentReversal | Refund
+SecurityDepositPayment | SecurityDepositRefund | SecurityDepositForfeiture
+LateFee | ChargeWaiver
+```
+
+Every amount is **positive** and the kind decides whether it adds or subtracts.
+A signed amount would make a mistyped minus a silent reversal, and would let
+"amount must be greater than zero" pass on a value that takes money out.
+
+#### Written only by Cloud Functions, and never amended
+
+```
+allow read: if isEmployee();
+allow create, update, delete: if false;
+```
+
+Two independent reasons, either sufficient. First, whether a payment is
+permitted depends on the balance, which is a query read followed by a write —
+impossible from the client SDK inside a transaction, so a client-side check is a
+time-of-check/time-of-use race. Second, the document id is the idempotency key,
+and a client free to choose ids could defeat that by construction.
+
+Update and delete are refused to **every** role, owner included. A mistake is
+corrected by appending a reversal, never by editing history.
+
+#### Balances are derived, never stored
+
+There is no `outstanding` field anywhere. It is computed by `reduceLedger`,
+which every screen and every Function calls. A stored balance is a cache that
+goes stale the moment an event is appended.
+
+```
+totalChargeable = agreedCharges + lateFees − waivers   (floored at zero)
+netPaid         = payments − reversals − refunds
+outstanding     = max(0, totalChargeable − netPaid)
+refundable      = max(0, netPaid − totalChargeable)
+depositHeld     = depositPaid − depositRefunded − depositForfeited
+```
+
+#### Why the reservation document is written on every financial operation
+
+Same phantom read as booking. A transactional query locks the documents it
+returns, not their absence: two simultaneous payments both read an empty event
+list, both see the full balance outstanding, and both commit.
+
+Every financial transaction therefore reads and writes `reservations/{id}`,
+incrementing `financialVersion`.
+
+| Field on `reservations` | Type   | Notes                                                              |
+| ----------------------- | ------ | ------------------------------------------------------------------ |
+| `financialVersion`      | number | Incremented by every financial transaction; never read for display |
+
+---
+
+### 2.11 `payments/{paymentId}` — superseded
 
 Append-only ledger (§22). Corrections are made by adding a reversing entry, never by
 editing or deleting — this is what makes the ledger trustworthy.
@@ -475,6 +568,15 @@ defence — disabling the button is UX, not a guarantee.
 
 `type: 'Security Deposit'` payments are excluded from the VAT-taxable base and from
 the "eligible balance" used for the pickup threshold (§23).
+
+> **Replaced in Phase 5 by `financialEvents`.** The collection is closed rather
+> than removed — `allow create, update, delete: if false`, reads still permitted
+> — so anything written before the change stays readable and auditable.
+>
+> Two things made the original model unsafe. Whether a payment is permitted
+> depends on a balance the client cannot compute safely, so a client write path
+> is a race; and `voided` is a flag set on a posted entry, which is an edit to
+> history. Corrections are now reversal **events**, leaving both sides visible.
 
 ---
 

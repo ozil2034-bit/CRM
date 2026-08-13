@@ -242,6 +242,97 @@ export const en = {
   'waitlist.noMessage':
     'This records interest only. No message is sent — the customer must be contacted directly.',
 
+  // Money
+  'money.title': 'Money',
+  'money.balance': 'Balance',
+  'money.charges': 'Charges',
+  'money.lateFees': 'Late fees',
+  'money.waived': 'Waived on cancellation',
+  'money.totalChargeable': 'Total chargeable',
+  'money.paid': 'Paid',
+  'money.outstanding': 'Outstanding',
+  'money.refundable': 'Refundable',
+  'money.depositDue': 'Deposit due',
+  'money.depositHeld': 'Deposit held',
+  'money.depositReturned': 'Deposit returned',
+  'money.depositKept': 'Deposit kept',
+  'money.statement': 'Statement',
+  'money.noEvents': 'Nothing has been recorded yet.',
+  'money.method': 'Method',
+  'money.reference': 'Reference',
+  'money.reason': 'Reason',
+  'money.amount': 'Amount',
+  'money.date': 'Date',
+  'money.recordedBy': 'Recorded by',
+  'money.depositSeparate':
+    'The security deposit is held separately. It is not payment for the rental and is not subject to VAT.',
+  'money.offline': 'An internet connection is required to record money. Nothing has been saved.',
+
+  // Money actions
+  'money.recordPayment': 'Record a payment',
+  'money.collectDeposit': 'Collect the deposit',
+  'money.refund': 'Pay a refund',
+  'money.reverse': 'Reverse',
+  'money.returnDeposit': 'Return the deposit',
+  'money.keepDeposit': 'Keep part of the deposit',
+  'money.chargeLateFee': 'Charge a late fee',
+  'money.cancelFinancially': 'Cancel and calculate the refund',
+  'money.recording': 'Recording…',
+  'money.recorded': 'Recorded.',
+  'money.alreadyRecorded': 'That was already recorded — nothing was posted twice.',
+  'money.ownerOnly': 'Only the owner may do this.',
+  'money.reversalNote':
+    'Reversal cancels a payment that should never have been recorded. No money moves. Use a refund when money genuinely went back.',
+  'money.forfeitNote': 'Keeping a customer’s deposit requires a reason, which is recorded.',
+  'money.actualReturn': 'Date the dress came back',
+
+  // Payment methods and types
+  'method.Cash': 'Cash',
+  'method.Card': 'Card',
+  'method.Bank Transfer': 'Bank transfer',
+  'paymentType.Deposit': 'Advance',
+  'paymentType.Installment': 'Instalment',
+  'paymentType.Final Payment': 'Final payment',
+
+  // Event kinds, as they read on a statement
+  'event.Payment': 'Payment',
+  'event.PaymentReversal': 'Payment reversed',
+  'event.Refund': 'Refund',
+  'event.SecurityDepositPayment': 'Security deposit',
+  'event.SecurityDepositRefund': 'Deposit returned',
+  'event.SecurityDepositForfeiture': 'Deposit kept',
+  'event.LateFee': 'Late fee',
+  'event.ChargeWaiver': 'Cancellation relief',
+
+  // Financial status
+  'financial.Unpaid': 'Unpaid',
+  'financial.Partially Paid': 'Partly paid',
+  'financial.Paid': 'Paid',
+  'financial.Partially Refunded': 'Partly refunded',
+  'financial.Refunded': 'Refunded',
+
+  // Pickup eligibility
+  'pickup.title': 'Ready for collection',
+  'pickup.allowed': 'This reservation may be collected.',
+  'pickup.depositNotHeld': 'The security deposit has not been collected in full.',
+  'pickup.balanceBelowThreshold': 'Not enough of the rental has been paid.',
+  'pickup.stillRequired': 'Still required',
+
+  // Cancellation
+  'cancel.title': 'Cancellation',
+  'cancel.notice': 'Notice given',
+  'cancel.days': 'days',
+  'cancel.tier': 'Tier',
+  'cancel.refundPercent': 'Refundable share',
+  'cancel.charge': 'The boutique keeps',
+  'cancel.rentalRefund': 'Rental refund due',
+  'cancel.depositRefund': 'Deposit to return',
+  'cancel.totalRefund': 'Total to return',
+  'cancel.stillOwed': 'Still owed',
+  'cancel.noRefundPaid':
+    'Cancelling calculates the refund; it does not pay it. Record the refund when the money actually goes back.',
+  'cancel.confirm': 'Apply this cancellation',
+
   // Reservation statuses
   'status.Inquiry': 'Inquiry',
   'status.Reserved': 'Reserved',
@@ -497,6 +588,97 @@ export const ar: Record<TranslationKey, string> = {
   'waitlist.none': 'لا أحد في انتظار هذا الفستان.',
   'waitlist.noMessage':
     'هذا يسجل الاهتمام فقط. لا تُرسل أي رسالة — يجب التواصل مع العميلة مباشرةً.',
+
+  // المالية
+  'money.title': 'المالية',
+  'money.balance': 'الرصيد',
+  'money.charges': 'الرسوم',
+  'money.lateFees': 'رسوم التأخير',
+  'money.waived': 'المُعفى عند الإلغاء',
+  'money.totalChargeable': 'إجمالي المستحق',
+  'money.paid': 'المدفوع',
+  'money.outstanding': 'المتبقي',
+  'money.refundable': 'القابل للاسترداد',
+  'money.depositDue': 'التأمين المطلوب',
+  'money.depositHeld': 'التأمين المحتفظ به',
+  'money.depositReturned': 'التأمين المُعاد',
+  'money.depositKept': 'التأمين المحتجز',
+  'money.statement': 'كشف الحساب',
+  'money.noEvents': 'لم يُسجَّل أي شيء بعد.',
+  'money.method': 'طريقة الدفع',
+  'money.reference': 'المرجع',
+  'money.reason': 'السبب',
+  'money.amount': 'المبلغ',
+  'money.date': 'التاريخ',
+  'money.recordedBy': 'سجّلها',
+  'money.depositSeparate':
+    'يُحتفظ بمبلغ التأمين بشكل منفصل. وهو ليس دفعة مقابل الإيجار ولا يخضع لضريبة القيمة المضافة.',
+  'money.offline': 'يلزم اتصال بالإنترنت لتسجيل أي مبلغ. لم يُحفَظ أي شيء.',
+
+  // إجراءات مالية
+  'money.recordPayment': 'تسجيل دفعة',
+  'money.collectDeposit': 'تحصيل التأمين',
+  'money.refund': 'صرف مبلغ مسترد',
+  'money.reverse': 'عكس القيد',
+  'money.returnDeposit': 'إعادة التأمين',
+  'money.keepDeposit': 'احتجاز جزء من التأمين',
+  'money.chargeLateFee': 'احتساب رسوم تأخير',
+  'money.cancelFinancially': 'الإلغاء واحتساب المبلغ المسترد',
+  'money.recording': 'جارٍ التسجيل…',
+  'money.recorded': 'تم التسجيل.',
+  'money.alreadyRecorded': 'سبق تسجيل هذه العملية — ولم تُسجَّل مرتين.',
+  'money.ownerOnly': 'هذا الإجراء للمالكة فقط.',
+  'money.reversalNote':
+    'عكس القيد يلغي دفعة ما كان ينبغي تسجيلها أصلًا، ولا ينتقل فيه أي مبلغ. استخدمي الاسترداد عندما يُعاد المبلغ فعليًا.',
+  'money.forfeitNote': 'احتجاز تأمين العميلة يتطلب سببًا، ويُسجَّل هذا السبب.',
+  'money.actualReturn': 'تاريخ إعادة الفستان',
+
+  // طرق وأنواع الدفع
+  'method.Cash': 'نقدًا',
+  'method.Card': 'بطاقة',
+  'method.Bank Transfer': 'تحويل بنكي',
+  'paymentType.Deposit': 'دفعة مقدمة',
+  'paymentType.Installment': 'قسط',
+  'paymentType.Final Payment': 'الدفعة الأخيرة',
+
+  // بنود كشف الحساب
+  'event.Payment': 'دفعة',
+  'event.PaymentReversal': 'عكس دفعة',
+  'event.Refund': 'مبلغ مسترد',
+  'event.SecurityDepositPayment': 'مبلغ تأمين',
+  'event.SecurityDepositRefund': 'إعادة التأمين',
+  'event.SecurityDepositForfeiture': 'احتجاز التأمين',
+  'event.LateFee': 'رسوم تأخير',
+  'event.ChargeWaiver': 'إعفاء عند الإلغاء',
+
+  // الحالة المالية
+  'financial.Unpaid': 'غير مدفوع',
+  'financial.Partially Paid': 'مدفوع جزئيًا',
+  'financial.Paid': 'مدفوع',
+  'financial.Partially Refunded': 'مسترد جزئيًا',
+  'financial.Refunded': 'مسترد',
+
+  // أهلية الاستلام
+  'pickup.title': 'جاهز للاستلام',
+  'pickup.allowed': 'يمكن استلام هذا الحجز.',
+  'pickup.depositNotHeld': 'لم يُحصَّل مبلغ التأمين بالكامل.',
+  'pickup.balanceBelowThreshold': 'لم يُدفع القدر الكافي من قيمة الإيجار.',
+  'pickup.stillRequired': 'المطلوب حتى الآن',
+
+  // الإلغاء
+  'cancel.title': 'الإلغاء',
+  'cancel.notice': 'مدة الإشعار',
+  'cancel.days': 'أيام',
+  'cancel.tier': 'الشريحة',
+  'cancel.refundPercent': 'النسبة القابلة للاسترداد',
+  'cancel.charge': 'ما يحتفظ به البوتيك',
+  'cancel.rentalRefund': 'المبلغ المسترد من الإيجار',
+  'cancel.depositRefund': 'التأمين الواجب إعادته',
+  'cancel.totalRefund': 'إجمالي المبلغ المعاد',
+  'cancel.stillOwed': 'المتبقي على العميلة',
+  'cancel.noRefundPaid':
+    'الإلغاء يحتسب المبلغ المسترد ولا يصرفه. سجّلي الاسترداد عند إعادة المبلغ فعليًا.',
+  'cancel.confirm': 'تطبيق هذا الإلغاء',
 
   // حالات الحجز
   'status.Inquiry': 'استفسار',
