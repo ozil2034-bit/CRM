@@ -26,3 +26,21 @@ export {
   releaseCleanedDresses,
   checkAvailability,
 } from './reservations';
+
+/*
+ * Phase 5. Every financial write is here for the same reason booking is: a
+ * balance is a reduction over an event list, so deciding whether a payment is
+ * permitted means reading a query and then writing based on the answer. The
+ * client SDK cannot do that inside a transaction, and a browser-computed
+ * balance is stale the moment two tills are open.
+ */
+export {
+  recordPayment,
+  recordSecurityDeposit,
+  refundPayment,
+  reversePayment,
+  settleDeposit,
+  postLateFee,
+  quoteCancellationFor,
+  cancelReservationFinancially,
+} from './payments';

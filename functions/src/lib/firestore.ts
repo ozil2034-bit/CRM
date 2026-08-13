@@ -71,6 +71,8 @@ export interface AuditEntry {
   readonly action: string;
   readonly entityType: string;
   readonly entityId: string;
+  /** Human-facing code (`RSV-0001`), so a log line reads without a join. */
+  readonly entityCode?: string | undefined;
   readonly before: Record<string, unknown> | null;
   readonly after: Record<string, unknown> | null;
   readonly reason?: string | undefined;

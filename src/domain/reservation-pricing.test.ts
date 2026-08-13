@@ -284,3 +284,145 @@ describe('money type discipline', () => {
     expect(Number.isInteger(amount)).toBe(true);
   });
 });
+
+/* ------------------------------------------------------------------------ *
+ * VAT rounding — the exact matrix the specification names (§9, §38)
+ * ------------------------------------------------------------------------ */
+
+describe('VAT rounding at three decimals', () => {
+  /**
+   * Rounding happens **once**, on the discounted taxable subtotal, half away
+   * from zero. Every case below is the arithmetic written out, so a future
+   * change to the rounding rule fails here rather than on a customer's invoice.
+   */
+  const cases: { rental: string; rate: number; vat: number; why: string }[] = [
+    // 5% of 1 baisa is 0.05 — below the half, rounds down to nothing.
+    { rental: '0.001', rate: 5, vat: 0, why: 'a single baisa attracts no VAT at 5%' },
+    { rental: '0.002', rate: 5, vat: 0, why: 'two baisa still round to nothing' },
+    { rental: '0.005', rate: 5, vat: 0, why: 'five baisa give 0.25 baisa, which rounds down' },
+    // 5% of 10 baisa is exactly 0.5 — half away from zero rounds up to 1.
+    { rental: '0.010', rate: 5, vat: 1, why: 'an exact half rounds away from zero' },
+    { rental: '0.999', rate: 5, vat: 50, why: '49.95 baisa rounds up to 50' },
+    { rental: '1.001', rate: 5, vat: 50, why: '50.05 baisa rounds down to 50' },
+    { rental: '1.000', rate: 5, vat: 50, why: 'a round rial gives a round 50 baisa' },
+    { rental: '999999.999', rate: 5, vat: 50_000_000, why: 'large values stay exact' },
+
+    // Zero-rated: no VAT at any magnitude.
+    { rental: '0.001', rate: 0, vat: 0, why: 'nothing is taxed at 0%' },
+    { rental: '0.999', rate: 0, vat: 0, why: 'nothing is taxed at 0%' },
+    { rental: '999999.999', rate: 0, vat: 0, why: 'nothing is taxed at 0%' },
+  ];
+
+  for (const { rental, rate, vat, why } of cases) {
+    it(`charges ${vat} baisa VAT on OMR ${rental} at ${rate}% — ${why}`, () => {
+      const pricing = computePricing({
+        ...base,
+        items: [item(rental, '0.000')],
+        vatRatePercent: rate,
+      });
+
+      expect(pricing.vatAmount).toBe(vat);
+      expect(Number.isInteger(pricing.vatAmount)).toBe(true);
+    });
+  }
+
+  it('does not round intermediate components, only the VAT once', () => {
+    /*
+     * Three lines that each attract a fractional VAT amount. Rounding each line
+     * and summing gives 3 baisa; rounding the total once gives 2. The second is
+     * correct, and is what reconciles against the printed subtotal.
+     */
+    const pricing = computePricing({
+      ...base,
+      items: [item('0.010', '0.000')],
+      alterations: [
+        { description: 'A', amount: parseOmr('0.010') },
+        { description: 'B', amount: parseOmr('0.010') },
+      ],
+      vatRatePercent: 5,
+    });
+
+    expect(pricing.taxableSubtotal).toBe(30);
+    // 5% of 30 baisa is 1.5, which rounds away from zero to 2.
+    expect(pricing.vatAmount).toBe(2);
+  });
+
+  it('reconciles the grand total across the whole matrix', () => {
+    for (const { rental, rate } of cases) {
+      const pricing = computePricing({
+        ...base,
+        items: [item(rental, '25.000')],
+        vatRatePercent: rate,
+      });
+
+      expect(pricing.grandTotal).toBe(
+        pricing.taxableSubtotal + pricing.vatAmount + pricing.securityDepositTotal,
+      );
+    }
+  });
+});
+
+/* ------------------------------------------------------------------------ *
+ * Edge amounts (§38)
+ * ------------------------------------------------------------------------ */
+
+describe('edge amounts', () => {
+  it('handles a reservation worth nothing at all', () => {
+    const pricing = computePricing({ ...base, items: [item('0.000', '0.000')] });
+
+    expect(pricing.grandTotal).toBe(0);
+    expect(pricing.vatAmount).toBe(0);
+    expect(formatOmr(pricing.grandTotal)).toBe('OMR 0.000');
+  });
+
+  it('handles the smallest possible charge', () => {
+    const pricing = computePricing({ ...base, items: [item('0.001', '0.000')] });
+
+    expect(pricing.taxableSubtotal).toBe(1);
+    expect(formatOmr(pricing.grandTotal)).toBe('OMR 0.001');
+  });
+
+  it('handles a very large reservation without losing precision', () => {
+    const pricing = computePricing({
+      ...base,
+      items: [item('999999.999', '0.000')],
+      vatRatePercent: 5,
+    });
+
+    expect(pricing.taxableSubtotal).toBe(999_999_999);
+    expect(pricing.grandTotal).toBe(999_999_999 + 50_000_000);
+    expect(Number.isSafeInteger(pricing.grandTotal)).toBe(true);
+  });
+
+  it('charges nothing when a 100% discount is applied', () => {
+    const pricing = computePricing({
+      ...base,
+      items: [item('180.000', '100.000')],
+      discount: { kind: 'percent', value: 100 },
+    });
+
+    expect(pricing.taxableSubtotal).toBe(0);
+    expect(pricing.vatAmount).toBe(0);
+    // The deposit survives a full discount — it was never a charge.
+    expect(pricing.grandTotal).toBe(100_000);
+  });
+
+  it('leaves the total untouched by a zero discount', () => {
+    const withZero = computePricing({ ...base, discount: { kind: 'amount', value: 0 } });
+    const without = computePricing(base);
+
+    expect(withZero).toEqual(without);
+  });
+
+  it('caps a discount larger than the bill rather than paying the customer', () => {
+    const pricing = computePricing({
+      ...base,
+      items: [item('180.000', '100.000')],
+      discount: { kind: 'amount', value: 999_999_999 },
+    });
+
+    expect(pricing.discountAmount).toBe(180_000);
+    expect(pricing.taxableSubtotal).toBe(0);
+    expect(pricing.grandTotal).toBe(100_000);
+  });
+});

@@ -150,11 +150,48 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    /*
+     * A stored VAT rate must be one the boutique may actually charge.
+     *
+     * Oman's standard rate is 5%, with zero-rating for some supplies. A rate
+     * outside that set is a configuration mistake, not a commercial decision —
+     * and an invoice carrying the wrong VAT rate is a matter for the tax
+     * authority, so the check belongs here and not only in the interface. The
+     * field is optional, so a settings write that does not mention VAT passes.
+     */
+    function vatRateIsPermitted() {
+      return !('vatRatePercent' in request.resource.data)
+        || request.resource.data.vatRatePercent == 0
+        || request.resource.data.vatRatePercent == 5;
+    }
+
+    /* Money settings must be whole, non-negative baisa — never a rial float. */
+    function lateFeeIsWellFormed() {
+      return !('lateFeePerDay' in request.resource.data)
+        || (request.resource.data.lateFeePerDay is int
+            && request.resource.data.lateFeePerDay >= 0);
+    }
+
+    function pickupThresholdIsWellFormed() {
+      return !('minPickupPaymentPercent' in request.resource.data)
+        || (request.resource.data.minPickupPaymentPercent is number
+            && request.resource.data.minPickupPaymentPercent >= 0
+            && request.resource.data.minPickupPaymentPercent <= 100);
+    }
+
     match /settings/{documentId} {
       // Staff read settings because the VAT rate and pickup threshold drive the
       // screens they use daily. Reading configuration is not changing it.
       allow read: if isEmployee();
-      allow create, update: if isOwner();
+
+      // Owner-only, and only values the financial engine can honour. Staff
+      // changing VAT, the late-fee rate or the cancellation scale would let the
+      // shop floor rewrite the commercial terms of every future booking.
+      allow create, update: if isOwner()
+        && vatRateIsPermitted()
+        && lateFeeIsWellFormed()
+        && pickupThresholdIsWellFormed();
+
       allow delete: if false;
     }
 
@@ -311,22 +348,52 @@ service cloud.firestore {
     }
 
     /* ------------------------------------------------------------------ *
-     * payments — append-only ledger
+     * financialEvents — the append-only ledger (Phase 5)
      *
-     * Created by staff, never deleted by anyone, and amended only by voiding.
-     * `amount`, `method`, `type` and the reservation link are immutable after
-     * creation: a ledger whose entries can be edited is not a ledger.
+     * Payments, refunds, reversals, deposit movements, late fees and
+     * cancellation waivers are all events in one collection, because they are
+     * all answers to "what happened to this reservation's money" and a balance
+     * is the reduction over them.
+     *
+     * NO CLIENT WRITE PATH AT ALL.
+     *
+     * Two independent reasons, either sufficient:
+     *
+     * 1. Whether a payment is permitted depends on the balance, and the balance
+     *    is a reduction over every event already posted. That is a query read
+     *    followed by a write, which the client SDK cannot do inside a
+     *    transaction — so a client-side check is a time-of-check/time-of-use
+     *    race, and two tills would both take the same outstanding balance.
+     *
+     * 2. A ledger whose entries a client can write is not a ledger. The
+     *    document id IS the idempotency key, which is what makes a retry
+     *    converge on one event rather than two; a client free to choose ids
+     *    could defeat that by construction.
+     *
+     * Update and delete are refused to EVERY role, owner included. A mistake is
+     * corrected by appending a reversal, never by editing history. This is the
+     * accounting principle the whole phase rests on: the record must answer
+     * what happened, not merely what is currently believed.
+     * ------------------------------------------------------------------ */
+
+    match /financialEvents/{eventId} {
+      allow read: if isEmployee();
+      allow create, update, delete: if false;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * payments — superseded by financialEvents
+     *
+     * Phase 2 modelled payments as a client-written collection with a void
+     * flag. Phase 5 replaced it: voiding mutates a posted entry, and the
+     * balance it belongs to cannot be computed safely on a client. The
+     * collection is closed rather than removed, so any document written before
+     * the change stays readable and auditable.
      * ------------------------------------------------------------------ */
 
     match /payments/{paymentId} {
       allow read: if isEmployee();
-      allow create: if isEmployee() && actorIsSelf();
-
-      // Only the owner, and only the void fields.
-      allow update: if isOwner()
-        && onlyChanges(['voided', 'voidedAt', 'voidedBy', 'voidReason', 'updatedAt', 'updatedBy']);
-
-      allow delete: if false;
+      allow create, update, delete: if false;
     }
 
     /* ------------------------------------------------------------------ *

@@ -641,8 +641,27 @@ describe('payments', () => {
     voided: false,
   };
 
-  it('ALLOWS staff to record a payment', async () => {
-    await assertSucceeds(setDoc(doc(dbAs(testEnv, 'staff'), 'payments', uniqueId('pay')), payment));
+  /*
+   * Inverted in Phase 5, deliberately.
+   *
+   * Phase 2 wrote these rules from the authorization matrix alone: staff take
+   * money, so staff may write a payment. Phase 5 supplied the constraint that
+   * was missing — whether a payment is permitted depends on the balance, and
+   * the balance is a reduction over every event already posted. That is a query
+   * read followed by a write, which the client SDK cannot do inside a
+   * transaction, so a browser-side check is a time-of-check/time-of-use race
+   * and two tills would both take the same outstanding balance.
+   *
+   * Payments now go through `recordPayment`, which runs with the Admin SDK and
+   * bypasses these rules. Staff lose no capability — recording money is still
+   * their job, and it is still they who do it.
+   *
+   * The collection itself is closed rather than removed, so anything written
+   * before the change stays readable and auditable. New events live in
+   * `financialEvents`; see firestore.financial.test.ts.
+   */
+  it('DENIES staff writing a payment directly — the balance decides, and only the server can', async () => {
+    await assertFails(setDoc(doc(dbAs(testEnv, 'staff'), 'payments', uniqueId('pay')), payment));
   });
 
   it('ALLOWS staff to read the ledger', async () => {
@@ -688,10 +707,23 @@ describe('payments', () => {
     );
   });
 
-  it('ALLOWS the owner to void a payment', async () => {
+  /*
+   * Also inverted in Phase 5, and this one is the accounting principle itself.
+   *
+   * Voiding sets a flag on a posted entry — it edits history. Phase 5 replaced
+   * it with a reversal: a new event that offsets the original, leaving both
+   * visible so the record answers "what happened" rather than only "what do we
+   * currently believe". A ledger whose entries can be amended is not a ledger,
+   * and the owner is exactly the person whose amendments most need to be
+   * visible.
+   *
+   * `reversePayment` is owner-only, so the control has not been loosened — it
+   * has been moved somewhere it leaves a trace.
+   */
+  it('DENIES the owner voiding a payment — corrections are reversals, not edits', async () => {
     const id = uniqueId('pay');
     await seedDocument(testEnv, `payments/${id}`, payment);
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(dbAs(testEnv, 'owner'), 'payments', id), {
         voided: true,
         voidedBy: 'owner-user',
