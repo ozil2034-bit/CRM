@@ -192,7 +192,12 @@ service cloud.firestore {
 
     match /dresses/{dressId} {
       allow read: if isEmployee();
-      allow create, update: if isEmployee();
+
+      // Codes are allocated by a counter transaction and are how staff identify
+      // a garment. Rewriting one would break every reference to it.
+      allow create: if isEmployee() && request.resource.data.code is string;
+      allow update: if isEmployee() && unchanged(['code', 'createdAt', 'createdBy']);
+
       allow delete: if isOwner();
 
       /*
@@ -212,8 +217,18 @@ service cloud.firestore {
 
     match /customers/{customerId} {
       allow read: if isEmployee();
-      allow create, update: if isEmployee();
-      allow delete: if isOwner();
+
+      // `archived` must exist from creation so the default customer list — which
+      // filters on it — cannot silently omit a new record.
+      allow create: if isEmployee()
+        && request.resource.data.code is string
+        && request.resource.data.archived == false;
+
+      allow update: if isEmployee() && unchanged(['code', 'createdAt', 'createdBy']);
+
+      // Customers are archived, never deleted: reservations, payments and
+      // invoices reference them, and that history must stay resolvable.
+      allow delete: if false;
     }
 
     /* ------------------------------------------------------------------ *
