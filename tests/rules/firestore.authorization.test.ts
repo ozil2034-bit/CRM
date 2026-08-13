@@ -470,17 +470,51 @@ describe('reservations', () => {
     createdBy: 'staff-user',
   };
 
-  it('ALLOWS staff to create and read a reservation', async () => {
+  /*
+   * These two assertions were inverted in Phase 4, and the reversal is
+   * deliberate.
+   *
+   * Phase 2 wrote the reservation rules from the authorization matrix alone:
+   * staff are employees, employees operate reservations, so a client write was
+   * allowed. Phase 4 supplied the missing constraint — creating or re-dating a
+   * reservation requires checking availability and booking in one atomic step,
+   * and a transactional query is something the client SDK cannot perform. A
+   * browser-side check followed by a write is a time-of-check/time-of-use race:
+   * two employees looking at the same free gown would both see it free.
+   *
+   * So the write path moved into `createReservation` and
+   * `changeReservationStatus`, which run with the Admin SDK and bypass these
+   * rules entirely. `allow create: if false` is not a restriction on staff; it
+   * closes the door that would let a client go around the engine. The rights
+   * staff actually exercise are unchanged — they book through the Function.
+   *
+   * The narrowing is asserted here rather than merely allowed, and the full
+   * surface lives in firestore.reservations.test.ts.
+   */
+  it('DENIES staff creating a reservation directly — booking is server-side', async () => {
     const id = uniqueId('rsv');
-    await assertSucceeds(setDoc(doc(dbAs(testEnv, 'staff'), 'reservations', id), snapshot));
+    await assertFails(setDoc(doc(dbAs(testEnv, 'staff'), 'reservations', id), snapshot));
+  });
+
+  it('ALLOWS staff to READ a reservation', async () => {
+    const id = uniqueId('rsv');
+    await seedDocument(testEnv, `reservations/${id}`, snapshot);
     await assertSucceeds(getDoc(doc(dbAs(testEnv, 'staff'), 'reservations', id)));
   });
 
-  it('ALLOWS staff to advance the status', async () => {
+  it('DENIES staff advancing the status directly — it moves the dress with it', async () => {
+    const id = uniqueId('rsv');
+    await seedDocument(testEnv, `reservations/${id}`, snapshot);
+    await assertFails(
+      updateDoc(doc(dbAs(testEnv, 'staff'), 'reservations', id), { status: 'Picked Up' }),
+    );
+  });
+
+  it('ALLOWS staff to edit the notes, the one field that holds nothing', async () => {
     const id = uniqueId('rsv');
     await seedDocument(testEnv, `reservations/${id}`, snapshot);
     await assertSucceeds(
-      updateDoc(doc(dbAs(testEnv, 'staff'), 'reservations', id), { status: 'Picked Up' }),
+      updateDoc(doc(dbAs(testEnv, 'staff'), 'reservations', id), { notes: 'Morning collection.' }),
     );
   });
 
@@ -538,19 +572,51 @@ describe('reservations', () => {
 });
 
 describe('reservationItems', () => {
-  it('ALLOWS staff full operational control, including removing a dress', async () => {
+  /*
+   * Inverted in Phase 4, for the sharpest reason in the schema.
+   *
+   * Phase 2 treated these as ordinary line items. Phase 4 gave them the
+   * blocking interval that *decides* availability: a client that can write one
+   * can book a gown that is already promised, and a client that can clear
+   * `blocking` can free somebody else's booking without touching their
+   * reservation. Staff never needed to write them by hand — the Function
+   * writes them in the same transaction as the reservation — so closing the
+   * path costs the boutique nothing and removes the forgery.
+   */
+  it('DENIES staff writing a blocking item — availability is decided by these', async () => {
     const id = uniqueId('item');
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(dbAs(testEnv, 'staff'), 'reservationItems', id), {
         reservationId: 'rsv-1',
         dressId: 'wd-1',
         blocking: true,
       }),
     );
-    await assertSucceeds(
+  });
+
+  it('DENIES staff clearing the blocking flag or deleting an item', async () => {
+    const id = uniqueId('item');
+    await seedDocument(testEnv, `reservationItems/${id}`, {
+      reservationId: 'rsv-1',
+      dressId: 'wd-1',
+      blocking: true,
+    });
+
+    await assertFails(
       updateDoc(doc(dbAs(testEnv, 'staff'), 'reservationItems', id), { blocking: false }),
     );
-    await assertSucceeds(deleteDoc(doc(dbAs(testEnv, 'staff'), 'reservationItems', id)));
+    await assertFails(deleteDoc(doc(dbAs(testEnv, 'staff'), 'reservationItems', id)));
+  });
+
+  it('ALLOWS staff to READ items — the UI has to show what is booked', async () => {
+    const id = uniqueId('item');
+    await seedDocument(testEnv, `reservationItems/${id}`, {
+      reservationId: 'rsv-1',
+      dressId: 'wd-1',
+      blocking: true,
+    });
+
+    await assertSucceeds(getDoc(doc(dbAs(testEnv, 'staff'), 'reservationItems', id)));
   });
 
   it('DENIES an unauthenticated visitor reading blocking intervals', async () => {
@@ -763,7 +829,12 @@ describe('fittings, accessories and waitlist', () => {
   it('ALLOWS staff to manage fittings end to end', async () => {
     const id = uniqueId('fitting');
     await assertSucceeds(
-      setDoc(doc(dbAs(testEnv, 'staff'), 'fittings', id), { status: 'Scheduled' }),
+      // Phase 4 requires a fitting to name the reservation it belongs to; a
+      // dangling appointment is not something the diary can act on.
+      setDoc(doc(dbAs(testEnv, 'staff'), 'fittings', id), {
+        reservationId: 'rsv-1',
+        status: 'Scheduled',
+      }),
     );
     await assertSucceeds(
       updateDoc(doc(dbAs(testEnv, 'staff'), 'fittings', id), { status: 'Completed' }),
@@ -774,7 +845,13 @@ describe('fittings, accessories and waitlist', () => {
   it('ALLOWS staff to manage the waitlist end to end', async () => {
     const id = uniqueId('wait');
     await assertSucceeds(
-      setDoc(doc(dbAs(testEnv, 'staff'), 'waitlist', id), { status: 'Waiting' }),
+      // Phase 4 requires the dress and customer the entry is about — an entry
+      // naming neither could never be acted on when the gown frees up.
+      setDoc(doc(dbAs(testEnv, 'staff'), 'waitlist', id), {
+        dressId: 'wd-1',
+        customerId: 'cus-1',
+        status: 'Waiting',
+      }),
     );
     await assertSucceeds(deleteDoc(doc(dbAs(testEnv, 'staff'), 'waitlist', id)));
   });
