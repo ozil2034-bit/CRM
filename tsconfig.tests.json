@@ -10,7 +10,12 @@
      * firestore.rules from disk and resolve paths with node:url. They therefore
      * need Node types, which application code deliberately does not have.
      */
-    "types": ["node", "vitest/globals"],
+    /*
+     * `vite/client` is needed because the integration tests import the real
+     * service layer, which reaches `src/config/env.ts` and its
+     * `import.meta.env`.
+     */
+    "types": ["node", "vitest/globals", "vite/client"],
 
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

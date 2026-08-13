@@ -75,7 +75,11 @@ describe('deactivation takes effect immediately, not when the token expires', ()
     const id = uniqueId('customer');
 
     await assertSucceeds(
-      setDoc(doc(dbAs(testEnv, 'otherStaff'), 'customers', id), { nameEn: 'Before' }),
+      setDoc(doc(dbAs(testEnv, 'otherStaff'), 'customers', id), {
+        code: 'CU-9001',
+        nameEn: 'Before',
+        archived: false,
+      }),
     );
 
     await seedDocument(testEnv, 'users/staff-user-2', {
@@ -109,7 +113,9 @@ describe('a demotion applies immediately despite a stale OWNER token', () => {
   it('still ALLOWS ordinary staff work — the user is an employee, just not an owner', async () => {
     await assertSucceeds(
       setDoc(doc(dbAs(testEnv, 'demotedOwner'), 'customers', uniqueId('customer')), {
+        code: 'CU-9002',
         nameEn: 'Handled by a demoted owner',
+        archived: false,
       }),
     );
   });
@@ -217,7 +223,11 @@ describe('a forged role value grants nothing', () => {
 
   it('DENIES even staff-level work — the claim must match a defined role exactly', async () => {
     await assertFails(
-      setDoc(doc(dbAs(testEnv, 'forgedRole'), 'customers', uniqueId('customer')), { nameEn: 'X' }),
+      setDoc(doc(dbAs(testEnv, 'forgedRole'), 'customers', uniqueId('customer')), {
+        code: 'CU-9003',
+        nameEn: 'X',
+        archived: false,
+      }),
     );
   });
 });

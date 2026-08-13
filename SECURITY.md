@@ -224,8 +224,15 @@ Per-collection posture:
 | `notificationLogs`     | employee           | employee     | `openedAt` only            | **never** |
 | `auditLogs`            | OWNER              | employee¹    | **never**                  | **never** |
 
-¹ `actorUid` must equal the caller's uid — an employee cannot forge an entry
-attributed to someone else.
+¹ Must be created with `archived: false`, and can never be deleted — archiving
+is the only removal, because reservations, payments and invoices reference
+customers and that history must stay resolvable.
+
+² Must carry a `code`, which is immutable thereafter: it is how staff identify a
+garment and how every future reservation references it.
+
+On `auditLogs`, `actorUid` must equal the caller's uid — an employee cannot
+forge an entry attributed to someone else.
 
 ### Field-level guards
 

@@ -153,6 +153,30 @@ describe('upload validation', () => {
     );
   });
 
+  it('DENIES a file at or above the 10 MB ceiling', async () => {
+    // The client refuses this before uploading, but the rule is what actually
+    // stops a caller that skips the client entirely.
+    const oversized = new Uint8Array(10 * 1024 * 1024);
+    oversized.set(PNG_BYTES);
+
+    await assertFails(
+      Promise.resolve(
+        ref('staff', `dresses/${uniqueId('wd')}/original/huge.png`).put(oversized, IMAGE_METADATA),
+      ),
+    );
+  }, 30_000);
+
+  it('ALLOWS a file comfortably under the ceiling', async () => {
+    const modest = new Uint8Array(256 * 1024);
+    modest.set(PNG_BYTES);
+
+    await assertSucceeds(
+      Promise.resolve(
+        ref('staff', `dresses/${uniqueId('wd')}/original/modest.png`).put(modest, IMAGE_METADATA),
+      ),
+    );
+  });
+
   it('ALLOWS the permitted raster formats', async () => {
     for (const contentType of ['image/jpeg', 'image/png', 'image/webp']) {
       await assertSucceeds(

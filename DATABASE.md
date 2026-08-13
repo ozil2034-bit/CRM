@@ -253,8 +253,21 @@ implement the subcollection approach — it is the only one that is genuinely en
 | `preferredLanguage` | `'en' \| 'ar' \| 'bilingual'`                 | drives document + WhatsApp language       |
 | `searchTokens`      | string[]                                      | includes Arabic name tokens               |
 
-Duplicate phone numbers **warn, never block** — families legitimately share a number.
-The warning shows the existing customer so staff can choose.
+Duplicate phone numbers **warn, never block** — families legitimately share a
+number. The warning names the existing customers so staff can tell a sister from
+a duplicate entry; a bare "duplicate" warning would not. Saving past a warning
+requires an explicit acknowledgement, so a second record is never created
+silently.
+
+**Customers are archived, never deleted** — by anyone, including the owner.
+Reservations, payments and invoices reference a customer, and that history must
+stay resolvable. `archived` must be present and `false` at creation, because the
+default list filters on it and a record created archived would be invisible the
+moment it was made.
+
+`nationalId` is stored but **never indexed for search and never written to an
+audit entry**. It identifies a person to the state and has no business being
+reachable by a partial-match query from a staff screen.
 
 ---
 
@@ -571,15 +584,28 @@ serve global search (§43).
 
 ## 4. Search
 
-Firestore has no full-text search. Global search (§43) uses `searchTokens`: a
-lowercased, de-duplicated array of prefix fragments generated on write from code,
-name, Arabic name and phone. `array-contains` on a normalised query token gives fast
-exact-prefix matching across dresses, customers, reservations and invoices without an
-external service.
+Firestore has no full-text search. Search uses `searchTokens`: a de-duplicated,
+sorted array of prefix fragments generated on write (`src/domain/search.ts`).
+`array-contains` on a normalised query token is a single indexed lookup that
+reads only matching documents — the whole collection is never downloaded to
+search it.
 
-This handles the boutique's real search behaviour — staff type a code, a phone number,
-or the start of a name. If fuzzy or full-text search is needed later, the write path
-is already centralised and could feed an external index without touching callers.
+**Prefixes, not whole words**, because staff type `fat` and expect Fatima. Every
+word of every indexed field contributes prefixes from 2 to 12 characters, capped
+at 200 tokens per document.
+
+**Digit runs also get suffix tokens**, because staff read the last four digits of
+a phone number off a screen far more often than they type all eight.
+
+**Arabic is normalised before indexing**: alef variants fold to `ا`, alef maqsura
+to `ي`, teh marbuta to `ه`, and harakat and tatweel are stripped. The query is
+normalised identically, so `احمد` finds `أحمد`. The folding runs _before_ Unicode
+decomposition — reversing that order silently breaks Arabic search entirely,
+because NFD splits `أ` into a letter plus a combining mark that then fragments
+the word.
+
+The token query is deliberately loose. Results are narrowed to records matching
+_every_ word typed, and ranked, in memory over the small candidate set.
 
 ---
 

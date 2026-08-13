@@ -51,12 +51,7 @@ export default defineConfig({
     // Emulator-backed suites run under their own configs (`npm run test:rules`,
     // `npm run test:functions`) so the fast unit suite stays free of Java, open
     // ports and a built functions/lib.
-    exclude: [
-      '**/node_modules/**',
-      '**/dist/**',
-      'tests/rules/**',
-      'tests/functions-emulator/**',
-    ],
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/rules/**', 'tests/functions-emulator/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

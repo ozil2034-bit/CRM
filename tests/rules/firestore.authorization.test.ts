@@ -424,21 +424,34 @@ describe('customers', () => {
     const id = uniqueId('customer');
     await assertSucceeds(getDoc(doc(dbAs(testEnv, 'staff'), 'customers', id)));
     await assertSucceeds(
-      setDoc(doc(dbAs(testEnv, 'staff'), 'customers', id), { code: 'CU-0001', nameEn: 'A' }),
+      setDoc(doc(dbAs(testEnv, 'staff'), 'customers', id), {
+        code: 'CU-0001',
+        nameEn: 'A',
+        archived: false,
+      }),
     );
     await assertSucceeds(updateDoc(doc(dbAs(testEnv, 'staff'), 'customers', id), { nameEn: 'B' }));
   });
 
   it('DENIES staff deleting a customer', async () => {
     const id = uniqueId('customer');
-    await seedDocument(testEnv, `customers/${id}`, { code: 'CU-0002' });
+    await seedDocument(testEnv, `customers/${id}`, { code: 'CU-0002', archived: false });
     await assertFails(deleteDoc(doc(dbAs(testEnv, 'staff'), 'customers', id)));
   });
 
-  it('ALLOWS the owner to delete a customer', async () => {
+  it('DENIES the OWNER deleting a customer — archive is the only removal', async () => {
+    /*
+     * This assertion is INVERTED from Phase 2, deliberately.
+     *
+     * Phase 2 allowed the owner to delete a customer. Phase 3 requires that
+     * customers are archived and never physically deleted, because
+     * reservations, payments and invoices reference them and that history must
+     * stay resolvable. The Phase 2 rule was the weaker one; this is a
+     * tightening, not a relaxation.
+     */
     const id = uniqueId('customer');
-    await seedDocument(testEnv, `customers/${id}`, { code: 'CU-0003' });
-    await assertSucceeds(deleteDoc(doc(dbAs(testEnv, 'owner'), 'customers', id)));
+    await seedDocument(testEnv, `customers/${id}`, { code: 'CU-0003', archived: false });
+    await assertFails(deleteDoc(doc(dbAs(testEnv, 'owner'), 'customers', id)));
   });
 });
 

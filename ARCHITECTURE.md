@@ -178,6 +178,22 @@ prevents two employees double-booking one dress (§19 of the specification).
   It is a cache. The application never treats it as the record of truth, and never
   reports a write as successful until the server acknowledges it.
 
+### Record creation requires a connection
+
+Firestore **transactions have no offline mode** — they need a round trip to read
+current state. Creating a dress or customer allocates a code from a counter
+inside a transaction, so it genuinely cannot happen offline, and the interface
+says so rather than queueing a write that would hand out a duplicate code.
+
+Edits are ordinary writes: they apply to the local cache immediately and sync
+when the connection returns.
+
+Under contention the counter rule refuses a stale increment as
+`permission-denied` rather than `aborted`, which the SDK does not retry. The
+service layer retries it with randomised backoff — see
+`commitTransactionWithRetry` in `src/services/write.ts`, which documents the
+behaviour and the emulator evidence for it.
+
 ### Write acknowledgement
 
 Firestore resolves a write promise optimistically while offline. Reporting "Saved"

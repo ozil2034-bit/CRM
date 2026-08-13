@@ -24,7 +24,9 @@
     "test:rules": "firebase emulators:exec --only firestore,storage --project demo-azhary-rules \"vitest run --config vitest.rules.config.ts\"",
     "emulators": "firebase emulators:start",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
-    "test:functions": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts\""
+    "test:functions": "npm run build:functions && npm run test:functions:auth && npm run test:functions:catalogue",
+    "test:functions:auth": "AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts auth-flow\"",
+    "test:functions:catalogue": "AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts catalogue-crud\""
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",

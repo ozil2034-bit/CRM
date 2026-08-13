@@ -107,7 +107,47 @@ is designed to support.
 
 ---
 
-## 6. Common situations
+## 6. Inventory and customer records
+
+### Nothing is ever deleted
+
+- A dress is **retired**, which removes it from the working inventory and
+  prevents booking. The record and its photographs remain.
+- A customer is **archived**, which removes them from everyday lists. Archiving
+  is the only removal available: reservations, payments and invoices reference
+  customers, and deleting one would orphan financial history.
+
+Both are reversible except dress retirement, which is final — a retired dress
+cannot return to the inventory. Add it again as a new record if it genuinely
+comes back into service.
+
+### Dress statuses staff cannot set by hand
+
+`Reserved` and `Out with Customer` are set by the reservation engine. The status
+control does not offer them, and the service refuses them, so the inventory
+cannot be made to disagree with the bookings that drive it.
+
+### Adding a dress or a customer needs a connection
+
+Creating a record reserves a unique code on the server, which cannot be done
+offline. Editing an existing record works offline and syncs later — the screen
+says "Saved on this device" rather than claiming it reached the cloud.
+
+### A duplicate phone number
+
+The form warns and names who already holds the number. Family members share
+numbers, so this never blocks — but saving requires ticking the acknowledgement,
+so a second record for the same bride is never created by accident. Check the
+named customers first; the usual cause is that search did not find her.
+
+### Purchase cost is owner-only
+
+It lives in a separate protected record, not on the dress itself, so staff
+cannot see it even by reading the database directly.
+
+---
+
+## 7. Common situations
 
 ### A dress shows as unavailable but is physically on the rail
 
@@ -149,7 +189,7 @@ reported as saved until the server confirms it.** WhatsApp requires a connection
 
 ---
 
-## 7. Print checklist (manual)
+## 8. Print checklist (manual)
 
 Browser print output is the actual deliverable for invoices, so it is verified by
 hand. Before any release that touches documents:
@@ -166,7 +206,7 @@ hand. Before any release that touches documents:
 
 ---
 
-## 8. Audit log
+## 9. Audit log
 
 Every financially or legally significant change records who, when, what, the
 entity and the before/after values: reservations, payments, cancellations,
@@ -178,7 +218,7 @@ or delete an audit entry.
 
 ---
 
-## 9. Support escalation
+## 10. Support escalation
 
 1. Reproduce and note the exact time, the user, and the record involved.
 2. Check the audit log for that entity.

@@ -11,9 +11,9 @@ fittings, payments, security deposits and invoicing for a bridal boutique.
 
 ## Status
 
-**Phase 2 of 10 complete** — architecture, design system, Firebase configuration,
-and now authentication, roles, owner bootstrap and full Firestore/Storage
-authorization with 1,070 tests behind them. Boutique features begin in Phase 3.
+**Phase 3 of 10 complete** — foundation, identity and authorization, and now the
+dress inventory, customers, photographs, search and audit trail. 1,256 tests.
+The reservation engine begins in Phase 4.
 
 See [PROJECT_PLAN.md](./PROJECT_PLAN.md) for the full phase plan.
 

@@ -41,7 +41,17 @@ or open port, so the fast feedback loop stays fast; the emulator-backed suites r
 under their own Vitest configs on a single worker, because they share one emulator
 and describe ordered lifecycles.
 
-Current totals: **377** unit · **662** rules · **31** Functions integration.
+```bash
+npm run test:functions:auth       # identity lifecycle only
+npm run test:functions:catalogue  # dress and customer CRUD only
+```
+
+The two emulator-backed integration suites run in **separate emulator
+invocations**, not merely separate files. Both bootstrap an owner, and owner
+bootstrap is a one-time transition — sharing one emulator would make whichever
+suite ran second fail against state the first had already consumed.
+
+Current totals: **525** unit · **684** rules · **47** integration.
 
 ---
 

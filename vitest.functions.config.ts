@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { fileURLToPath, URL } from 'node:url';
 
 /**
  * Cloud Functions integration tests.
@@ -15,6 +16,13 @@ import { defineConfig } from 'vitest/config';
  * lifecycle rather than a set of independent cases.
  */
 export default defineConfig({
+  // The integration tests import the real service layer, so the `@/` alias has
+  // to resolve here exactly as it does in the application build.
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   test: {
     globals: true,
     environment: 'node',
