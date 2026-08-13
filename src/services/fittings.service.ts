@@ -35,6 +35,12 @@ function db(): Firestore {
 const millis = (value: unknown): EpochMs =>
   value instanceof Timestamp ? value.toMillis() : typeof value === 'number' ? value : 0;
 
+/** An optional instant: absent and null both mean "has not happened yet". */
+const millisOrNull = (value: unknown): EpochMs | null => {
+  const present = value ?? null;
+  return present === null ? null : millis(present);
+};
+
 const str = (value: unknown): string => (typeof value === 'string' ? value : '');
 
 /* ------------------------------------------------------------------------ *
@@ -226,7 +232,7 @@ function toWaitlistEntry(snapshot: QueryDocumentSnapshot): WaitlistEntry {
     requestedReturnAt: millis(data['requestedReturnAt']),
     eventDate: str(data['eventDate']),
     status: isWaitlistStatus(data['status']) ? data['status'] : 'Cancelled',
-    notifiedAt: data['notifiedAt'] == null ? null : millis(data['notifiedAt']),
+    notifiedAt: millisOrNull(data['notifiedAt']),
   };
 }
 

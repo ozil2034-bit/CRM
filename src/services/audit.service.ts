@@ -13,11 +13,17 @@
 import {
   collection,
   doc,
+  onSnapshot,
+  query,
   serverTimestamp,
+  Timestamp,
+  where,
   type Firestore,
   type Transaction,
 } from 'firebase/firestore';
 
+import { getFirebaseClient } from '@/lib/firebase/client';
+import type { EpochMs } from '@/domain/datetime';
 import type { Role } from '@/domain/authorization';
 
 export type AuditAction =
@@ -158,6 +164,68 @@ export function writeAuditInTransaction(
     // Server clock: audit ordering must not depend on a device's clock.
     at: serverTimestamp(),
   });
+}
+
+/* ------------------------------------------------------------------------ *
+ * Reading
+ * ------------------------------------------------------------------------ */
+
+export interface AuditEntry {
+  readonly id: string;
+  readonly at: EpochMs;
+  readonly actorUid: string;
+  readonly actorName: string;
+  readonly actorRole: string;
+  readonly action: string;
+  readonly entityId: string;
+  readonly entityCode: string;
+  readonly before: Record<string, unknown> | null;
+  readonly after: Record<string, unknown> | null;
+  readonly reason: string | null;
+}
+
+/**
+ * The history of one record, newest first.
+ *
+ * Ordering is applied on the client rather than in the query. `at` is written
+ * with `serverTimestamp()`, so a freshly-written entry arrives in the local
+ * snapshot with a null timestamp before the server's value lands; an
+ * `orderBy('at')` would drop it from the results until the round trip
+ * completed, making a change the employee just made appear to vanish.
+ */
+export function observeAuditTrail(
+  entityId: string,
+  onChange: (entries: AuditEntry[]) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(collection(getFirebaseClient().db, 'auditLogs'), where('entityId', '==', entityId)),
+    (snapshot) =>
+      onChange(
+        snapshot.docs
+          .map((document) => {
+            const data = document.data();
+            const at = data['at'];
+
+            return {
+              id: document.id,
+              // A pending entry sorts to the top, which is where it belongs.
+              at: at instanceof Timestamp ? at.toMillis() : Number.MAX_SAFE_INTEGER,
+              actorUid: String(data['actorUid'] ?? ''),
+              actorName: String(data['actorName'] ?? ''),
+              actorRole: String(data['actorRole'] ?? ''),
+              action: String(data['action'] ?? ''),
+              entityId: String(data['entityId'] ?? ''),
+              entityCode: String(data['entityCode'] ?? ''),
+              before: (data['before'] ?? null) as Record<string, unknown> | null,
+              after: (data['after'] ?? null) as Record<string, unknown> | null,
+              reason: (data['reason'] ?? null) === null ? null : String(data['reason']),
+            } satisfies AuditEntry;
+          })
+          .sort((a, b) => b.at - a.at),
+      ),
+    onError,
+  );
 }
 
 /** A reference and body for a standalone audit write (outside a transaction). */

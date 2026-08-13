@@ -695,8 +695,9 @@ describe('the reservation lifecycle', () => {
       dressIds: [dressId],
     });
     if (!created.data.success) throw new Error('setup failed');
+    const { reservationId } = created.data;
 
-    const code = await refusalCode(() => changeStatus(created.data.reservationId, 'Closed'));
+    const code = await refusalCode(() => changeStatus(reservationId, 'Closed'));
     expect(code).toBe('failed-precondition');
   });
 
@@ -903,9 +904,10 @@ describe('authorization', () => {
       dressIds: [dressId],
     });
     if (!created.data.success) throw new Error('setup failed');
+    const { reservationId } = created.data;
 
     await signOut(auth);
-    const code = await refusalCode(() => changeStatus(created.data.reservationId, 'Picked Up'));
+    const code = await refusalCode(() => changeStatus(reservationId, 'Picked Up'));
     expect(code).toBe('unauthenticated');
 
     await asOwner();

@@ -88,6 +88,12 @@ const millis = (value: unknown): EpochMs => {
   return 0;
 };
 
+/** An optional instant: absent and null both mean "has not happened yet". */
+const millisOrNull = (value: unknown): EpochMs | null => {
+  const present = value ?? null;
+  return present === null ? null : millis(present);
+};
+
 const str = (value: unknown): string => (typeof value === 'string' ? value : '');
 const int = (value: unknown): Baisa =>
   typeof value === 'number' && Number.isInteger(value) ? baisa(value) : baisa(0);
@@ -114,7 +120,7 @@ function toReservation(snapshot: QueryDocumentSnapshot): Reservation {
     status: isReservationStatus(data['status']) ? data['status'] : 'Cancelled',
     pickupAt: millis(data['pickupAt']),
     returnAt: millis(data['returnAt']),
-    actualReturnAt: data['actualReturnAt'] == null ? null : millis(data['actualReturnAt']),
+    actualReturnAt: millisOrNull(data['actualReturnAt']),
     eventDate: str(data['eventDate']),
     pricing: {
       rentalSubtotal: int(pricing['rentalSubtotal']),
@@ -370,6 +376,32 @@ export async function updateReservationNotes(
     updatedAt: serverTimestamp(),
     updatedBy: actorUid,
   });
+}
+
+/**
+ * The configured VAT rate, for the booking screen's pricing preview.
+ *
+ * Read from the same `settings/app` document the Function reads, with the same
+ * default: an absent or malformed rate is zero, never an invented 5%. A preview
+ * that quotes a tax nobody configured would be shown to a customer.
+ *
+ * Advisory, like the availability preview. The rate frozen onto the reservation
+ * is the one the Function read inside its transaction.
+ */
+export function observeVatRate(
+  onChange: (vatRatePercent: number) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return onSnapshot(
+    doc(db(), 'settings', 'app'),
+    (snapshot) => {
+      const value = snapshot.data()?.['vatRatePercent'];
+      onChange(
+        typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0,
+      );
+    },
+    onError,
+  );
 }
 
 /** Format an instant for the datetime-local inputs the booking screen uses. */

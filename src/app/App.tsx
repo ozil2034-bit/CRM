@@ -21,6 +21,9 @@ import { DressFormPage } from '@/pages/inventory/DressFormPage';
 import { CustomersPage } from '@/pages/customers/CustomersPage';
 import { CustomerDetailPage } from '@/pages/customers/CustomerDetailPage';
 import { CustomerFormPage } from '@/pages/customers/CustomerFormPage';
+import { ReservationsPage } from '@/pages/reservations/ReservationsPage';
+import { BookingPage } from '@/pages/reservations/BookingPage';
+import { ReservationDetailPage } from '@/pages/reservations/ReservationDetailPage';
 
 export interface AppProps {
   readonly environment: EnvironmentResult;
@@ -158,6 +161,31 @@ function AuthenticatedApp({ isProduction }: { isProduction: boolean }) {
           element: (
             <RequirePermission permission="customers.edit">
               <CustomerFormPage />
+            </RequirePermission>
+          ),
+        },
+
+        {
+          path: 'reservations',
+          element: (
+            <RequirePermission permission="reservations.view">
+              <ReservationsPage />
+            </RequirePermission>
+          ),
+        },
+        {
+          path: 'reservations/new',
+          element: (
+            <RequirePermission permission="reservations.create">
+              <BookingPage />
+            </RequirePermission>
+          ),
+        },
+        {
+          path: 'reservations/:reservationId',
+          element: (
+            <RequirePermission permission="reservations.view">
+              <ReservationDetailPage />
             </RequirePermission>
           ),
         },

@@ -23,6 +23,12 @@ export function AppShell() {
     { to: '/', label: t('nav.today'), visible: true, end: true },
     { to: '/inventory', label: t('nav.inventory'), visible: can('dresses.view'), end: false },
     { to: '/customers', label: t('nav.customers'), visible: can('customers.view'), end: false },
+    {
+      to: '/reservations',
+      label: t('nav.reservations'),
+      visible: can('reservations.view'),
+      end: false,
+    },
     { to: '/users', label: t('nav.staff'), visible: can('users.view'), end: false },
   ].filter((entry) => entry.visible);
 
