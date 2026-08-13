@@ -19,3 +19,10 @@ setGlobalOptions({
 
 export { getBootstrapState, claimInitialOwnership } from './bootstrap';
 export { createEmployee, setUserRole, setUserActive } from './users';
+export {
+  createReservation,
+  updateReservationDates,
+  changeReservationStatus,
+  releaseCleanedDresses,
+  checkAvailability,
+} from './reservations';

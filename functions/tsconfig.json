@@ -1,12 +1,39 @@
 {
   "compilerOptions": {
-    "module": "Node16",
-    /* node16 rather than the deprecated node10 resolver; the runtime is Node 22. */
-    "moduleResolution": "node16",
+    /*
+     * CommonJS with the classic resolver, deliberately.
+     *
+     * This build compiles `src/domain/**` — the pure business logic — alongside
+     * the Functions themselves, so the availability algorithm the browser shows
+     * and the one the server enforces are the same code rather than two
+     * implementations that drift apart.
+     *
+     * Sharing those files rules out `module: Node16`: it infers each file's
+     * module format from the nearest package.json, and the repository root
+     * declares `"type": "module"`. The domain files would emit ESM into a
+     * CommonJS Functions package and fail at runtime. Forcing CommonJS for the
+     * whole build makes the format uniform and keeps the extensionless relative
+     * imports that the browser build uses.
+     *
+     * `node10` resolution is deprecated but still supported; the alternative is
+     * rewriting every domain import with a `.js` extension purely to satisfy a
+     * resolver the browser build does not use.
+     */
+    "module": "CommonJS",
+    "moduleResolution": "node10",
+    "ignoreDeprecations": "6.0",
+
     "target": "ES2023",
     "lib": ["ES2023"],
+
+    /*
+     * `rootDir` is the repository root because the compilation spans both
+     * `functions/src` and `src/domain`. Output lands at
+     * `lib/functions/src/...` and `lib/src/domain/...`, both inside
+     * `functions/lib`, so deployment uploads everything it needs.
+     */
+    "rootDir": "..",
     "outDir": "lib",
-    "rootDir": "src",
     "sourceMap": true,
 
     "strict": true,
@@ -21,6 +48,6 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts"]
+  "include": ["src/**/*.ts", "../src/domain/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "../src/domain/**/*.test.ts"]
 }

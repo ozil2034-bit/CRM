@@ -30,7 +30,12 @@ export type AuditAction =
   | 'customer.created'
   | 'customer.updated'
   | 'customer.archived'
-  | 'customer.restored';
+  | 'customer.restored'
+  | 'reservation.created'
+  | 'reservation.status_changed'
+  | 'reservation.dates_changed'
+  | 'fitting.scheduled'
+  | 'fitting.status_changed';
 
 export interface AuditActor {
   readonly uid: string;
@@ -41,7 +46,7 @@ export interface AuditActor {
 export interface AuditInput {
   readonly actor: AuditActor;
   readonly action: AuditAction;
-  readonly entityType: 'dress' | 'customer';
+  readonly entityType: 'dress' | 'customer' | 'reservation';
   readonly entityId: string;
   readonly entityCode: string;
   readonly before?: Record<string, unknown> | null;

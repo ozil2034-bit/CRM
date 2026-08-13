@@ -241,40 +241,53 @@ service cloud.firestore {
 
     match /reservations/{reservationId} {
       allow read: if isEmployee();
-      allow create: if isEmployee();
 
-      // Snapshots are frozen at creation (specification §30). A later change to
-      // a dress price, the VAT rate or the business profile must not reach back
-      // into an existing reservation.
+      /*
+       * NO client write path. Creating a reservation means checking availability
+       * and booking atomically, which requires reading a query inside a
+       * transaction — something the client SDK cannot do. A browser-side check
+       * is a time-of-check/time-of-use race, so `createReservation` runs as a
+       * Cloud Function and the Admin SDK bypasses these rules.
+       *
+       * Status changes and date changes go through Functions for the same
+       * reason: both have to re-run the availability check.
+       */
+      allow create: if false;
+
+      // Notes are the one field with no bearing on availability, pricing or
+      // lifecycle, so an employee may edit them directly.
       allow update: if isEmployee()
-        && unchanged([
-          'code',
-          'pricing',
-          'termsVersionId',
-          'termsSnapshot',
-          'businessSnapshot',
-          'createdAt',
-          'createdBy'
-        ]);
+        && onlyChanges(['notes', 'updatedAt', 'updatedBy']);
 
       allow delete: if false;
     }
 
     match /reservationItems/{itemId} {
       allow read: if isEmployee();
-      allow create, update: if isEmployee();
-      // Deletable: removing a dress from a reservation before pickup is ordinary
-      // operational work, and the blocking interval must go with it.
-      allow delete: if isEmployee();
+
+      /*
+       * Function-only. These carry the blocking intervals that decide
+       * availability; a client able to write them could book a dress by
+       * inventing an item, or free one by deleting somebody else's.
+       */
+      allow create, update, delete: if false;
     }
 
     /* ------------------------------------------------------------------ *
      * fittings · accessories · waitlist — operational
      * ------------------------------------------------------------------ */
 
+    /*
+     * Fittings are appointments, not holds: they do not affect dress
+     * availability, so ordinary employee CRUD is safe here.
+     */
     match /fittings/{fittingId} {
       allow read: if isEmployee();
-      allow create, update, delete: if isEmployee();
+      allow create: if isEmployee()
+        && request.resource.data.reservationId is string
+        && request.resource.data.status is string;
+      allow update: if isEmployee() && unchanged(['reservationId', 'createdAt', 'createdBy']);
+      allow delete: if isEmployee();
     }
 
     match /accessories/{accessoryId} {
@@ -283,9 +296,18 @@ service cloud.firestore {
       allow delete: if isOwner();
     }
 
+    /*
+     * The waitlist records interest; it grants nothing and blocks nothing, so
+     * employees manage it directly.
+     */
     match /waitlist/{entryId} {
       allow read: if isEmployee();
-      allow create, update, delete: if isEmployee();
+      allow create: if isEmployee()
+        && request.resource.data.status == 'Waiting'
+        && request.resource.data.dressId is string
+        && request.resource.data.customerId is string;
+      allow update: if isEmployee() && unchanged(['dressId', 'customerId', 'createdAt']);
+      allow delete: if isEmployee();
     }
 
     /* ------------------------------------------------------------------ *

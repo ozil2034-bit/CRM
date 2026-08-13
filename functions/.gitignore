@@ -1,3 +1,8 @@
 node_modules/
-lib/
+
+# Compiled output only. This pattern is anchored with a leading slash on
+# purpose: an unanchored `lib/` also matches `src/lib/`, which silently kept
+# real source files out of the repository.
+/lib/
+
 *.local

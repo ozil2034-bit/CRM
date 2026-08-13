@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Trusted server-side operations for Azhary Boutique",
-  "main": "lib/index.js",
+  "main": "lib/functions/src/index.js",
   "type": "commonjs",
   "engines": {
     "node": "22"
