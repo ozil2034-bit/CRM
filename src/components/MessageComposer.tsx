@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { Alert, Badge, Button, Select } from '@/design-system';
+import { Alert, Badge, Button, Select, buttonClasses } from '@/design-system';
+import { cn } from '@/lib/utils/cn';
 import { useAuth } from '@/hooks/useAuth';
 import { useT } from '@/hooks/useT';
 import {
@@ -151,26 +152,32 @@ export function MessageComposer({
     }
   }
 
-  async function handleOpen(): Promise<void> {
-    if (link === null || !link.ok || busy) return;
+  /**
+   * Record the opening, without standing between the click and the navigation.
+   *
+   * This is deliberately NOT an `await` before a `window.open`. On iOS Safari —
+   * which is what an employee at the rail is holding — a popup opened after an
+   * `await` has lost the user-gesture context and is blocked, so the WhatsApp
+   * workflow would simply fail on the device it matters most on.
+   *
+   * The action is therefore a real anchor, which navigates natively and is
+   * never blocked, and the log is written alongside it. `void` rather than
+   * `await`: the navigation must not wait for Firestore.
+   */
+  function handleOpen(): void {
+    if (link === null || !link.ok) return;
 
-    setBusy(true);
     setError(null);
+    setNotice(t('notify.opened'));
 
-    try {
+    void record('Opened').catch((caught: unknown) => {
       /*
-       * Logged BEFORE opening, so a record exists even if the new tab is
-       * blocked or the employee closes it instantly. The record says the link
-       * was opened, which is what this code did — not that anything was sent.
+       * WhatsApp has already opened by the time this can fail, so the message
+       * says the log entry failed — not that the message did. Claiming the
+       * opening failed would be its own false statement.
        */
-      await record('Opened');
-      window.open(link.url, '_blank', 'noopener,noreferrer');
-      setNotice(t('notify.opened'));
-    } catch (caught) {
       setError((caught as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   return (
@@ -288,12 +295,30 @@ export function MessageComposer({
       )}
 
       <div className="mt-6 flex flex-wrap gap-3">
-        <Button
-          disabled={busy || prepared === null || !prepared.ready || !reachable}
-          onClick={() => void handleOpen()}
+        {/*
+          * An anchor, not a button with `window.open`. See `handleOpen`: a
+          * popup opened after an await is blocked on iOS Safari, and this has
+          * to work on the phone an employee is holding at the rail.
+          */}
+        <a
+          href={link !== null && link.ok ? link.url : undefined}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-disabled={link === null || !link.ok}
+          onClick={(event) => {
+            if (link === null || !link.ok) {
+              event.preventDefault();
+              return;
+            }
+            handleOpen();
+          }}
+          className={cn(
+            buttonClasses('primary'),
+            (link === null || !link.ok) && 'pointer-events-none opacity-40',
+          )}
         >
           {t('notify.openWhatsApp')}
-        </Button>
+        </a>
 
         <Button
           variant="secondary"
