@@ -668,6 +668,139 @@ id, and a deleted entry would leave their revenue unattributable.
 
 ---
 
+## 3f. Communication (Phase 8)
+
+### WhatsApp is click-to-chat, and the vocabulary follows from that
+
+The application builds a `wa.me` link and opens it. WhatsApp receives a draft;
+**the employee then presses send, or does not.** Nothing is transmitted by this
+code, and nothing downstream can observe what happened.
+
+So the three states are `Prepared`, `Opened` and `Copied`. Each is literally
+true of something the application saw. There is no `Sent`, no `Delivered` and
+no `Read`, and adding one requires an integration that can actually observe it —
+the WhatsApp Business API, which is deliberately not here.
+
+This is enforced in three places, because a claim of delivery is the kind of
+error that survives a code review and reappears in a translation:
+
+- `COMMUNICATION_STATUSES` is a closed union of the three.
+- `firestore.rules` refuses to store any other status.
+- `dictionary.test.ts` asserts that no status label **in either language** uses
+  the words sent, delivered or read.
+
+### Encoding
+
+`encodeURIComponent` is applied to the whole message body. Not a hand-rolled
+replacement of a few characters: an unescaped `&` in a business name would end
+the `text` parameter and silently truncate the rest of the message.
+
+Phone numbers go through `parseOmanPhone` — the same normaliser customer records
+and duplicate detection use. `wa.me` wants digits with the country code and no
+`+`, which is exactly `ParsedPhone.normalized`. A second definition of a valid
+number would eventually disagree with the first about somebody's contact
+details.
+
+### The log is append-only, and stores the message
+
+One immutable entry per action. Phase 2 modelled a notification as a single
+document with a mutable `openedAt`; Phase 8 replaced that because an employee
+who opens WhatsApp twice has contacted the customer twice — the second may be a
+follow-up after no reply — and one timestamp records only the first.
+
+Each entry carries the **exact text that was prepared**. A log saying "pickup
+reminder, 10 September" is useless six months later once the template has been
+rewritten and the booking's dates have moved. The entry is a snapshot, like an
+invoice, and the rules refuse every update.
+
+Entries are written from click handlers only, never from an effect, so a page
+refresh cannot look like contacting somebody again.
+
+### Templates: the rule that shapes the module
+
+**A variable with no value must never reach a customer.** `undefined`, `null`
+and `NaN` are precisely what naive substitution produces, and each turns a
+careful message into evidence that the shop's system is broken.
+
+So rendering is two steps. `missingVariables(body, values)` reports what cannot
+be filled and the composer refuses both actions until it is resolved, naming
+what is missing. `render` leaves an unfilled placeholder as itself — visible and
+obviously wrong — rather than as prose. There is no empty-string fallback for a
+required variable: "your balance is  " is worse than a refusal, because the
+employee sends it.
+
+An empty-string value counts as missing for the same reason.
+
+### Bilingual is a structure
+
+Arabic, a separator line, then English — each a coherent whole. Arabic first
+because the boutique is in Oman and most of its customers read it. Interleaving
+sentence by sentence produces something neither reader can follow, and gluing
+two paragraphs together with no break reads as one corrupted message.
+
+### Reminders are stored intent, not a schedule
+
+There is no cron, no queue and no background worker in this architecture. A
+client-side `setTimeout` would fire only while somebody happened to have the tab
+open, so reminders would arrive for whichever employee left a browser running
+overnight and not at all on a Friday — worse than none, because the boutique
+would believe they were going out.
+
+`ReminderPreference` records which reminders matter and how far ahead. The
+dashboard surfaces what is due; an employee still prepares each message. When
+scheduled execution becomes part of the architecture, these are the values it
+reads and nothing about the stored shape needs to change. The settings panel
+says all of this on screen.
+
+---
+
+## 3g. Language, direction and mixed content
+
+### Three languages, two of them for different things
+
+- The **interface** language is `en` or `ar`, held in `I18nProvider` and stamped
+  onto `<html lang dir>`. Layout uses CSS logical properties throughout, so the
+  entire interface mirrors from that one attribute — no mirrored stylesheet, no
+  per-component RTL branching.
+- The **customer's** preference is `en`, `ar` or `bilingual`, stored on the
+  customer and used as the default for documents and messages.
+- The **message** language is chosen per message. Changing it affects that
+  message only; an employee writing once in English has not decided the bride
+  now prefers English, so the stored preference is never rewritten as a side
+  effect.
+
+An Arabic-speaking employee writing to an English-speaking bride is the case
+that makes these genuinely independent.
+
+### Mixed content
+
+Three CSS classes carry the whole strategy:
+
+| Class | Applies to | Why |
+| --- | --- | --- |
+| `.numeric` | money, dates, counts | `direction: ltr; unicode-bidi: isolate` — an amount must be unambiguous whatever surrounds it |
+| `.code` | `RSV-0001`, `INV-2026-0042`, phone numbers | same isolation. Without it, bidi reorders the trailing groups and `INV-2026-0042` renders as `0042-2026-INV` — a number the customer cannot match to the invoice in their hand |
+| `.user-text` | names, notes, descriptions | `unicode-bidi: plaintext`, the CSS form of `dir="auto"`. Each string takes its base direction from its own first strong character, so "فاطمة (VIP)" puts the bracket on the correct side and an English note in an Arabic screen has the same treatment mirrored |
+
+`.user-text` is applied per element and never globally. Interface chrome must
+follow the *language*; only content follows the *content*.
+
+Typography keys off `:lang(ar)` rather than direction, which is what lets a
+bilingual document render each language in its own face on the same page. Arabic
+sits slightly larger and looser at the same nominal size, because without that
+it reads noticeably smaller than the Latin beside it.
+
+### Arabic search
+
+Unchanged from Phase 3 and deliberately re-asserted in the Phase 8 suite. Alif
+forms fold together, ta marbuta folds to ha, alif maqsura to ya, so `أحمد` and
+`احمد` reach the same token. The way this breaks quietly is a call site
+normalising its own input instead of going through `src/domain/search.ts`, which
+is why the regression test exercises the end-to-end `rankMatches` path and not
+only the normaliser.
+
+---
+
 ## 4. The service layer
 
 Services are the only place that:

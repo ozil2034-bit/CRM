@@ -271,6 +271,77 @@ describe('settings', () => {
   it('DENIES deleting settings, even for the owner', async () => {
     await assertFails(deleteDoc(doc(dbAs(testEnv, 'owner'), 'settings', 'app')));
   });
+
+  /* -------------------------------------------------------------------- *
+   * Phase 8 — message templates and reminders live under settings/
+   * -------------------------------------------------------------------- */
+
+  it('ALLOWS staff to READ message templates — the composer needs them', async () => {
+    await assertSucceeds(getDoc(doc(dbAs(testEnv, 'staff'), 'settings', 'messageTemplates')));
+  });
+
+  it('DENIES staff writing message templates', async () => {
+    /*
+     * A template goes out over the boutique's name to every customer. Editing
+     * one is an owner decision, and the interface hiding the editor is not the
+     * control — this is.
+     */
+    await assertFails(
+      setDoc(doc(dbAs(testEnv, 'staff'), 'settings', 'messageTemplates'), {
+        templates: [{ kind: 'balanceDue', en: 'Pay us', ar: '', enabled: true }],
+      }),
+    );
+  });
+
+  it('DENIES staff changing reminder preferences', async () => {
+    await assertFails(
+      setDoc(doc(dbAs(testEnv, 'staff'), 'settings', 'messageTemplates'), {
+        reminders: [{ kind: 'pickup', enabled: false, daysOffset: 1 }],
+      }),
+    );
+  });
+
+  it('ALLOWS the owner to write message templates and reminders', async () => {
+    await assertSucceeds(
+      setDoc(doc(dbAs(testEnv, 'owner'), 'settings', 'messageTemplates'), {
+        templates: [{ kind: 'balanceDue', en: 'Balance {balance}', ar: '', enabled: true }],
+        reminders: [{ kind: 'pickup', enabled: true, daysOffset: 2 }],
+      }),
+    );
+  });
+
+  it('REFUSES a VAT rate the boutique may not charge, even from the OWNER', async () => {
+    /*
+     * An invoice carrying the wrong VAT rate is a matter for the tax authority,
+     * so the constraint is a rule and not merely a dropdown. Oman's rates are
+     * 0% and 5%.
+     */
+    for (const rate of [1, 4.9, 10, 15, -5]) {
+      await assertFails(
+        setDoc(doc(dbAs(testEnv, 'owner'), 'settings', 'app'), { vatRatePercent: rate }),
+      );
+    }
+  });
+
+  it('ALLOWS both permitted VAT rates', async () => {
+    for (const rate of [0, 5]) {
+      await assertSucceeds(
+        setDoc(doc(dbAs(testEnv, 'owner'), 'settings', 'app'), { vatRatePercent: rate }),
+      );
+    }
+  });
+
+  it('REFUSES a fractional late fee — settings money is whole baisa too', async () => {
+    await assertFails(
+      setDoc(doc(dbAs(testEnv, 'owner'), 'settings', 'app'), { lateFeePerDay: 10_000.5 }),
+    );
+  });
+
+  it('REFUSES a pickup threshold outside 0–100', async () => {
+    await assertFails(
+      setDoc(doc(dbAs(testEnv, 'owner'), 'settings', 'app'), { minPickupPaymentPercent: 150 }),
+    );
+  });
 });
 
 /* ------------------------------------------------------------------------ *

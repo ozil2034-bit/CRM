@@ -194,6 +194,94 @@ would be equally wrong. With nothing concluded the rate shows N/A.
 
 ---
 
+## 5c. Messaging a customer
+
+### What the buttons actually do
+
+**Open WhatsApp** opens WhatsApp with the message already typed. **You then
+press send there.** This application does not send anything and has no way of
+knowing whether the customer received or read it.
+
+That is why the history says *WhatsApp opened* and never *sent*. If a customer
+says she never got a message, the log tells you a link was opened at a
+particular time by a particular employee — it does not tell you the message
+arrived, and it never claims to.
+
+**Copy message** puts the text on the clipboard for pasting somewhere else.
+
+### Sending one
+
+From a reservation, or from a customer's profile:
+
+1. Press **Notify customer**.
+2. Choose the template and the language. The language starts from the
+   customer's recorded preference; changing it here affects this message only
+   and does not change her preference.
+3. Read the preview. It is exactly what WhatsApp will receive.
+4. Press **Open WhatsApp** or **Copy message**.
+
+The WhatsApp button does not appear when the customer has no valid Oman phone
+number, because it could only fail.
+
+### When it refuses
+
+If the booking cannot supply something the template asks for — a balance on a
+reservation with no charges, an event date nobody recorded — the composer names
+what is missing and will not proceed. This is deliberate: the alternative is a
+message reading "your balance is" followed by nothing, and that message goes to
+a customer.
+
+Fix the booking, or choose a template that does not need that information. A
+balance reminder belongs on the booking that has the balance, not on a customer
+profile.
+
+### The history
+
+Every prepare, open and copy is recorded with the employee, the time and the
+exact text. Records are never edited or deleted. Opening WhatsApp twice makes
+two entries, because it is two contacts — a page refresh makes none.
+
+---
+
+## 5d. Settings
+
+Six tabs. Everything here is owner-only; staff can read what they need but
+cannot change it.
+
+**Business** — the boutique's names, addresses, contact details, registration
+numbers and logo. Leave a registration number blank until the real one exists;
+a guessed VAT number on a tax invoice is a false statement.
+
+**Financial** — VAT (0% or 5% only), the daily late fee, the minimum payment
+before collection, and the cancellation scale.
+
+**Reservations** — the default cleaning buffer for new dresses.
+
+**Messages** — the message templates, in both languages, with a preview. The
+preview uses sample values and creates no records. Nothing is written for you:
+these are the words the boutique will say to its customers.
+
+**Terms** — the terms and conditions, by section, in both languages. Publishing
+creates a **new version**; documents already issued keep the version they were
+issued with, permanently.
+
+**Reminders** — which reminders the boutique intends to send and how far ahead.
+**Nothing is sent automatically.** There is no scheduler in this system; these
+preferences drive what the dashboard shows you and an employee still prepares
+each message.
+
+### Saving
+
+Changes are never saved as you type. The bar at the bottom shows **Unsaved
+changes** until you press save, then **Saved**.
+
+Changing VAT, the late fee, the minimum pickup payment or the cancellation scale
+asks you to confirm first. The confirmation says what it affects and, just as
+importantly, what it does not: **existing reservations, invoices and payments
+are unchanged.** Raising VAT today does not move last month's invoices.
+
+---
+
 ## 6. Inventory and customer records
 
 ### Nothing is ever deleted

@@ -742,26 +742,87 @@ that was never sent.
 
 ---
 
-### 2.15 `notificationLogs/{notificationLogId}`
+### 2.14a `settings/app` — configurable commercial rules
 
-WhatsApp V1 is click-to-chat (§34). The system **never claims delivery**.
+Owner-writable, employee-readable. Every value is **read once and frozen** onto
+the record it affects, so changing one cannot reach backwards.
 
-| Field                          | Type                                                                                                                                                            |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `customerId` / `reservationId` | string                                                                                                                                                          |
-| `template`                     | `'reservation_confirmation' \| 'fitting_reminder' \| 'pickup_reminder' \| 'return_reminder' \| 'overdue' \| 'balance_due' \| 'deposit' \| 'waitlist_available'` |
-| `channel`                      | `'whatsapp'`                                                                                                                                                    |
-| `language`                     | `'en' \| 'ar'`                                                                                                                                                  |
-| `messageBody`                  | string — exact text prepared                                                                                                                                    |
-| `preparedAt` / `preparedBy`    | Timestamp / string                                                                                                                                              |
-| `openedAt`                     | Timestamp \| null                                                                                                                                               |
-| `employeeId`                   | string                                                                                                                                                          |
+| Field                       | Type                  | Frozen onto                             |
+| --------------------------- | --------------------- | --------------------------------------- |
+| `vatRatePercent`            | 0 or 5 (rule-enforced)| the reservation's pricing snapshot       |
+| `lateFeePerDay`             | Baisa, whole, ≥ 0     | the LateFee event                        |
+| `minPickupPaymentPercent`   | 0–100                 | read live for the pickup decision        |
+| `defaultCleaningBufferDays` | int ≥ 0               | each new dress, then each booking's item |
+| `cancellationTiers`         | array                 | the cancellation event                   |
 
-States are **Prepared** and **Opened** only. `openedAt` records that the employee
-opened the `wa.me` link — not that WhatsApp delivered anything. No `sent`, no
-`delivered`, no `read`.
+A tier is `{ daysBeforeEvent, refundPercent, label: { en, ar } }`, where
+`daysBeforeEvent` is a **minimum notice**, not a range. `selectTier` takes the
+most generous match, so overlap is impossible by construction; duplicates are
+refused because they would make a customer's refund depend on the order rows
+were typed in. A scale where cancelling earlier refunds less is refused too — it
+is invariably a data-entry error rather than a policy.
+
+Record-number prefixes are **not** stored here. `parseRecordNumber` matches a
+code against the format table, and every code already in circulation was built
+from the current prefixes; changing one would leave codes on printed agreements
+that the system could no longer recognise. Making them configurable needs the
+format stored per record, which is a data-model change rather than a settings
+field.
 
 ---
+
+### 2.14b `settings/messageTemplates`
+
+| Field       | Type                    | Notes                                            |
+| ----------- | ----------------------- | ------------------------------------------------ |
+| `templates` | array                   | `{ kind, en, ar, enabled }` per occasion          |
+| `reminders` | array                   | `{ kind, enabled, daysOffset }` — **intent only** |
+
+**No wording ships**, in either language, for the same reason the terms editor
+ships empty: a message the boutique never wrote should not go out over its name.
+
+**`reminders` schedules nothing.** There is no cron, queue or worker here. The
+values record what the boutique intends and drive what the dashboard surfaces;
+an employee still prepares each message. See ARCHITECTURE §3f.
+
+Governed by the `settings/{documentId}` rule, so staff read and only the owner
+writes — a template goes out over the boutique's name to every customer.
+
+---
+
+### 2.15 `notificationLogs/{notificationLogId}`
+
+WhatsApp V1 is click-to-chat. The application opens a `wa.me` link; it never
+transmits anything and cannot observe what happened next. The system therefore
+**never claims delivery**.
+
+| Field                             | Type                                     | Notes                                            |
+| --------------------------------- | ---------------------------------------- | ------------------------------------------------ |
+| `customerId` / `customerName`     | string                                   |                                                  |
+| `reservationId` / `reservationCode` | string                                 | empty when sent from a customer profile           |
+| `templateKind`                    | `TemplateKind`                           | which occasion                                    |
+| `language`                        | `'en' \| 'ar' \| 'bilingual'`            | the language of THIS message                      |
+| `channel`                         | `'WhatsApp'`                             | named, so a second channel later reinterprets nothing |
+| `status`                          | `'Prepared' \| 'Opened' \| 'Copied'`     | **enforced by the rules**                         |
+| `message`                         | string                                   | the exact text prepared — a snapshot               |
+| `employeeId` / `employeeName`     | string                                   | `employeeId` must be the caller                   |
+| `at`                              | Timestamp                                |                                                   |
+
+**Append-only, one entry per action.** Phase 2 modelled this as a single
+document with a mutable `openedAt`; Phase 8 replaced that. An employee who opens
+WhatsApp twice has contacted the customer twice — the second may be a follow-up
+after no reply — and one timestamp records only the first. The rules refuse
+every update and every delete, to every role.
+
+**Why the message text is stored.** "Pickup reminder, 10 September" is useless
+six months later once the template has been rewritten and the booking's dates
+have moved. The entry answers "what did we actually tell her?", which is the
+only question a communication log exists to answer.
+
+**There is no `Sent`, `Delivered` or `Read`.** The rules refuse any other
+status, and a dictionary test asserts that no status label in either language
+uses those words.
+
 
 ### 2.16 `auditLogs/{auditLogId}`
 

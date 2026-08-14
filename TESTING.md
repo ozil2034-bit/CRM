@@ -55,7 +55,7 @@ not merely separate files. Each bootstraps an owner, and owner bootstrap is a
 one-time transition — sharing one emulator would make whichever suite ran second
 fail against state the first had already consumed.
 
-Current totals: **1,178** unit · **806** rules · **204** integration.
+Current totals: **1,285** unit · **817** rules · **204** integration.
 
 Per emulator suite: auth 31 · catalogue 16 · reservations 37 · payments 60 ·
 documents 38 · amendments 22.
@@ -385,6 +385,79 @@ be asked about:
   reducing the stored snapshot through `reduceLedger`
 - fractional prices, zero quantities, blank descriptions, zero amounts and
   unauthenticated callers are all refused
+
+---
+
+## 4d. Communication, Arabic and settings (Phase 8)
+
+### The claim that must never appear
+
+Asserted in three independent places, because a false claim of delivery is
+exactly the kind of error that survives a code review and reappears in a
+translation:
+
+- `whatsapp.test.ts` asserts `COMMUNICATION_STATUSES` is exactly
+  `['Prepared', 'Opened', 'Copied']` and that `Sent`, `Delivered`, `Read` and
+  `Failed` are all rejected by the type guard.
+- The rules suite asserts that a document carrying any of those statuses is
+  **refused by Firestore**, not merely hidden by the interface.
+- `dictionary.test.ts` asserts that no status label **in either language** uses
+  those words, and that the disclaimer says plainly in both that opening is not
+  sending.
+
+### The WhatsApp link
+
+- every form staff type — `91234567`, `+968 9123 4567`, `00968-…`, Arabic-Indic
+  digits — reaches the same `96891234567`, through the **one** normaliser
+- `&`, `#`, `?`, `+`, newlines and Arabic all survive a round trip through
+  `encodeURIComponent`; the `&` case is asserted specifically, because an
+  unescaped one would end the `text` parameter and truncate the message
+- an empty, invalid or foreign number, an empty message and an over-length
+  message are each refused with a named problem rather than producing a link
+- `canMessage` gates the control, so no button that could only fail renders
+
+### Templates
+
+The load-bearing assertion: **`undefined`, `null` and `NaN` never appear in a
+rendered message.** Around it:
+
+- an unfilled placeholder renders as itself, visible and obviously wrong
+- an empty-string value counts as missing, but `"OMR 0.000"` does not — a real
+  balance of zero is a value
+- a typo (`{custmer_name}`) is reported as an unknown variable, not as missing
+  data, and rendering leaves it untouched
+- a value that itself looks like a placeholder is not re-expanded, so a customer
+  named `{balance}` does not become their balance
+- the bilingual body is Arabic, separator, English; the separator is omitted
+  when only one language is written
+- preparing a bilingual message checks **both** halves, so a gap in either
+  blocks it
+- `SAMPLE_VALUES` supplies every variable, so a settings preview never shows a
+  gap, and reads obviously as a sample
+
+### Settings
+
+- VAT accepts only 0 and 5, asserted through the domain **and** against the
+  rules from the owner's own credentials
+- the cancellation scale refuses duplicate notice periods (which would make a
+  refund depend on the order rows were typed in) and refuses a scale where
+  cancelling earlier refunds less
+- equal percentages at different notice periods are accepted — flat within a
+  band is a policy, not an error
+- `criticalChanges` catches VAT, late fee, threshold and tier edits, and
+  deliberately does **not** flag the cleaning buffer, which is not money
+- staff are refused message templates, reminder preferences and every financial
+  setting at the rules layer
+
+### Arabic and direction
+
+- every dictionary key has a non-empty Arabic value, and none still holds its
+  English text outside a short allowlist of brand names. **Verified by breaking
+  one translation and watching the suite fail** — a coverage test nobody has
+  seen fail is a coverage test that may assert nothing.
+- the Phase 3 normalisation is re-asserted end to end through `rankMatches`, not
+  only through the normaliser: the way it breaks quietly is a call site
+  normalising its own input instead of going through the domain
 
 ---
 

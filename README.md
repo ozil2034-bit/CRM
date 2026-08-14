@@ -11,15 +11,17 @@ fittings, payments, security deposits and invoicing for a bridal boutique.
 
 ## Status
 
-**Phase 7 of 10 complete** — foundation, identity and authorization, the dress
+**Phase 8 of 10 complete** — foundation, identity and authorization, the dress
 and customer catalogue, the reservation engine with its concurrency safety, the
-financial ledger, A4 bilingual documents, and now the employee experience:
-dashboard, calendar, workspaces, accessories, alterations, reports and printable
-operational sheets.
+financial ledger, A4 bilingual documents, the employee experience, and now
+customer communication and the complete Arabic interface.
 
-Bilingual polish and messaging are Phase 8; offline and PWA are Phase 9;
-production deployment is Phase 10. Nothing is deployed and no production project
-is configured.
+WhatsApp is click-to-chat: the application opens a link with the message ready,
+and the employee presses send. It records `Prepared`, `Opened` and `Copied` —
+never `Sent`, because it cannot observe that.
+
+Offline and PWA are Phase 9; production deployment is Phase 10. Nothing is
+deployed and no production project is configured.
 
 See [PROJECT_PLAN.md](./PROJECT_PLAN.md) for the full phase plan.
 

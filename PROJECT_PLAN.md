@@ -142,8 +142,8 @@ Each phase ends with the **phase gate** (§7) and at least one Git commit.
 | 4   | Reservation engine    | Lifecycle state machine, availability + cleaning buffer, concurrency safety, fittings, waitlist | Complete        |
 | 5   | Money                 | Payments, deposits, VAT, pickup threshold, late fees, cancellation, pricing snapshots           | Complete        |
 | 6   | Documents             | Invoices, A4 print, T&C versioning, bilingual documents                                         | Complete        |
-| 7   | Operations UX         | Dashboard, calendar, reports, sheets, accessories, alterations, global search                   | **In progress** |
-| 8   | Bilingual & messaging | Arabic, RTL, WhatsApp click-to-chat, notification log                                           | Pending         |
+| 7   | Operations UX         | Dashboard, calendar, reports, sheets, accessories, alterations, global search                   | Complete        |
+| 8   | Bilingual & messaging | Arabic, RTL, WhatsApp click-to-chat, templates, communication log, settings                     | **In progress** |
 | 9   | Resilience            | Offline persistence, PWA, backup, import/export                                                 | Pending         |
 | 10  | Production            | Full QA, security testing, deployment                                                           | Pending         |
 
@@ -162,7 +162,7 @@ Each phase ends with the **phase gate** (§7) and at least one Git commit.
 - [x] Concurrency: eight simultaneous issues, eight unique numbers
 - [x] Phase gate green
 
-### Phase 7 scope (current)
+### Phase 7 scope
 
 - [x] Employee dashboard: today's work first, then alerts, then what is coming,
       money last. No KPI row. Correct and honest with zero records.
@@ -195,6 +195,40 @@ Each phase ends with the **phase gate** (§7) and at least one Git commit.
 prepared, nothing is dispatched (Phase 8); full RTL polish and Arabic review
 (Phase 8); CSV export (Phase 9). Nothing is deployed, no production project is
 configured, and no production bootstrap token exists.
+
+### Phase 8 scope (current)
+
+- [x] WhatsApp click-to-chat: `wa.me` links through the one phone normaliser,
+      whole-body URL encoding, and no control at all without a valid number
+- [x] States are `Prepared`, `Opened`, `Copied`. No `Sent`, `Delivered` or
+      `Read` exists in the types, in the rules, or in either dictionary
+- [x] Nine editable templates, English and Arabic, bilingual as a structure
+      rather than a concatenation. No wording supplied.
+- [x] A variable the data cannot supply blocks preparation and is named;
+      `undefined`, `null` and `NaN` cannot reach a customer
+- [x] Template preview against sample values, creating no records
+- [x] Communication log: append-only, one entry per explicit action, storing the
+      exact message text. Refreshing a page logs nothing.
+- [x] Composer on the reservation and on the customer profile
+- [x] Complete Arabic UI, with a test that proves it stays complete
+- [x] RTL from one `dir` attribute and logical properties; `.numeric`, `.code`
+      and `.user-text` handle money, identifiers and mixed content
+- [x] Arabic search normalisation re-asserted end to end
+- [x] Settings in six tabs, nothing saved on a keystroke, critical changes
+      confirmed with a forward-only explanation
+- [x] Business profile, logo, VAT, late fee, pickup threshold, cancellation
+      scale, cleaning buffer, T&C versioning, reminder preferences
+- [x] Staff refused templates, reminders and every financial setting at the
+      rules layer
+- [x] Phase gate green
+
+**Explicitly not in Phase 8:** the WhatsApp Business API — V1 is click-to-chat
+and the vocabulary reflects that; scheduled reminder delivery — there is no cron
+or worker in this architecture, so preferences record intent and the dashboard
+surfaces what is due; editable record-number prefixes, which need the format
+stored per record rather than a settings field; offline and PWA (Phase 9).
+Nothing is deployed, no production project is configured, and no production
+bootstrap token exists.
 
 ---
 

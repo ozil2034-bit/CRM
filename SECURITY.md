@@ -221,7 +221,7 @@ Per-collection posture:
 | `payments`             | employee           | employee     | OWNER, void fields only    | **never** |
 | `invoices`             | employee           | **never**    | **never**                  | **never** |
 | `damageLogs`           | employee           | employee     | employee                   | **never** |
-| `notificationLogs`     | employee           | employee     | `openedAt` only            | **never** |
+| `notificationLogs`     | employee           | employee⁴    | **never**                  | **never** |
 | `auditLogs`            | OWNER              | employee¹    | **never**                  | **never** |
 
 ¹ Must be created with `archived: false`, and can never be deleted — archiving
@@ -237,6 +237,19 @@ invoice through the reservation's pricing snapshot, breaking the integer-baisa
 invariant the whole financial engine rests on from the catalogue inwards. The
 application retires entries rather than deleting them; the owner delete remains
 for a mistyped entry that was never used.
+
+⁴ A communication entry may carry only `Prepared`, `Opened` or `Copied`, and
+its `employeeId` must be the caller. The application opens a `wa.me` link — it
+transmits nothing and cannot observe what happened next — so a stored claim of
+delivery would one day be quoted back to a customer who never received the
+message. Update is refused to every role, owner included: the entry holds the
+exact message text, which is a snapshot, and one immutable entry is appended per
+action so that opening WhatsApp twice reads as two contacts rather than one.
+
+**Message templates are owner-only.** They live at `settings/messageTemplates`
+and are governed by the `settings/{documentId}` rule. A template goes out over
+the boutique's name to every customer, so editing one is an owner decision and
+the interface hiding the editor is not the control.
 
 **Reservation `pricing` has no client write path at all.** Phase 7 added
 accessories and alterations, and both go through Cloud Functions
@@ -267,8 +280,12 @@ Rules validate not only _who_ but _what_:
 - **`users`**: no client write path exists at all. Attempting to allow a "safe
   subset" of fields on a privilege-bearing document is a worse design than
   refusing the whole write.
-- **`notificationLogs`**: only `openedAt` may change, so the recorded message
-  body stays truthful.
+- **`notificationLogs`**: nothing may change. Phase 8 made the collection
+  append-only — the entry holds the exact message text prepared, which is a
+  snapshot, and one entry is appended per action so a second contact is a second
+  record rather than an overwritten timestamp. The stored `status` is restricted
+  to `Prepared`, `Opened` and `Copied`; there is no way to persist a claim that
+  a message was sent, delivered or read.
 
 ---
 
