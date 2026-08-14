@@ -14,8 +14,13 @@
 import {
   collection,
   doc,
+  endAt,
+  getDocs,
+  limit,
   onSnapshot,
+  orderBy,
   query,
+  startAt,
   Timestamp,
   where,
   type Firestore,
@@ -249,6 +254,30 @@ export function observeDocumentsForReservation(
     (snapshot) => onChange(snapshot.docs.map(toDocument).sort((a, b) => b.issuedAt - a.issuedAt)),
     onError,
   );
+}
+
+/**
+ * Find documents for global search, by document number.
+ *
+ * A prefix range query on `documentNumber` — indexed, bounded, and the only way
+ * anybody looks an invoice up. `INV-2026-` narrows to a year; `INV-2026-0042`
+ * finds one. The customer's own invoices are on her page and on the booking.
+ */
+export async function searchDocuments(term: string, max = 6): Promise<StoredDocument[]> {
+  const prefix = term.trim().toUpperCase();
+  if (prefix.length < 2) return [];
+
+  const snapshot = await getDocs(
+    query(
+      collection(db(), INVOICES),
+      orderBy('documentNumber'),
+      startAt(prefix),
+      endAt(`${prefix}\uf8ff`),
+      limit(max),
+    ),
+  );
+
+  return snapshot.docs.map(toDocument);
 }
 
 /* ------------------------------------------------------------------------ *

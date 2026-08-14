@@ -14,10 +14,14 @@
 import {
   collection,
   doc,
+  endAt,
+  getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  startAt,
   Timestamp,
   updateDoc,
   where,
@@ -315,6 +319,37 @@ export function observeDressHistory(
     (snapshot) => onChange(snapshot.docs.map(toItem).sort((a, b) => b.pickupAt - a.pickupAt)),
     onError,
   );
+}
+
+/**
+ * Find reservations for global search.
+ *
+ * Reservations carry no `searchTokens` array, because unlike a dress or a
+ * customer they have no free-text identity of their own — they are found by
+ * their code, or through the customer they belong to. So this is a **prefix
+ * range query on `code`**, which is indexed, bounded, and cheap.
+ *
+ * A search for a customer's name finds the customer; her bookings are on her
+ * page. Duplicating that path here would mean maintaining a token array that
+ * goes stale whenever a customer is renamed.
+ */
+export async function searchReservations(term: string, max = 6): Promise<Reservation[]> {
+  const prefix = term.trim().toUpperCase();
+  if (prefix.length < 2) return [];
+
+  const snapshot = await getDocs(
+    query(
+      collection(db(), 'reservations'),
+      orderBy('code'),
+      startAt(prefix),
+      // `\uf8ff` is above every ordinary character, so this bounds the scan to
+      // codes beginning with the prefix rather than reading to the end.
+      endAt(`${prefix}\uf8ff`),
+      limit(max),
+    ),
+  );
+
+  return snapshot.docs.map(toReservation);
 }
 
 /* ------------------------------------------------------------------------ *

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { Alert, Badge, EmptyState, Toggle, buttonClasses } from '@/design-system';
+import { Alert, Badge, Button, EmptyState, Select, Toggle, buttonClasses } from '@/design-system';
 import { DressPhoto } from '@/components/DressPhoto';
 import { DressCard } from './DressCard';
 import { STATUS_TONE } from './status-tone';
@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useT } from '@/hooks/useT';
 import { observeDresses, type Dress } from '@/services/dresses.service';
 import { rankMatches } from '@/domain/search';
-import { resolvePrimaryPhoto } from '@/domain/dress';
+import { DRESS_STATUSES, resolvePrimaryPhoto, type DressStatus } from '@/domain/dress';
 import { formatOmr } from '@/domain/money';
 import { cn } from '@/lib/utils/cn';
 
@@ -36,6 +36,12 @@ export function InventoryPage() {
   const [includeRetired, setIncludeRetired] = useState(false);
   const [view, setView] = useState<ViewMode>('gallery');
 
+  const [status, setStatus] = useState<DressStatus | ''>('');
+  const [designer, setDesigner] = useState('');
+  const [size, setSize] = useState('');
+  const [colour, setColour] = useState('');
+  const [style, setStyle] = useState('');
+
   // Keyed by the filter that produced it, so changing the filter shows the
   // loading state without a synchronous setState inside the effect.
   const filterKey = String(includeRetired);
@@ -61,14 +67,56 @@ export function InventoryPage() {
    */
   const visible = useMemo(() => {
     if (dresses === null) return null;
-    if (term.trim().length === 0) return dresses;
+
+    const matches = (value: string, wanted: string) =>
+      wanted === '' || value === wanted;
+
+    const inScope = dresses.filter(
+      (dress) =>
+        (status === '' || dress.status === status) &&
+        matches(dress.designer, designer) &&
+        matches(dress.size, size) &&
+        matches(dress.color, colour) &&
+        matches(dress.style, style),
+    );
+
+    if (term.trim().length === 0) return inScope;
 
     return rankMatches(
       term,
-      dresses,
+      inScope,
       (dress) => `${dress.code} ${dress.name} ${dress.designer} ${dress.brand} ${dress.color}`,
     );
-  }, [dresses, term]);
+  }, [dresses, term, status, designer, size, colour, style]);
+
+  /*
+   * The filter lists are built from the inventory itself rather than from a
+   * fixed vocabulary. A boutique's designers and sizes are whatever it stocks;
+   * offering an option that matches nothing wastes the employee's time, and
+   * omitting one it does stock hides the gown.
+   */
+  const options = useMemo(() => {
+    const distinct = (pick: (dress: Dress) => string) =>
+      [...new Set((dresses ?? []).map(pick).filter((value) => value.length > 0))].sort();
+
+    return {
+      designers: distinct((dress) => dress.designer),
+      sizes: distinct((dress) => dress.size),
+      colours: distinct((dress) => dress.color),
+      styles: distinct((dress) => dress.style),
+    };
+  }, [dresses]);
+
+  const filtersActive =
+    status !== '' || designer !== '' || size !== '' || colour !== '' || style !== '';
+
+  function clearFilters(): void {
+    setStatus('');
+    setDesigner('');
+    setSize('');
+    setColour('');
+    setStyle('');
+  }
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
@@ -101,7 +149,7 @@ export function InventoryPage() {
           onChange={setIncludeRetired}
         />
 
-        <div className="flex items-center gap-1" role="group" aria-label="View">
+        <div className="flex items-center gap-1" role="group" aria-label={t('inventory.viewGallery')}>
           {(['gallery', 'list'] as const).map((mode) => (
             <button
               key={mode}
@@ -119,6 +167,49 @@ export function InventoryPage() {
         </div>
       </div>
 
+      {/*
+       * Filters below the search line, not above it. Search is what an employee
+       * reaches for nine times in ten; the filters are for the tenth.
+       */}
+      <div className="mt-4 flex flex-wrap items-end gap-x-5 gap-y-3">
+        <Select
+          label={t('dress.status')}
+          value={status}
+          onChange={(event) => setStatus(event.target.value as DressStatus | '')}
+          options={[
+            { value: '', label: t('reservations.filterAll') },
+            ...DRESS_STATUSES.map((value) => ({ value, label: value })),
+          ]}
+          className="w-40"
+        />
+
+        <FilterSelect
+          label={t('dress.designer')}
+          value={designer}
+          onChange={setDesigner}
+          values={options.designers}
+        />
+        <FilterSelect label={t('dress.size')} value={size} onChange={setSize} values={options.sizes} />
+        <FilterSelect
+          label={t('dress.color')}
+          value={colour}
+          onChange={setColour}
+          values={options.colours}
+        />
+        <FilterSelect
+          label={t('dress.style')}
+          value={style}
+          onChange={setStyle}
+          values={options.styles}
+        />
+
+        {filtersActive && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
+            {t('reservations.clearFilters')}
+          </Button>
+        )}
+      </div>
+
       {error && (
         <Alert tone="error" className="mt-6">
           {error}
@@ -129,10 +220,16 @@ export function InventoryPage() {
 
       {visible !== null && visible.length === 0 && (
         <EmptyState
-          title={term.trim().length > 0 ? t('inventory.noResults') : t('inventory.empty')}
-          {...(term.trim().length === 0 ? { hint: t('inventory.emptyHint') } : {})}
+          title={
+            term.trim().length > 0 || filtersActive
+              ? t('inventory.noResults')
+              : t('inventory.empty')
+          }
+          {...(term.trim().length === 0 && !filtersActive
+            ? { hint: t('inventory.emptyHint') }
+            : {})}
           action={
-            term.trim().length === 0 && can('dresses.create') ? (
+            term.trim().length === 0 && !filtersActive && can('dresses.create') ? (
               <Link to="/inventory/new" className={buttonClasses()}>
                 {t('inventory.new')}
               </Link>
@@ -210,5 +307,40 @@ function DressTable({ dresses }: { dresses: readonly Dress[] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * A dropdown built from what the inventory actually contains.
+ *
+ * Renders nothing when the boutique has never recorded that attribute — an
+ * empty "Designer" list is a control that can only disappoint.
+ */
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  values,
+}: {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+  values: readonly string[];
+}) {
+  const { t } = useT();
+
+  if (values.length === 0) return null;
+
+  return (
+    <Select
+      label={label}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      options={[
+        { value: '', label: t('reservations.filterAll') },
+        ...values.map((entry) => ({ value: entry, label: entry })),
+      ]}
+      className="w-36"
+    />
   );
 }

@@ -8,6 +8,7 @@ import { observeCustomer, setCustomerArchived, type Customer } from '@/services/
 import { displayName } from '@/domain/customer';
 import { tryParseOmanPhone } from '@/domain/phone';
 import { cn } from '@/lib/utils/cn';
+import { CustomerHistory } from './CustomerHistory';
 
 export function CustomerDetailPage() {
   const { customerId } = useParams<{ customerId: string }>();
@@ -170,6 +171,14 @@ export function CustomerDetailPage() {
           <h2 className="label-caps">{t('customer.notes')}</h2>
           <p className="mt-3 whitespace-pre-wrap text-sm text-ink-700">{customer.notes}</p>
         </section>
+      )}
+
+      {/*
+       * Her history with the boutique: bookings, what she has actually paid,
+       * fittings and the payment record. Only for employees who may see money.
+       */}
+      {can('payments.view') && customerId !== undefined && (
+        <CustomerHistory customerId={customerId} />
       )}
     </main>
   );
