@@ -60,7 +60,12 @@ export function AmendmentsPanel({ reservation }: { reservation: Reservation }) {
     () => ({
       status: reservation.status,
       hasActiveDocument,
-      items: [] as never[],
+      /*
+       * The real frozen lines, not an empty list. The preview reprices the
+       * whole booking and compares totals, so leaving the gowns out would quote
+       * a change with the entire rental subtracted from it.
+       */
+      items: reservation.items,
       accessories: reservation.accessories,
       alterations: reservation.alterations,
       vatRatePercent: reservation.pricing.vatRatePercent,

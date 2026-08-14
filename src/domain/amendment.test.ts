@@ -355,6 +355,21 @@ describe('the change an amendment makes', () => {
     expect(chargeDelta(before, after).charges).toBeLessThan(0);
   });
 
+  it('measures against the WHOLE booking, not a booking with no gowns in it', () => {
+    /*
+     * Regression. A caller that built the amendment context without the frozen
+     * dress lines got a preview repriced with no rental at all, so "this adds"
+     * quoted the veil's price minus the entire gown — a large negative shown to
+     * an employee about to charge a customer.
+     */
+    const before = reprice(context(), { accessories: [], alterations: [] }).pricing;
+    const after = withAccessory(context(), VEIL).pricing;
+
+    expect(before.rentalSubtotal).toBe(400_000);
+    expect(after.rentalSubtotal).toBe(400_000);
+    expect(chargeDelta(before, after).charges).toBeGreaterThan(0);
+  });
+
   it('is zero when nothing moved', () => {
     const same = reprice(context(), { accessories: [], alterations: [] }).pricing;
 

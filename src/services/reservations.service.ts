@@ -38,7 +38,7 @@ import {
   type ReservationStatus,
 } from '@/domain/availability';
 import { toMuscatWallTime, type EpochMs } from '@/domain/datetime';
-import type { PricingSnapshot } from '@/domain/reservation-pricing';
+import type { PricingSnapshot, ReservationLineItem } from '@/domain/reservation-pricing';
 import type { ReservationAccessory, ReservationAlteration } from '@/domain/amendment';
 
 export interface ReservationItem {
@@ -73,6 +73,15 @@ export interface Reservation {
   readonly actualReturnAt: EpochMs | null;
   readonly eventDate: string;
   readonly pricing: PricingSnapshot;
+  /**
+   * The dress lines the pricing snapshot was computed from, at their frozen
+   * prices.
+   *
+   * Needed to reprice: an amendment passes every existing line back into
+   * `computePricing`, so a preview built without these would quote a total with
+   * no rental in it.
+   */
+  readonly items: readonly ReservationLineItem[];
   /** The accessory lines the pricing snapshot was computed from. */
   readonly accessories: readonly ReservationAccessory[];
   /** The alteration lines, each frozen at the amount agreed when recorded. */
@@ -146,6 +155,7 @@ function toReservation(snapshot: QueryDocumentSnapshot): Reservation {
       securityDepositTotal: int(pricing['securityDepositTotal']),
       grandTotal: int(pricing['grandTotal']),
     },
+    items: readItems(pricing),
     accessories: readAccessories(pricing),
     alterations: readAlterations(pricing),
     notes: str(data['notes']),
@@ -159,6 +169,22 @@ function toReservation(snapshot: QueryDocumentSnapshot): Reservation {
  * computed from exactly these lines, and splitting them apart would let the two
  * drift.
  */
+function readItems(pricing: Record<string, unknown>): ReservationLineItem[] {
+  const lines = pricing['items'];
+  if (!Array.isArray(lines)) return [];
+
+  return (lines as Record<string, unknown>[]).map((line) => ({
+    dressId: str(line['dressId']),
+    dressCode: str(line['dressCode']),
+    dressName: str(line['dressName']),
+    designer: str(line['designer']),
+    rentalPrice: int(line['rentalPrice']),
+    securityDeposit: int(line['securityDeposit']),
+    cleaningBufferDays:
+      typeof line['cleaningBufferDays'] === 'number' ? line['cleaningBufferDays'] : 3,
+  }));
+}
+
 function readAccessories(pricing: Record<string, unknown>): ReservationAccessory[] {
   const lines = pricing['accessories'];
   if (!Array.isArray(lines)) return [];
