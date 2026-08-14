@@ -60,7 +60,7 @@ export function DressDetailPage() {
   }, [dressId, can]);
 
   if (loading) {
-    return <main className="mx-auto max-w-5xl px-6 py-16 text-sm text-ink-400">…</main>;
+    return <main className="mx-auto max-w-5xl px-6 py-16 text-sm text-ink-400" role="status">{t('state.loading')}</main>;
   }
 
   if (dress === null) {

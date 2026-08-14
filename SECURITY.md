@@ -216,7 +216,7 @@ Per-collection posture:
 | `reservations`         | employee           | employee     | employee, snapshots frozen | **never** |
 | `reservationItems`     | employee           | employee     | employee                   | employee  |
 | `fittings`             | employee           | employee     | employee                   | employee  |
-| `accessories`          | employee           | employee     | employee                   | OWNER     |
+| `accessories`          | employee           | employee³    | employee³                  | OWNER     |
 | `waitlist`             | employee           | employee     | employee                   | employee  |
 | `payments`             | employee           | employee     | OWNER, void fields only    | **never** |
 | `invoices`             | employee           | **never**    | **never**                  | **never** |
@@ -230,6 +230,23 @@ customers and that history must stay resolvable.
 
 ² Must carry a `code`, which is immutable thereafter: it is how staff identify a
 garment and how every future reservation references it.
+
+³ Accessory money — `rentalPrice`, `salePrice`, `securityDeposit` — must be
+whole, non-negative baisa when present. A fractional price would reach an
+invoice through the reservation's pricing snapshot, breaking the integer-baisa
+invariant the whole financial engine rests on from the catalogue inwards. The
+application retires entries rather than deleting them; the owner delete remains
+for a mistyped entry that was never used.
+
+**Reservation `pricing` has no client write path at all.** Phase 7 added
+accessories and alterations, and both go through Cloud Functions
+(`addReservationAccessory`, `addReservationAlteration`, and their removals) for
+the same two reasons payments do: the decision depends on a query read —
+"does a live invoice exist for this booking?" — and the new snapshot must be
+computed and written in the same transaction. Every amendment increments
+`financialVersion`, so two concurrent amendments conflict rather than one
+silently discarding the other. Staff may amend; every amendment is audited with
+the actor's name.
 
 On `auditLogs`, `actorUid` must equal the caller's uid — an employee cannot
 forge an entry attributed to someone else.

@@ -698,7 +698,7 @@ function CancellationForm({
         </Alert>
       )}
 
-      {quote === null && error === null && <p className="mt-3 text-sm text-ink-400">…</p>}
+      {quote === null && error === null && <p className="mt-3 text-sm text-ink-400" role="status">{t('state.loading')}</p>}
 
       {quote !== null && (
         <>

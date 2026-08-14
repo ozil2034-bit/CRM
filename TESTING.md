@@ -47,6 +47,7 @@ npm run test:functions:catalogue     # dress and customer CRUD only
 npm run test:functions:reservations  # the reservation engine only
 npm run test:functions:payments      # the financial engine only
 npm run test:functions:documents     # invoices, agreements and receipts only
+npm run test:functions:amendments    # accessories and alterations only
 ```
 
 The emulator-backed integration suites run in **separate emulator invocations**,
@@ -54,7 +55,7 @@ not merely separate files. Each bootstraps an owner, and owner bootstrap is a
 one-time transition — sharing one emulator would make whichever suite ran second
 fail against state the first had already consumed.
 
-Current totals: **979** unit · **802** rules · **182** integration.
+Current totals: **1,177** unit · **806** rules · **204** integration.
 
 ---
 
@@ -323,6 +324,64 @@ Financial reconciliation (§36) runs against the emulator: the stored document's
 `financials` is compared field by field with `reduceLedger` recomputed
 independently from the reservation and the ledger. `reconcileDocument` must
 return an empty list.
+
+---
+
+## 4c. Operations, reporting and amendments (Phase 7)
+
+### The domain
+
+`operations.test.ts`, `utilization.test.ts`, `calendar.test.ts`,
+`accessory.test.ts`, `amendment.test.ts` and `operational-reporting.test.ts` are
+pure: the current instant and the reporting period are parameters, so February
+2028's leap day and "three overdue returns" are asserted without touching the
+clock.
+
+The load-bearing assertions, the ones that would let a real defect through if
+deleted:
+
+- **N/A is not 0%.** A dress with no operating days reports `percent: null`, and
+  `averageUtilization` excludes it rather than counting it as zero. A separate
+  test asserts that a dress that *was* available and never booked reports a real
+  `0` — the two must stay distinguishable.
+- **Two back-to-back bookings do not both claim the changeover day.** Half-open
+  day arithmetic; without it a fully-booked gown exceeds 100%.
+- **A cancelled booking is omitted from the calendar entirely.** Leaving it on
+  would have staff preparing for a customer who will not arrive.
+- **Overdue is measured from the start of today.** A gown due at 18:00 is not
+  overdue at 09:00.
+- **`allocateByWeight` loses nothing.** Every split sums exactly to its input,
+  including the odd-baisa case, and a zero-weight case spreads rather than
+  dropping the money.
+- **A rental-only accessory being sold reports no price**, never zero.
+- **The reservation's VAT rate survives an amendment**, and the discount travels
+  as an absolute amount rather than growing with the bill.
+- **`reprice` equals `computePricing`** for the same lines, asserted by
+  constructing both and comparing the whole snapshot.
+
+### The Functions
+
+`tests/functions-emulator/amendments.test.ts` proves what a pure function cannot
+be asked about:
+
+- the **stored** snapshot equals what `computePricing` produces for the same
+  lines — if the Function ever computed its own totals, the invoice and the
+  screen would eventually disagree, and the one on paper is the one the customer
+  keeps
+- the reservation's frozen VAT rate is used even after the setting is changed
+  underneath it
+- the same request sent twice adds **one** line, sequentially and concurrently
+- two *different* concurrent amendments both land: without the
+  `financialVersion` lock neither transaction conflicts and the second silently
+  discards the first
+- an issued invoice **refuses** the amendment; voiding it allows one again; and
+  the issued document's own figures never move either way
+- a `Returned` booking refuses an amendment, while one still `Picked Up` accepts
+  it — a hem taken up at the last fitting is billed after the dress has left
+- the outstanding balance moves by exactly the charge plus its VAT, verified by
+  reducing the stored snapshot through `reduceLedger`
+- fractional prices, zero quantities, blank descriptions, zero amounts and
+  unauthenticated callers are all refused
 
 ---
 

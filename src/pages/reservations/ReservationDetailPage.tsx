@@ -111,7 +111,7 @@ export function ReservationDetailPage() {
   }, []);
 
   if (reservation === undefined) {
-    return <main className="mx-auto max-w-3xl px-6 py-10 text-sm text-ink-400">…</main>;
+    return <main className="mx-auto max-w-3xl px-6 py-10 text-sm text-ink-400" role="status">{t('state.loading')}</main>;
   }
 
   if (reservation === null) {

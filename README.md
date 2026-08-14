@@ -11,9 +11,15 @@ fittings, payments, security deposits and invoicing for a bridal boutique.
 
 ## Status
 
-**Phase 3 of 10 complete** — foundation, identity and authorization, and now the
-dress inventory, customers, photographs, search and audit trail. 1,256 tests.
-The reservation engine begins in Phase 4.
+**Phase 7 of 10 complete** — foundation, identity and authorization, the dress
+and customer catalogue, the reservation engine with its concurrency safety, the
+financial ledger, A4 bilingual documents, and now the employee experience:
+dashboard, calendar, workspaces, accessories, alterations, reports and printable
+operational sheets.
+
+Bilingual polish and messaging are Phase 8; offline and PWA are Phase 9;
+production deployment is Phase 10. Nothing is deployed and no production project
+is configured.
 
 See [PROJECT_PLAN.md](./PROJECT_PLAN.md) for the full phase plan.
 
@@ -81,7 +87,7 @@ project data is read or written in this mode.
 | `npm run test:watch`     | Tests in watch mode                             |
 | `npm run test:coverage`  | Coverage report                                 |
 | `npm run test:rules`     | Security rules against the emulator             |
-| `npm run test:functions` | Cloud Function integration tests                |
+| `npm run test:functions` | Cloud Function integration tests (six suites)   |
 | `npm run format`         | Prettier write                                  |
 | `npm run emulators`      | Firebase Emulator Suite                         |
 | **`npm run verify`**     | **Phase gate: lint + typecheck + test + build** |
@@ -142,6 +148,11 @@ src/
 functions/        Cloud Functions for trusted operations
 tests/            Integration and security-rules tests
 ```
+
+Every write that requires a read-then-decide — booking, payment, issuing a
+document, amending what a reservation charges — lives in `functions/`, because
+the Firestore client SDK cannot read a query inside a transaction and a
+browser-side check is a time-of-check/time-of-use race.
 
 ---
 

@@ -141,13 +141,13 @@ Each phase ends with the **phase gate** (§7) and at least one Git commit.
 | 3   | Catalogue             | Dress inventory, customers, CRUD, photo pipeline                                                | Complete        |
 | 4   | Reservation engine    | Lifecycle state machine, availability + cleaning buffer, concurrency safety, fittings, waitlist | Complete        |
 | 5   | Money                 | Payments, deposits, VAT, pickup threshold, late fees, cancellation, pricing snapshots           | Complete        |
-| 6   | Documents             | Invoices, A4 print, T&C versioning, bilingual documents                                         | **In progress** |
-| 7   | Operations UX         | Dashboard, calendar, reports, CSV export, global search                                         | Pending         |
+| 6   | Documents             | Invoices, A4 print, T&C versioning, bilingual documents                                         | Complete        |
+| 7   | Operations UX         | Dashboard, calendar, reports, sheets, accessories, alterations, global search                   | **In progress** |
 | 8   | Bilingual & messaging | Arabic, RTL, WhatsApp click-to-chat, notification log                                           | Pending         |
 | 9   | Resilience            | Offline persistence, PWA, backup, import/export                                                 | Pending         |
 | 10  | Production            | Full QA, security testing, deployment                                                           | Pending         |
 
-### Phase 6 scope (current)
+### Phase 6 scope
 
 - [x] Invoice, rental agreement and receipt as three templates over ten shared parts
 - [x] `INV-YYYY-NNNN` from a per-year transactional counter; idempotent on the request key
@@ -162,10 +162,39 @@ Each phase ends with the **phase gate** (§7) and at least one Git commit.
 - [x] Concurrency: eight simultaneous issues, eight unique numbers
 - [x] Phase gate green
 
-**Explicitly not in Phase 6:** the dashboard, calendar and reports screens
-(Phase 7); WhatsApp and notifications (Phase 8); accessory and alteration line
-capture, which the document already renders but no screen yet creates. Nothing is
-deployed and no production project is configured.
+### Phase 7 scope (current)
+
+- [x] Employee dashboard: today's work first, then alerts, then what is coming,
+      money last. No KPI row. Correct and honest with zero records.
+- [x] Contextual actions per reservation state, with one promoted action
+- [x] Calendar: month, week and agenda; six whole weeks; Saturday start; each
+      event kind carries a glyph and a named label, never colour alone
+- [x] Reservations workspace: status, date-range and text filters; By date and
+      By dress groupings; balance and next action on every row
+- [x] Customer workspace: bookings, fittings, payment statement, and what she has
+      actually paid — not the sum of agreed totals
+- [x] Inventory filters built from what the inventory actually contains
+- [x] Accessory catalogue, and accessory + alteration capture on a reservation,
+      repricing through the one existing `computePricing`
+- [x] Amendment refused once an invoice is issued; void and reissue is the path
+- [x] Reports: revenue, revenue by dress, most rented, utilisation, outstanding,
+      deposits, cancellations, accessory and alteration revenue — all from the
+      ledger, with N/A where a figure does not apply
+- [x] Printable collection, return, cleaning and alteration sheets on the same A4
+      stylesheet as the invoices
+- [x] Global search extended to reservations and invoices, grouped by kind
+- [x] Responsive navigation: one entry list drives desktop, tablet and a phone
+      bottom bar
+- [x] Domain suites for operations, utilisation, calendar, accessories,
+      amendments and operational reporting
+- [x] Emulator suite for the amendment Functions: one engine, the frozen VAT
+      rate, idempotency, concurrency, the invoice lock
+- [x] Phase gate green
+
+**Explicitly not in Phase 7:** WhatsApp *sending* — the notification surfaces are
+prepared, nothing is dispatched (Phase 8); full RTL polish and Arabic review
+(Phase 8); CSV export (Phase 9). Nothing is deployed, no production project is
+configured, and no production bootstrap token exists.
 
 ---
 

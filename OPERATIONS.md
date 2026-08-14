@@ -89,7 +89,14 @@ backup first (specification §49).
 ## 5. Daily operational checks
 
 Nothing here is automated alerting yet; these are the human checks the dashboard
-is designed to support.
+supports directly. Since Phase 7 the dashboard opens on **Today** — collections,
+returns and fittings, then **Needs attention**, then what is coming. With no
+records at all it says so rather than showing zeroes.
+
+**Sheets** (`/sheets`) prints four lists on A4: today's collections, today's
+returns, the cleaning queue and the alteration queue. Each row has a box to tick
+and a signature line, because the person carrying it to the rail is not carrying
+a tablet.
 
 **Morning**
 
@@ -104,6 +111,86 @@ is designed to support.
 - Returned dresses moved to _In Cleaning_.
 - Payments recorded against the correct reservation.
 - Damage logged with photographs while the evidence is fresh.
+
+---
+
+## 5a. Accessories and alterations
+
+### The catalogue
+
+`/accessories` holds veils, tiaras, boleros and jewellery. Each entry carries a
+rental price, an optional sale price and a security deposit. Whether an item is
+for rental, for sale, or either is recorded per entry — a sold item carries no
+deposit, because the customer keeps it.
+
+Entries are **retired**, never deleted. Past bookings reference them, and a
+deleted entry would leave that revenue unattributable in the reports.
+
+### Adding one to a booking
+
+Open the reservation and use the Accessories panel. The catalogue price is
+suggested and may be overridden — a customer may have been quoted differently —
+but the price is snapshotted onto the booking, so a later catalogue change never
+alters what was agreed.
+
+Before you commit, the panel shows exactly what the change adds: the charge
+including VAT, and any further deposit to hold.
+
+### Recording an alteration
+
+Same panel. Describe the work, enter the amount, and it is charged with VAT at
+the booking's own rate. Who recorded it and when are both stored and frozen: an
+alteration billed at 15.000 in September still reads 15.000 next year, whatever
+the boutique charges for hemming by then.
+
+### When charges are locked
+
+Two situations, and the screen names which:
+
+1. **An invoice has been issued.** The customer is holding a document. Void the
+   invoice, make the change, and issue a new one — that leaves both on the
+   record. Silently changing the booking would make the paper and the system
+   disagree.
+2. **The booking is finished** — Returned, Closed, Cancelled or No-Show. The
+   account is being settled, and a new charge appearing mid-settlement is how a
+   deposit gets refunded against a total that has since moved.
+
+A gown that is still out with the customer can still gain an alteration: a hem
+taken up at the last fitting is billed after the dress has left.
+
+---
+
+## 5b. Reading the reports
+
+`/reports` covers one month at a time. Every money figure comes from the payment
+ledger — not from a booking's status, not from a dress's current price.
+
+**Security deposits are never counted as revenue.** They are the customer's
+money, held against damage, and most of it goes back. They have their own line.
+
+**Utilisation** is blocked days divided by operating days:
+
+- *Blocked days* include the cleaning buffer, because the gown cannot earn
+  during it.
+- *Operating days* are only the days the dress was actually in the inventory. A
+  gown bought on the 20th is measured over eleven days, not thirty.
+- **N/A is not 0%.** A dress with no operating days in the month — bought later,
+  or already retired — shows N/A. Zero percent would be a judgement: "available
+  all month and never booked". The average across the inventory excludes N/A
+  rows for the same reason.
+
+**Revenue by dress** splits a booking's collection across its gowns in
+proportion to their agreed prices. It is the best answer to "which gowns pay for
+themselves"; it is not a claim that a particular customer paid a particular sum
+for a particular dress, because a payment is made against a booking, not a gown.
+
+**Accessory and alteration revenue** is what was *agreed* on the month's
+bookings, not cash received — the ledger cannot say which part of a payment
+settled a veil.
+
+**The cancellation rate** is computed over bookings that actually concluded.
+Live bookings are excluded: one has not failed, and counting it as a success
+would be equally wrong. With nothing concluded the rate shows N/A.
 
 ---
 

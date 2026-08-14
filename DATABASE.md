@@ -330,17 +330,36 @@ ARCHITECTURE §3a.
 
 ```
 {
-  items:        [{ dressId, dressCode, dressName, rentalPrice, securityDeposit }],
-  accessories:  [{ accessoryId, name, unitPrice, quantity, lineTotal }],
-  alterations:  [{ description, amount }],
-  discount:     { type: 'amount' | 'percent', value, amount },
-  subtotal:            Baisa,   // taxable base, excludes deposit
-  vatRatePercent:      number,  // rate in force at creation
-  vatAmount:           Baisa,
-  securityDepositTotal:Baisa,   // NOT VAT taxable (§11)
-  grandTotal:          Baisa    // subtotal + vat + deposit
+  items: [{ dressId, dressCode, dressName, designer,
+            rentalPrice, securityDeposit, cleaningBufferDays }],
+
+  // Phase 7. Empty at creation; added and removed by the amendment Functions.
+  accessories: [{ lineId, accessoryId, name, nameAr,
+                  unitPrice, quantity, securityDeposit }],
+  alterations: [{ id, description, descriptionAr, amount, notes,
+                  employeeId, employeeName, createdAt }],
+
+  rentalSubtotal:       Baisa,
+  accessorySubtotal:    Baisa,
+  alterationSubtotal:   Baisa,
+  discountAmount:       Baisa,
+  taxableSubtotal:      Baisa,   // rentals + accessories + alterations − discount
+  vatRatePercent:       number,  // the rate in force AT CREATION, frozen
+  vatAmount:            Baisa,   // computed once, on the discounted base
+  securityDepositTotal: Baisa,   // NOT VAT taxable (§11)
+  grandTotal:           Baisa    // taxable + vat + deposit
 }
 ```
+
+**`lineId` is not `accessoryId`.** The line id is the client's request key,
+which is what makes a retry converge on one line; the catalogue id stays a
+catalogue id so reporting can attribute the revenue, and so a bride can take two
+veils from one catalogue entry at different agreed prices.
+
+**Amending reprices, it does not recompute.** The amendment Functions pass every
+frozen figure straight back into `computePricing` — the reservation's own VAT
+rate, not today's, and the agreed discount as an absolute amount. See
+ARCHITECTURE §3e.
 
 `DepositState` (§24):
 
@@ -444,19 +463,35 @@ Indexed on `scheduledAt` for the in-app calendar (§21).
 
 ### 2.10 `accessories/{accessoryId}`
 
-Master catalogue: veils, tiaras, jewellery.
+Master catalogue: veils, tiaras, boleros, jewellery. Implemented in Phase 7.
 
-| Field                                 | Type           |
-| ------------------------------------- | -------------- |
-| `name` / `nameAr`                     | string         |
-| `sku`                                 | string         |
-| `rentalPrice`                         | Baisa          |
-| `securityDeposit`                     | Baisa          |
-| `quantityTotal` / `quantityAvailable` | number         |
-| `photoPath`                           | string \| null |
-| `active`                              | boolean        |
+| Field                             | Type                                    | Notes                                     |
+| --------------------------------- | --------------------------------------- | ----------------------------------------- |
+| `code`                            | string                                  | `ACC-0001`, from `counters/accessory`     |
+| `name` / `nameAr`                 | string                                  |                                           |
+| `description` / `descriptionAr`   | string                                  |                                           |
+| `category`                        | `AccessoryCategory`                     | Veil, Tiara, Bolero, Belt, Jewellery, …   |
+| `kind`                            | `'Rental' \| 'Sale' \| 'Both'`          | a sold item carries no deposit            |
+| `rentalPrice`                     | Baisa                                   | whole, non-negative — enforced by rules   |
+| `salePrice`                       | Baisa \| null                           | null when the boutique does not sell it   |
+| `securityDeposit`                 | Baisa                                   |                                           |
+| `photoPath`                       | string \| null                          |                                           |
+| `status`                          | `'Active' \| 'Retired'`                 | retired, never deleted                    |
 
-Reservations snapshot accessory lines; editing the catalogue never alters history.
+**No stock levels, and no availability.** A dress is one physical garment, so
+booking it excludes everyone else. A boutique holds several of most accessories
+and often sells them; modelling them as blocking resources would demand counts
+the boutique does not keep and refuse bookings for a shortage nobody observed.
+If true stock control is ever needed, that is a new model, not a flag here.
+
+**Retired, never deleted.** Reservations reference accessories by id, and a
+deleted entry would leave "which accessories earn their keep" unanswerable for
+every past booking. The rules still permit an owner delete for a mistyped entry
+that was never used; the application itself never calls it.
+
+Reservations snapshot accessory lines, so editing the catalogue never alters
+history — and an unrecognised `status` is read as `Retired`, because presenting
+an unknown state as sellable would put a line on an invoice.
 
 ---
 
@@ -782,9 +817,21 @@ Composite indexes required (`firestore.indexes.json`):
 | `waitlist`         | `dressId` ASC, `status` ASC                     |
 | `auditLogs`        | `entityType` ASC, `entityId` ASC, `at` DESC     |
 | `dresses`          | `status` ASC, `code` ASC                        |
+| `invoices`         | `reservationId` ASC, `voided` ASC               |
 
 Single-field indexes on `code`, `phoneNormalized` and `searchTokens` (array-contains)
 serve global search (§43).
+
+Phase 7 additions:
+
+- `invoices` on `reservationId` + `voided` serves the amendment lock — the
+  Function asks "does a live document exist for this booking?" inside its
+  transaction.
+- Global search over reservations and invoices uses **prefix range queries** on
+  the automatic single-field indexes for `code` and `documentNumber`. Neither
+  collection carries `searchTokens`: unlike a dress or a customer they have no
+  free-text identity, and a token array would go stale whenever a customer was
+  renamed.
 
 ---
 

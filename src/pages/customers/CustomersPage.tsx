@@ -86,7 +86,7 @@ export function CustomersPage() {
         </Alert>
       )}
 
-      {visible === null && <p className="mt-10 text-sm text-ink-400">…</p>}
+      {visible === null && <p className="mt-10 text-sm text-ink-400" role="status">{t('state.loading')}</p>}
 
       {visible !== null && visible.length === 0 && (
         <EmptyState

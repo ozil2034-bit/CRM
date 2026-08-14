@@ -505,6 +505,169 @@ never made should not appear on a contract it asks a customer to sign.
 
 ---
 
+## 3d. The operational layer (Phase 7)
+
+The employee experience is built on four pure modules, none of which computes
+money or decides availability. They **derive**: they read what the reservation
+and financial engines already established, and arrange it for somebody standing
+behind a counter.
+
+### `operations.ts` — the working day
+
+`dayOperations({ reservations, fittings, now, minPickupPaymentPercent })`
+returns today's pickups, returns, fittings, overdue gowns and unpaid
+collections, each as its own list rather than one merged feed. An employee
+asking "what am I handing out this morning?" should not have to read past three
+returns to find out.
+
+Two decisions are load-bearing:
+
+- **Overdue is measured from the start of today**, not from the current instant.
+  A gown due back at 18:00 is not overdue at 09:00 the same morning, and
+  flagging it would train staff to ignore the list.
+- **The action table is deliberately not the transition table.** `actionsFor()`
+  says what is worth *offering*; `refuseStatusChange()` says what the engine
+  will *accept*. A `Reserved` booking can be cancelled, but "Cancel" is not what
+  an employee reaches for when a bride walks in, so it is not among the actions
+  the row suggests. The first entry is the promoted action.
+
+### `utilization.ts` — the most misleadable number
+
+```
+utilization = blocked days in the period / operating days in the period
+```
+
+**Blocked days** are the days the gown could not be rented to anyone else: the
+stored blocked interval, rental *plus cleaning buffer*, exactly as the
+availability engine computed it at booking. Reporting recomputes no buffer — a
+second implementation of the rule that decides double-booking is the last thing
+this platform needs.
+
+**Operating days** are the period, less any stretch before the dress entered the
+inventory or after it was retired. Measuring a gown bought in November against a
+full year would make every new dress look idle.
+
+`percent` is `number | null`. **`null` means N/A, never 0%.** Zero percent is a
+judgement about a gown — "available all month and never booked". A dress that
+did not exist yet deserves no judgement, and printing one would misinform the
+owner about her own stock. `averageUtilization` excludes N/A rows for the same
+reason: including them would drag the average down every time the boutique
+bought a gown, which is precisely backwards.
+
+Day counting is **half-open**, matching the intervals themselves. Two
+back-to-back bookings must not both claim the changeover day; a fully-booked
+gown reading "104% utilised" would rightly destroy confidence in the whole
+report. The result is capped at 100% regardless.
+
+### `calendar.ts` — grids, not a library
+
+Forty-two cells, always, so the grid does not change height as an employee pages
+through the year. The week starts **Saturday**: Friday and Saturday are the
+Omani weekend, and a Monday or Sunday start would split it across two rows.
+
+Each event kind (`pickup`, `return`, `fitting`, `event`) is a distinct kind
+rather than a colour. The interface renders a glyph and a named label for each,
+so a colour-blind employee reads the same information.
+
+`monthQueryRange(month)` returns the 42-day window a bounded Firestore query
+would need. The calendar does not currently use it — it renders from the
+reservation listener the dashboard already holds — but it is the shape the
+bounded query should take when the collection outgrows one listener.
+
+### `operational-reporting.ts` — attribution, honestly labelled
+
+Revenue comes from the ledger, always. Never from a reservation's status, never
+from a dress's current price, never from a total shown on a card.
+
+A payment is made against a *reservation*, not a dress, and a reservation may
+carry three gowns. So `revenueByDress` splits each booking's net collection **in
+proportion to the frozen rental prices of its lines**, by largest remainder in
+integer baisa. The parts always sum to the whole: a report whose rows do not add
+up to its own total destroys confidence in every other figure on the page.
+
+This is an attribution, not a measurement, and the module says so. It is the
+best available answer to "which gowns pay for themselves"; it is not a claim
+that a particular customer paid a particular sum for a particular dress.
+
+Accessory and alteration revenue is reported as **agreed charges**, not cash —
+the ledger records payments against a reservation as a whole and cannot say
+which part of a payment settled a veil. Splitting one across the lines of a bill
+would be arithmetic dressed up as fact.
+
+Security deposits are excluded from every revenue figure, everywhere.
+
+---
+
+## 3e. Amendments — accessories and alterations
+
+Phase 4 created reservations with empty `accessories` and `alterations` and left
+the workflow deferred. Phase 7 completes it, and it is the delicate one, because
+Phase 5 froze the pricing snapshot at creation and this changes it.
+
+### Amending is not recomputing
+
+The rule Phase 5 established is that a reservation's figures must never *drift*:
+a price rise in the catalogue, or a VAT change next quarter, must not reach back
+into a booking a customer already agreed to. That rule is about the boutique's
+data changing underneath a customer. It is not about the customer buying a veil.
+
+So `reprice()` in `src/domain/amendment.ts`:
+
+- **reuses every frozen figure** — existing dress lines keep their snapshotted
+  price and deposit; existing accessories and alterations keep theirs;
+- **keeps the reservation's own VAT rate**, not today's, so a booking taken at
+  0% stays at 0%;
+- **carries the discount as an absolute amount**, because a discount was agreed
+  as a sum of money off *this* booking; re-applying it as a percentage of a
+  larger bill would silently enlarge a concession nobody granted;
+- calls **`computePricing`** — the same and only pricing engine.
+
+`reduceLedger` remains the one place a balance comes from. There is no second
+calculation to disagree.
+
+### Why an issued invoice stops it
+
+A document is a copy, frozen at issue. Amending a reservation with a live
+invoice would leave the customer holding a piece of paper the system no longer
+agrees with — precisely the discrepancy `reconcileDocument` exists to detect.
+The correction path is to void the invoice and issue a new one, which leaves
+both on the record. The emulator suite proves the lock, the unlock after a void,
+and that the issued document itself never moves.
+
+### Why the Functions
+
+Deciding whether an amendment is permitted means reading the reservation's
+status, its issued documents and its existing lines, then writing a new snapshot
+based on the answer — the same read-then-write shape as booking and payment, and
+the same reason the client SDK cannot do it.
+
+Every amendment reads and writes the reservation document, incrementing
+`financialVersion` — the lock Phase 5 established. Without it, two employees
+adding a veil at the same moment each write a snapshot computed from a list that
+lacks the other's line, and whichever commits second silently discards the
+first. With it, they conflict, Firestore retries the loser, and the retry
+reprices against a list containing the winner's line.
+
+The client's request key **is** the line's id, so a duplicate submission finds a
+line that already exists rather than a race to detect. A double click cannot
+bill a bride for two veils she asked for once.
+
+### Accessories are not bookable resources
+
+A dress is one physical garment, so booking it excludes everyone else and the
+whole conflict engine exists to enforce that. A boutique holds several of most
+accessories and frequently sells rather than rents them. Modelling them as
+blocking resources would demand stock levels the boutique does not keep, and
+would refuse bookings for a shortage nobody has observed.
+
+So an accessory is a **priced catalogue entry**. `priceFor(accessory, 'Sale')`
+on a rental-only item returns `null`, not zero — falling back to zero would put
+a free veil on an invoice and nobody would notice until the month's revenue was
+short. Entries are retired, never deleted: past reservations reference them by
+id, and a deleted entry would leave their revenue unattributable.
+
+---
+
 ## 4. The service layer
 
 Services are the only place that:
