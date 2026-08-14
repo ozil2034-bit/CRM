@@ -42,6 +42,7 @@ import { observePickupThreshold } from '@/services/payments.service';
 import { ConflictPanel } from './ConflictPanel';
 import { MoneyPanel } from './MoneyPanel';
 import { AmendmentsPanel } from './AmendmentsPanel';
+import { NotifyPanel } from './NotifyPanel';
 import { FITTING_STATUS_TONE, RESERVATION_STATUS_TONE } from './status-tone';
 
 export function ReservationDetailPage() {
@@ -342,6 +343,12 @@ export function ReservationDetailPage() {
        * what is owed, so the balance they affect should already be on screen.
        */}
       <AmendmentsPanel reservation={booking} />
+
+      {/*
+       * Contacting the customer. Below the money, because the balance a
+       * reminder quotes is the one shown above it.
+       */}
+      <NotifyPanel reservation={booking} items={items} />
 
       {/* Status ------------------------------------------------------------ */}
       {can('reservations.edit') && nextStatuses.length > 0 && (

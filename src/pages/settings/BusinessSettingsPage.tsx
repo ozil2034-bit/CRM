@@ -36,7 +36,24 @@ import { missingSections, type TermsSectionKey } from '@/domain/terms';
 import type { BusinessSnapshot, TermsSection } from '@/domain/document';
 import { formatMuscat } from '@/domain/datetime';
 
-export function BusinessSettingsPage() {
+export interface BusinessSettingsPageProps {
+  /**
+   * Which part to render.
+   *
+   * Phase 8 puts settings behind tabs, and the business profile and the terms
+   * editor belong to different ones. They share state — the same save banner,
+   * the same busy flag — so the component stays whole and renders a slice,
+   * rather than being split into two that would each need their own copy.
+   */
+  readonly section?: 'business' | 'terms' | 'all';
+  /** False when the tabbed shell already drew a page heading. */
+  readonly withHeading?: boolean;
+}
+
+export function BusinessSettingsPage({
+  section = 'all',
+  withHeading = true,
+}: BusinessSettingsPageProps = {}) {
   const { t, language } = useT();
   const { principal } = useAuth();
 
@@ -162,11 +179,13 @@ export function BusinessSettingsPage() {
   const missing = missingSections(sections);
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
-      <header>
-        <p className="label-caps">{t('nav.settings')}</p>
-        <h1 className="display mt-2 text-3xl text-ink-900">{t('settings.title')}</h1>
-      </header>
+    <div className={withHeading ? 'mx-auto max-w-3xl px-6 py-10' : ''}>
+      {withHeading && (
+        <header>
+          <p className="label-caps">{t('nav.settings')}</p>
+          <h1 className="display mt-2 text-3xl text-ink-900">{t('settings.title')}</h1>
+        </header>
+      )}
 
       {error && (
         <Alert tone="error" className="mt-6">
@@ -181,6 +200,8 @@ export function BusinessSettingsPage() {
       )}
 
       {/* Business profile ---------------------------------------------------- */}
+      {section !== 'terms' && (
+      <>
       <section className="mt-10">
         <h2 className="label-caps">{t('settings.business')}</h2>
         <p className="mt-2 text-2xs text-ink-400">{t('settings.businessHint')}</p>
@@ -272,9 +293,12 @@ export function BusinessSettingsPage() {
           </label>
         </div>
       </section>
+      </>
+      )}
 
       {/* Terms --------------------------------------------------------------- */}
-      <section className="mt-10 border-t border-ink-100 pt-6">
+      {section !== 'business' && (
+      <section className="mt-10 border-t border-ink-100 pt-6" data-section="terms">
         <h2 className="label-caps">{t('settings.terms')}</h2>
         <p className="mt-2 text-2xs text-ink-400">{t('settings.termsHint')}</p>
         <p className="mt-1 text-2xs text-ink-400">{t('settings.termsImmutable')}</p>
@@ -387,6 +411,7 @@ export function BusinessSettingsPage() {
           </Button>
         </div>
       </section>
-    </main>
+      )}
+    </div>
   );
 }

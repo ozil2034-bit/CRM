@@ -9,6 +9,7 @@ import { displayName } from '@/domain/customer';
 import { tryParseOmanPhone } from '@/domain/phone';
 import { cn } from '@/lib/utils/cn';
 import { CustomerHistory } from './CustomerHistory';
+import { CustomerMessages } from './CustomerMessages';
 
 export function CustomerDetailPage() {
   const { customerId } = useParams<{ customerId: string }>();
@@ -180,6 +181,8 @@ export function CustomerDetailPage() {
       {can('payments.view') && customerId !== undefined && (
         <CustomerHistory customerId={customerId} />
       )}
+
+      {customerId !== undefined && <CustomerMessages customer={customer} />}
     </main>
   );
 }

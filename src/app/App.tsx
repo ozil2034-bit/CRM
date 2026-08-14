@@ -31,7 +31,7 @@ import { BookingPage } from '@/pages/reservations/BookingPage';
 import { ReservationDetailPage } from '@/pages/reservations/ReservationDetailPage';
 import { DocumentPreviewPage } from '@/pages/documents/DocumentPreviewPage';
 import { DocumentPage } from '@/pages/documents/DocumentPage';
-import { BusinessSettingsPage } from '@/pages/settings/BusinessSettingsPage';
+import { SettingsPage } from '@/pages/settings/SettingsPage';
 
 export interface AppProps {
   readonly environment: EnvironmentResult;
@@ -268,7 +268,7 @@ function AuthenticatedApp({ isProduction }: { isProduction: boolean }) {
           path: 'settings',
           element: (
             <RequirePermission permission="businessProfile.edit">
-              <BusinessSettingsPage />
+              <SettingsPage />
             </RequirePermission>
           ),
         },

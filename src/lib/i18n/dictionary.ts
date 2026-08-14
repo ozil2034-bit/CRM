@@ -442,6 +442,136 @@ export const en = {
   'error.notFound': 'Not found.',
   'error.required': 'This field is required.',
   /* ---------------------------------------------------------------- *
+   * Phase 8 — communication, Arabic and settings
+   * ---------------------------------------------------------------- */
+
+  // The composer
+  'notify.title': 'Message the customer',
+  'notify.open': 'Notify customer',
+  'notify.customer': 'Customer',
+  'notify.template': 'Template',
+  'notify.language': 'Message language',
+  'notify.preview': 'Preview',
+  'notify.copy': 'Copy message',
+  'notify.openWhatsApp': 'Open WhatsApp',
+  'notify.copied': 'Message copied.',
+  'notify.copyFailed': 'The message could not be copied. Your browser refused clipboard access.',
+  'notify.opened': 'WhatsApp opened with the message ready to send.',
+  'notify.missing': 'This message needs information the booking does not have yet:',
+  'notify.templateEmpty': 'This template has not been written yet. The owner can add it in Settings.',
+  'notify.noTemplates': 'No message templates have been written yet.',
+  'notify.notSentDisclaimer':
+    'Opening WhatsApp does not send the message — you still press send there. Nothing here records a message as delivered.',
+  'notify.history': 'Messages',
+  'notify.noHistory': 'No messages have been prepared for this customer.',
+  'notify.whatsapp': 'WhatsApp',
+
+  // Communication statuses — never Sent, Delivered or Read
+  'commStatus.Prepared': 'Prepared',
+  'commStatus.Opened': 'WhatsApp opened',
+  'commStatus.Copied': 'Copied',
+
+  // Templates
+  'template.reservationConfirmation': 'Reservation confirmation',
+  'template.fittingReminder': 'Fitting reminder',
+  'template.pickupReminder': 'Collection reminder',
+  'template.returnReminder': 'Return reminder',
+  'template.overdueReturn': 'Overdue return',
+  'template.balanceDue': 'Balance due',
+  'template.depositRefund': 'Deposit refund',
+  'template.waitlistAvailable': 'Waitlist — now available',
+  'template.paymentConfirmation': 'Payment confirmation',
+
+  // Variables
+  'variable.customer_name': 'Customer name',
+  'variable.customer_name_ar': 'Customer name (Arabic)',
+  'variable.dress_name': 'Dress name',
+  'variable.dress_code': 'Dress code',
+  'variable.reservation_number': 'Reservation number',
+  'variable.invoice_number': 'Invoice number',
+  'variable.event_date': 'Event date',
+  'variable.pickup_date': 'Collection date',
+  'variable.return_date': 'Return date',
+  'variable.balance': 'Balance',
+  'variable.total': 'Total',
+  'variable.paid': 'Paid',
+  'variable.deposit': 'Security deposit',
+  'variable.business_name': 'Business name',
+  'variable.business_phone': 'Business phone',
+
+  // Settings shell
+  'settings.tabBusiness': 'Business',
+  'settings.tabFinancial': 'Financial',
+  'settings.tabReservation': 'Reservations',
+  'settings.tabTemplates': 'Messages',
+  'settings.tabTerms': 'Terms',
+  'settings.tabNotifications': 'Reminders',
+  'settings.unsaved': 'Unsaved changes',
+  'settings.save': 'Save changes',
+  'settings.saveFailed': 'Not saved',
+  'settings.discard': 'Discard',
+  'settings.ownerOnly': 'Only the owner can change these settings.',
+
+  // Financial settings
+  'settings.vatRate': 'VAT rate',
+  'settings.vatRateHint': 'Applied to future taxable charges. Existing reservations keep the rate they were created with.',
+  'settings.lateFee': 'Late return fee, per day',
+  'settings.lateFeeHint': 'Charged for each day a gown is returned late. Applies to future late returns.',
+  'settings.minPickup': 'Minimum payment before collection',
+  'settings.minPickupHint': 'Share of the rental that must be paid before a gown may leave. The security deposit does not count towards it.',
+  'settings.cancellationTiers': 'Cancellation scale',
+  'settings.cancellationHint': 'How much of the rental comes back, by how much notice the customer gives.',
+  'settings.tierDays': 'Days before the event',
+  'settings.tierRefund': 'Refund',
+  'settings.addTier': 'Add a tier',
+  'settings.removeTier': 'Remove',
+  'settings.noTiers': 'No cancellation scale is configured, so no rental is refunded on cancellation.',
+
+  // Reservation settings
+  'settings.cleaningBuffer': 'Default cleaning buffer',
+  'settings.cleaningBufferHint': 'Days a returned gown is unavailable while it is cleaned. Applies to dresses added from now on.',
+
+  // Critical confirmation
+  'settings.confirmTitle': 'Confirm this change',
+  'settings.confirmForwardOnly':
+    'This affects future reservations only. Existing reservations, invoices and payments are unchanged.',
+  'settings.confirmApply': 'Apply the change',
+
+  // Reminders
+  'settings.reminders': 'Reminders',
+  'settings.remindersHint':
+    'Which reminders the boutique intends to send, and how far ahead. Nothing is sent automatically — an employee still prepares each message.',
+  'settings.reminderNotAutomatic':
+    'This application has no scheduler. These preferences record intent and drive what the dashboard surfaces; they do not send anything.',
+  'reminder.fitting': 'Fitting reminder',
+  'reminder.pickup': 'Collection reminder',
+  'reminder.return': 'Return reminder',
+  'reminder.overdue': 'Overdue notice',
+  'reminder.balance': 'Balance reminder',
+  'reminder.daysBefore': 'Days before',
+  'reminder.daysAfter': 'Days after',
+
+  // Template editor
+  'settings.templatesHint':
+    'What the boutique says to a customer. Nothing is supplied — write the words the boutique would actually use.',
+  'settings.templateEn': 'English',
+  'settings.templateAr': 'Arabic',
+  'settings.templateEnabled': 'Offer this template',
+  'settings.availableVariables': 'Available variables',
+  'settings.variablesHint': 'Click one to insert it. A message is refused if the booking cannot supply every variable it uses.',
+  'settings.previewSample': 'Preview with sample values',
+  'settings.previewNotSaved': 'This preview uses sample values and creates no records.',
+  'settings.unknownVariable': 'This template uses a name that is not a variable:',
+  'settings.prefixes': 'Record number prefixes',
+  'settings.prefixesHint': 'The prefix each kind of record number carries.',
+  'settings.prefixesFixed':
+    'These are fixed. Every code already in circulation was built from them, and changing one would leave codes on printed agreements that the system could no longer recognise.',
+  'settings.prefix.dress': 'Dress',
+  'settings.prefix.customer': 'Customer',
+  'settings.prefix.reservation': 'Reservation',
+  'settings.prefix.invoice': 'Invoice',
+
+  /* ---------------------------------------------------------------- *
    * Phase 7 — the employee experience
    * ---------------------------------------------------------------- */
 
@@ -1217,6 +1347,122 @@ export const ar: Record<TranslationKey, string> = {
   'state.loading': 'جارٍ التحميل…',
   'state.error': 'تعذّر تحميل هذا.',
   'state.retry': 'إعادة المحاولة',
+  'notify.title': 'مراسلة العميلة',
+  'notify.open': 'مراسلة العميلة',
+  'notify.customer': 'العميلة',
+  'notify.template': 'القالب',
+  'notify.language': 'لغة الرسالة',
+  'notify.preview': 'معاينة',
+  'notify.copy': 'نسخ الرسالة',
+  'notify.openWhatsApp': 'فتح واتساب',
+  'notify.copied': 'تم نسخ الرسالة.',
+  'notify.copyFailed': 'تعذّر نسخ الرسالة. رفض المتصفح الوصول إلى الحافظة.',
+  'notify.opened': 'تم فتح واتساب والرسالة جاهزة للإرسال.',
+  'notify.missing': 'تحتاج هذه الرسالة إلى معلومات غير متوفرة في الحجز:',
+  'notify.templateEmpty': 'لم تتم كتابة هذا القالب بعد. يمكن للمالكة إضافته من الإعدادات.',
+  'notify.noTemplates': 'لم تتم كتابة أي قوالب رسائل بعد.',
+  'notify.notSentDisclaimer':
+    'فتح واتساب لا يرسل الرسالة — الإرسال يتم منك هناك. لا يسجّل هذا النظام أي رسالة كمُسلَّمة.',
+  'notify.history': 'الرسائل',
+  'notify.noHistory': 'لم تُجهَّز أي رسائل لهذه العميلة.',
+  'notify.whatsapp': 'واتساب',
+
+  'commStatus.Prepared': 'مُجهَّزة',
+  'commStatus.Opened': 'فُتح واتساب',
+  'commStatus.Copied': 'مَنسوخة',
+
+  'template.reservationConfirmation': 'تأكيد الحجز',
+  'template.fittingReminder': 'تذكير بالقياس',
+  'template.pickupReminder': 'تذكير بالتسليم',
+  'template.returnReminder': 'تذكير بالإرجاع',
+  'template.overdueReturn': 'تأخر في الإرجاع',
+  'template.balanceDue': 'رصيد مستحق',
+  'template.depositRefund': 'إعادة التأمين',
+  'template.waitlistAvailable': 'قائمة الانتظار — متوفر الآن',
+  'template.paymentConfirmation': 'تأكيد الدفع',
+
+  'variable.customer_name': 'اسم العميلة',
+  'variable.customer_name_ar': 'اسم العميلة بالعربية',
+  'variable.dress_name': 'اسم الفستان',
+  'variable.dress_code': 'رمز الفستان',
+  'variable.reservation_number': 'رقم الحجز',
+  'variable.invoice_number': 'رقم الفاتورة',
+  'variable.event_date': 'تاريخ المناسبة',
+  'variable.pickup_date': 'تاريخ التسليم',
+  'variable.return_date': 'تاريخ الإرجاع',
+  'variable.balance': 'الرصيد',
+  'variable.total': 'الإجمالي',
+  'variable.paid': 'المدفوع',
+  'variable.deposit': 'مبلغ التأمين',
+  'variable.business_name': 'اسم البوتيك',
+  'variable.business_phone': 'هاتف البوتيك',
+
+  'settings.tabBusiness': 'البوتيك',
+  'settings.tabFinancial': 'المالية',
+  'settings.tabReservation': 'الحجوزات',
+  'settings.tabTemplates': 'الرسائل',
+  'settings.tabTerms': 'الشروط',
+  'settings.tabNotifications': 'التذكيرات',
+  'settings.unsaved': 'تغييرات غير محفوظة',
+  'settings.save': 'حفظ التغييرات',
+  'settings.saveFailed': 'لم يتم الحفظ',
+  'settings.discard': 'تجاهل',
+  'settings.ownerOnly': 'المالكة فقط يمكنها تغيير هذه الإعدادات.',
+
+  'settings.vatRate': 'نسبة ضريبة القيمة المضافة',
+  'settings.vatRateHint': 'تُطبَّق على الرسوم المستقبلية الخاضعة للضريبة. الحجوزات القائمة تحتفظ بالنسبة التي أُنشئت بها.',
+  'settings.lateFee': 'رسوم التأخير اليومية',
+  'settings.lateFeeHint': 'تُحتسب عن كل يوم تأخير في إرجاع الفستان. تُطبَّق على حالات التأخير المستقبلية.',
+  'settings.minPickup': 'الحد الأدنى للدفع قبل التسليم',
+  'settings.minPickupHint': 'نسبة الإيجار التي يجب دفعها قبل خروج الفستان. مبلغ التأمين لا يُحتسب ضمنها.',
+  'settings.cancellationTiers': 'سلم الإلغاء',
+  'settings.cancellationHint': 'كم يُعاد من الإيجار، بحسب مدة الإشعار المسبق من العميلة.',
+  'settings.tierDays': 'الأيام قبل المناسبة',
+  'settings.tierRefund': 'نسبة الاسترداد',
+  'settings.addTier': 'إضافة درجة',
+  'settings.removeTier': 'إزالة',
+  'settings.noTiers': 'لا يوجد سلم إلغاء مُعد، لذلك لا يُسترد أي مبلغ من الإيجار عند الإلغاء.',
+
+  'settings.cleaningBuffer': 'مدة التنظيف الافتراضية',
+  'settings.cleaningBufferHint': 'الأيام التي يكون فيها الفستان غير متاح بعد الإرجاع للتنظيف. تُطبَّق على الفساتين المضافة من الآن.',
+
+  'settings.confirmTitle': 'تأكيد التغيير',
+  'settings.confirmForwardOnly':
+    'يؤثر هذا على الحجوزات المستقبلية فقط. الحجوزات والفواتير والمدفوعات القائمة لا تتغيّر.',
+  'settings.confirmApply': 'تطبيق التغيير',
+
+  'settings.reminders': 'التذكيرات',
+  'settings.remindersHint':
+    'التذكيرات التي ينوي البوتيك إرسالها، وقبل كم يوم. لا يُرسل شيء تلقائيًا — تجهّز الموظفة كل رسالة.',
+  'settings.reminderNotAutomatic':
+    'لا يوجد في هذا النظام مُجدوِل. تسجّل هذه التفضيلات النية وتوجّه ما تعرضه لوحة اليوم؛ ولا ترسل شيئًا.',
+  'reminder.fitting': 'تذكير بالقياس',
+  'reminder.pickup': 'تذكير بالتسليم',
+  'reminder.return': 'تذكير بالإرجاع',
+  'reminder.overdue': 'إشعار تأخير',
+  'reminder.balance': 'تذكير بالرصيد',
+  'reminder.daysBefore': 'أيام قبل',
+  'reminder.daysAfter': 'أيام بعد',
+
+  'settings.templatesHint':
+    'ما يقوله البوتيك للعميلة. لا شيء مُعبَّأ مسبقًا — اكتبي الكلمات التي يستخدمها البوتيك فعلًا.',
+  'settings.templateEn': 'الإنجليزية',
+  'settings.templateAr': 'العربية',
+  'settings.templateEnabled': 'إتاحة هذا القالب',
+  'settings.availableVariables': 'المتغيرات المتاحة',
+  'settings.variablesHint': 'اضغطي على متغير لإدراجه. تُرفض الرسالة إذا لم يوفّر الحجز كل المتغيرات المستخدمة فيها.',
+  'settings.previewSample': 'معاينة بقيم تجريبية',
+  'settings.previewNotSaved': 'تستخدم هذه المعاينة قيمًا تجريبية ولا تنشئ أي سجلات.',
+  'settings.unknownVariable': 'يستخدم هذا القالب اسمًا ليس متغيرًا:',
+  'settings.prefixes': 'بادئات أرقام السجلات',
+  'settings.prefixesHint': 'البادئة التي يحملها كل نوع من أرقام السجلات.',
+  'settings.prefixesFixed':
+    'هذه ثابتة. كل رمز متداول حاليًا بُني منها، وتغيير أي منها سيترك رموزًا على اتفاقيات مطبوعة لا يستطيع النظام التعرف عليها.',
+  'settings.prefix.dress': 'الفستان',
+  'settings.prefix.customer': 'العميلة',
+  'settings.prefix.reservation': 'الحجز',
+  'settings.prefix.invoice': 'الفاتورة',
+
 };
 
 export type UiLanguage = 'en' | 'ar';

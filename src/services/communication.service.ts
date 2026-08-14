@@ -51,6 +51,7 @@ import {
   type MessageTemplate,
   type TemplateKind,
 } from '@/domain/message-template';
+import { DEFAULT_REMINDERS, validateReminder, type ReminderPreference } from '@/domain/settings';
 import {
   isCommunicationStatus,
   type CommunicationChannel,
@@ -135,6 +136,93 @@ export async function saveTemplates(input: {
             en: entry.en,
             ar: entry.ar,
             enabled: entry.enabled,
+          })),
+          updatedAt: serverTimestamp(),
+          updatedBy: input.actor.uid,
+        },
+        { merge: true },
+      );
+
+      await setDoc(audit.ref, audit.data);
+    },
+    { ...(input.onLateFailure ? { onLateFailure: input.onLateFailure } : {}) },
+  );
+}
+
+/* ------------------------------------------------------------------------ *
+ * Reminder preferences
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Watch the reminder preferences.
+ *
+ * Stored beside the templates, because they are the same kind of thing: the
+ * boutique's intent about what it says to customers. **Nothing schedules them** —
+ * see `ReminderSettingsPanel` for why a client-side timer is worse than none.
+ */
+export function observeReminders(
+  onChange: (reminders: readonly ReminderPreference[]) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return onSnapshot(
+    doc(db(), ...TEMPLATES_PATH),
+    (snapshot) => {
+      const stored = snapshot.data()?.['reminders'];
+      onChange(mergeReminders(Array.isArray(stored) ? stored : []));
+    },
+    onError,
+  );
+}
+
+/**
+ * Merge stored preferences over the shipped defaults.
+ *
+ * A reminder kind added later appears with its default rather than vanishing,
+ * and a stored entry with an impossible offset is discarded in favour of the
+ * default rather than saved back out.
+ */
+function mergeReminders(stored: readonly unknown[]): ReminderPreference[] {
+  return DEFAULT_REMINDERS.map((fallback) => {
+    const found = (stored as Record<string, unknown>[]).find(
+      (entry) => entry['kind'] === fallback.kind,
+    );
+
+    if (found === undefined) return fallback;
+
+    const candidate: ReminderPreference = {
+      kind: fallback.kind,
+      enabled: found['enabled'] !== false,
+      daysOffset:
+        typeof found['daysOffset'] === 'number' ? found['daysOffset'] : fallback.daysOffset,
+    };
+
+    return validateReminder(candidate) ? candidate : fallback;
+  });
+}
+
+export async function saveReminders(input: {
+  readonly reminders: readonly ReminderPreference[];
+  readonly actor: AuditActor;
+  readonly onLateFailure?: (error: Error) => void;
+}): Promise<WriteOutcome> {
+  const audit = auditWriteFor(db(), {
+    actor: input.actor,
+    action: 'templates.updated',
+    entityType: 'settings',
+    entityId: 'messageTemplates',
+    entityCode: 'settings/messageTemplates',
+    after: { reminders: input.reminders.filter((entry) => entry.enabled).length },
+  });
+
+  return commitWrite(
+    async () => {
+      await setDoc(
+        doc(db(), ...TEMPLATES_PATH),
+        {
+          reminders: input.reminders.map((entry) => ({
+            kind: entry.kind,
+            enabled: entry.enabled,
+            daysOffset: entry.daysOffset,
           })),
           updatedAt: serverTimestamp(),
           updatedBy: input.actor.uid,
