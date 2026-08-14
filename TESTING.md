@@ -55,7 +55,10 @@ not merely separate files. Each bootstraps an owner, and owner bootstrap is a
 one-time transition — sharing one emulator would make whichever suite ran second
 fail against state the first had already consumed.
 
-Current totals: **1,177** unit · **806** rules · **204** integration.
+Current totals: **1,178** unit · **806** rules · **204** integration.
+
+Per emulator suite: auth 31 · catalogue 16 · reservations 37 · payments 60 ·
+documents 38 · amendments 22.
 
 ---
 
