@@ -43,7 +43,7 @@ export function SetupRequiredPage({ issues }: SetupRequiredPageProps) {
         <h2 className="label-caps">Required variables</h2>
         <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
           {REQUIRED_ENV_KEYS.map((key) => (
-            <li key={key} className="font-mono text-xs text-ink-500">
+            <li key={key} className="code text-xs text-ink-500">
               {key}
             </li>
           ))}

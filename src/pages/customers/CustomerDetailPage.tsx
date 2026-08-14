@@ -97,7 +97,7 @@ export function CustomerDetailPage() {
       <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="display text-3xl text-ink-900">{displayName(customer, language)}</h1>
-          <p className="mt-1 font-mono text-xs text-ink-400">{customer.code}</p>
+          <p className="mt-1 code text-xs text-ink-400">{customer.code}</p>
           {customer.archived && (
             <Badge tone="neutral" className="mt-2">
               {t('customers.archived')}

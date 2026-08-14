@@ -154,7 +154,7 @@ export function AccessoryFormPage() {
           {isEditing ? t('accessories.edit') : t('accessories.new')}
         </h1>
         {existing !== null && (
-          <p className="mt-1 font-mono text-2xs text-ink-300">{existing.code}</p>
+          <p className="mt-1 code text-2xs text-ink-300">{existing.code}</p>
         )}
       </header>
 

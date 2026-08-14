@@ -54,7 +54,13 @@ export type AuditAction =
   | 'reservation.accessory_added'
   | 'reservation.accessory_removed'
   | 'reservation.alteration_added'
-  | 'reservation.alteration_removed';
+  | 'reservation.alteration_removed'
+  // Phase 8
+  | 'settings.updated'
+  | 'templates.updated'
+  | 'communication.prepared'
+  | 'communication.opened'
+  | 'communication.copied';
 
 export interface AuditActor {
   readonly uid: string;
@@ -65,7 +71,13 @@ export interface AuditActor {
 export interface AuditInput {
   readonly actor: AuditActor;
   readonly action: AuditAction;
-  readonly entityType: 'dress' | 'customer' | 'reservation' | 'accessory';
+  readonly entityType:
+    | 'dress'
+    | 'customer'
+    | 'reservation'
+    | 'accessory'
+    | 'settings'
+    | 'communication';
   readonly entityId: string;
   readonly entityCode: string;
   readonly before?: Record<string, unknown> | null;

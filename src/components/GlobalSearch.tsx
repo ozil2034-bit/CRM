@@ -170,7 +170,7 @@ export function GlobalSearch() {
                         onClick={() => go(row.path)}
                         className="flex w-full items-center gap-3 px-4 py-2.5 text-start hover:bg-sand-50"
                       >
-                        <span className="w-20 shrink-0 font-mono text-2xs text-ink-300">
+                        <span className="w-20 shrink-0 code text-2xs text-ink-300">
                           {row.code}
                         </span>
                         <span className="min-w-0 flex-1 truncate text-sm text-ink-900">

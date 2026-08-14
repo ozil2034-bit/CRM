@@ -445,18 +445,46 @@ service cloud.firestore {
     }
 
     /* ------------------------------------------------------------------ *
-     * notificationLogs
+     * notificationLogs — the communication record, append-only
      *
-     * WhatsApp V1 is click-to-chat, so the log records only that a message was
-     * Prepared and that the employee Opened the link. `openedAt` is the one
-     * field that changes afterwards; the recorded message body must not.
+     * WhatsApp V1 is click-to-chat. The application opens a `wa.me` link; it
+     * never transmits anything and cannot observe what happened next. So an
+     * entry records only what was actually seen — `Prepared`, `Opened` or
+     * `Copied` — and the words Sent, Delivered and Read appear nowhere.
+     *
+     * ONE IMMUTABLE ENTRY PER ACTION.
+     *
+     * Phase 2 modelled this as a single document with a mutable `openedAt`.
+     * Phase 8 replaced that, for two reasons:
+     *
+     * 1. An employee who opens WhatsApp twice has contacted the customer
+     *    twice — the second may be a genuine follow-up after no reply. A
+     *    single timestamp can record only the first, so the history would
+     *    understate what the boutique actually did.
+     * 2. The entry carries the exact message text that was prepared. That is a
+     *    snapshot, like an invoice: "what did we actually tell her?" must have
+     *    an answer six months later, after the template has been rewritten and
+     *    the reservation's dates have moved. A record that can be edited
+     *    answers nothing.
+     *
+     * So update is refused to every role, and each action appends.
+     *
+     * `employeeId` must be the caller: an employee cannot log a message
+     * attributed to a colleague.
      * ------------------------------------------------------------------ */
+
+    function communicationStatusIsHonest() {
+      return request.resource.data.status in ['Prepared', 'Opened', 'Copied'];
+    }
 
     match /notificationLogs/{logId} {
       allow read: if isEmployee();
-      allow create: if isEmployee();
-      allow update: if isEmployee() && onlyChanges(['openedAt']);
-      allow delete: if false;
+
+      allow create: if isEmployee()
+        && communicationStatusIsHonest()
+        && request.resource.data.employeeId == request.auth.uid;
+
+      allow update, delete: if false;
     }
 
     /* ------------------------------------------------------------------ *

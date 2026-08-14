@@ -134,7 +134,7 @@ export function ReservationDetailPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="label-caps">{t('reservations.detailTitle')}</p>
-          <h1 className="display mt-2 font-mono text-3xl text-ink-900">{booking.code}</h1>
+          <h1 className="display mt-2 code text-3xl text-ink-900">{booking.code}</h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -279,7 +279,7 @@ export function ReservationDetailPage() {
             <li key={item.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
               <Link
                 to={`/inventory/${item.dressId}`}
-                className="w-20 shrink-0 font-mono text-2xs text-ink-300 underline"
+                className="w-20 shrink-0 code text-2xs text-ink-300 underline"
               >
                 {item.dressCode}
               </Link>

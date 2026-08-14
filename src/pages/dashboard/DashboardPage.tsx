@@ -211,7 +211,7 @@ export function DashboardPage({ isProduction }: DashboardPageProps) {
                         <span className="min-w-0 flex-1 truncate text-sm text-ink-900">
                           {fitting.customerName}
                         </span>
-                        <span className="font-mono text-2xs text-ink-300">
+                        <span className="code text-2xs text-ink-300">
                           {fitting.reservationCode}
                         </span>
                       </Link>
@@ -257,7 +257,7 @@ export function DashboardPage({ isProduction }: DashboardPageProps) {
                           </span>
                         )}
 
-                        <span className="font-mono text-2xs text-ink-300">
+                        <span className="code text-2xs text-ink-300">
                           {alert.reservationCode}
                         </span>
                       </Link>
@@ -403,7 +403,7 @@ function OperationRow({ row, at }: { row: OperationalReservation; at: number }) 
         {/* The next thing to do, named. */}
         <span className="shrink-0 text-2xs text-gold-700">{t(`op.${action}`)}</span>
 
-        <span className="font-mono text-2xs text-ink-300">{row.code}</span>
+        <span className="code text-2xs text-ink-300">{row.code}</span>
       </Link>
     </li>
   );

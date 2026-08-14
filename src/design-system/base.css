@@ -79,6 +79,27 @@
     unicode-bidi: isolate;
   }
 
+  /*
+   * Identifiers are left-to-right too, and for the same reason.
+   *
+   * `RSV-0001`, `INV-2026-0042` and `+968 9123 4567` are strings of Latin
+   * letters, digits and hyphens. Dropped into an Arabic paragraph without
+   * isolation the bidi algorithm reorders the trailing hyphen and digits, so
+   * `INV-2026-0042` renders as `0042-2026-INV` — a number the customer cannot
+   * match to the invoice in their hand, and which an employee reading it aloud
+   * gets wrong.
+   *
+   * `isolate` rather than `embed`: isolation also stops the identifier
+   * influencing the direction of the text AROUND it, which is what makes an
+   * Arabic sentence containing a code still read as Arabic.
+   */
+  .code,
+  [data-code] {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
   button,
   input,
   select,

@@ -288,7 +288,7 @@ function DressTable({ dresses }: { dresses: readonly Dress[] }) {
                   />
                 </Link>
               </td>
-              <td className="py-2 font-mono text-2xs text-ink-500">{dress.code}</td>
+              <td className="py-2 code text-2xs text-ink-500">{dress.code}</td>
               <td className="py-2">
                 <Link to={`/inventory/${dress.id}`} className="text-ink-900 hover:text-gold-700">
                   {dress.name}

@@ -813,46 +813,108 @@ describe('damageLogs', () => {
   });
 });
 
+/*
+ * ─────────────────────────────────────────────────────────────────────────
+ * PHASE 8 CHANGED THIS MODEL, DELIBERATELY
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Phase 2 modelled a notification as one document with a mutable `openedAt`,
+ * and asserted that staff could set it. Phase 8 replaced that with one
+ * immutable entry per action, and the two tests that exercised the update path
+ * were rewritten to assert the opposite. The reasons:
+ *
+ * 1. An employee who opens WhatsApp twice has contacted the customer twice —
+ *    the second may be a genuine follow-up after no reply. A single timestamp
+ *    records only the first, so the history would understate what the boutique
+ *    actually did. The specification requires each explicit action to be
+ *    logged (§8.10).
+ * 2. The entry carries the exact message text prepared. That is a snapshot, and
+ *    a snapshot that can be edited answers nothing six months later.
+ *
+ * This is a tightening: nothing that was refused is now allowed. The deny
+ * assertions below are stronger than the ones they replaced.
+ */
 describe('notificationLogs', () => {
+  const entry = (overrides: Record<string, unknown> = {}) => ({
+    customerId: 'c-1',
+    templateKind: 'pickupReminder',
+    language: 'en',
+    channel: 'WhatsApp',
+    status: 'Prepared',
+    message: 'Your dress is ready.',
+    employeeId: 'staff-user',
+    ...overrides,
+  });
+
   it('ALLOWS staff to record a prepared message', async () => {
     await assertSucceeds(
-      setDoc(doc(dbAs(testEnv, 'staff'), 'notificationLogs', uniqueId('note')), {
-        template: 'pickup_reminder',
-        messageBody: 'Your dress is ready.',
-        openedAt: null,
-      }),
+      setDoc(doc(dbAs(testEnv, 'staff'), 'notificationLogs', uniqueId('note')), entry()),
     );
   });
 
-  it('ALLOWS marking a message as opened', async () => {
-    const id = uniqueId('note');
-    await seedDocument(testEnv, `notificationLogs/${id}`, {
-      template: 'pickup_reminder',
-      messageBody: 'Your dress is ready.',
-      openedAt: null,
-    });
-    await assertSucceeds(
-      updateDoc(doc(dbAs(testEnv, 'staff'), 'notificationLogs', id), { openedAt: new Date() }),
+  it('ALLOWS recording that WhatsApp was opened, or the text copied', async () => {
+    for (const status of ['Opened', 'Copied']) {
+      await assertSucceeds(
+        setDoc(
+          doc(dbAs(testEnv, 'staff'), 'notificationLogs', uniqueId('note')),
+          entry({ status }),
+        ),
+      );
+    }
+  });
+
+  it('DENIES a status claiming the message was SENT, DELIVERED or READ', async () => {
+    /*
+     * The application opens a link. It never transmits anything and cannot
+     * observe what happened next. A stored claim of delivery would one day be
+     * quoted back to a customer who never received the message, so the rules —
+     * not merely the interface — refuse to hold one.
+     */
+    for (const status of ['Sent', 'Delivered', 'Read', 'Failed']) {
+      await assertFails(
+        setDoc(
+          doc(dbAs(testEnv, 'staff'), 'notificationLogs', uniqueId('note')),
+          entry({ status }),
+        ),
+      );
+    }
+  });
+
+  it('DENIES logging a message attributed to a colleague', async () => {
+    await assertFails(
+      setDoc(
+        doc(dbAs(testEnv, 'staff'), 'notificationLogs', uniqueId('note')),
+        entry({ employeeId: 'owner-user' }),
+      ),
     );
   });
 
-  it('DENIES rewriting the recorded message body', async () => {
+  it('DENIES ANY update — a communication record is evidence, not a draft', async () => {
     const id = uniqueId('note');
-    await seedDocument(testEnv, `notificationLogs/${id}`, {
-      template: 'pickup_reminder',
-      messageBody: 'Your dress is ready.',
-      openedAt: null,
-    });
+    await seedDocument(testEnv, `notificationLogs/${id}`, entry());
+
+    await assertFails(
+      updateDoc(doc(dbAs(testEnv, 'staff'), 'notificationLogs', id), { status: 'Opened' }),
+    );
     await assertFails(
       updateDoc(doc(dbAs(testEnv, 'staff'), 'notificationLogs', id), {
-        messageBody: 'Something else entirely',
+        message: 'Something else entirely',
       }),
+    );
+  });
+
+  it('DENIES the OWNER updating one too', async () => {
+    const id = uniqueId('note');
+    await seedDocument(testEnv, `notificationLogs/${id}`, entry());
+
+    await assertFails(
+      updateDoc(doc(dbAs(testEnv, 'owner'), 'notificationLogs', id), { status: 'Opened' }),
     );
   });
 
   it('DENIES deleting a notification log', async () => {
     const id = uniqueId('note');
-    await seedDocument(testEnv, `notificationLogs/${id}`, { template: 'overdue' });
+    await seedDocument(testEnv, `notificationLogs/${id}`, entry());
     await assertFails(deleteDoc(doc(dbAs(testEnv, 'owner'), 'notificationLogs', id)));
   });
 });

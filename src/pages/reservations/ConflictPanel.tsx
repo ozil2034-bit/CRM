@@ -65,7 +65,7 @@ export function ConflictPanel({
             className="border-t border-current/15 pt-4 first:border-0 first:pt-0"
           >
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="font-mono text-2xs">{conflict.dressCode}</span>
+              <span className="code text-2xs">{conflict.dressCode}</span>
               <span className="text-sm">{conflict.dressName}</span>
               <Badge tone="danger">
                 {t(REASON_KEYS[conflict.reason] ?? 'conflict.unavailable')}
@@ -76,7 +76,7 @@ export function ConflictPanel({
               {conflict.conflictingReservationCode !== null && (
                 <div className="flex gap-2">
                   <dt className="text-ink-500">{t('conflict.heldBy')}</dt>
-                  <dd className="font-mono">{conflict.conflictingReservationCode}</dd>
+                  <dd className="code">{conflict.conflictingReservationCode}</dd>
                 </div>
               )}
 

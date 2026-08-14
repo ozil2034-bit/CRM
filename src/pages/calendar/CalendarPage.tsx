@@ -419,7 +419,7 @@ function AgendaView({
                   {event.customerName}
                 </span>
 
-                <span className="font-mono text-2xs text-ink-300">{event.reservationCode}</span>
+                <span className="code text-2xs text-ink-300">{event.reservationCode}</span>
               </button>
             </li>
           ))}

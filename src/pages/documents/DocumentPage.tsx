@@ -148,7 +148,7 @@ export function DocumentPage() {
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="label-caps">{t(`documentType.${document.documentType}`)}</p>
-            <h1 className="display mt-2 font-mono text-3xl text-ink-900">
+            <h1 className="display mt-2 code text-3xl text-ink-900">
               {document.documentNumber}
             </h1>
             <p className="numeric mt-1 text-2xs text-ink-400">

@@ -136,7 +136,7 @@ export function AccessoriesPage() {
                 to={`/accessories/${accessory.id}`}
                 className="flex min-h-16 flex-wrap items-center gap-x-4 gap-y-1 py-3 hover:bg-sand-50"
               >
-                <span className="w-24 shrink-0 font-mono text-2xs text-ink-300">
+                <span className="w-24 shrink-0 code text-2xs text-ink-300">
                   {accessory.code}
                 </span>
 

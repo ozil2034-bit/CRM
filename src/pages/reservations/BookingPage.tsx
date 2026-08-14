@@ -406,7 +406,7 @@ export function BookingPage() {
 
         {customer !== null ? (
           <div className="mt-3 flex flex-wrap items-center gap-4 border-b border-ink-100 pb-4">
-            <span className="font-mono text-2xs text-ink-300">{customer.code}</span>
+            <span className="code text-2xs text-ink-300">{customer.code}</span>
             <span className="flex-1 text-sm text-ink-900">{displayName(customer, language)}</span>
             <span className="numeric text-sm text-ink-600">{customer.phone}</span>
             <Button variant="ghost" size="sm" onClick={() => setCustomerId(null)}>
@@ -432,7 +432,7 @@ export function BookingPage() {
                     onClick={() => setCustomerId(candidate.id)}
                     className="flex w-full items-center gap-4 py-3 text-start hover:bg-sand-50"
                   >
-                    <span className="w-20 shrink-0 font-mono text-2xs text-ink-300">
+                    <span className="w-20 shrink-0 code text-2xs text-ink-300">
                       {candidate.code}
                     </span>
                     <span className="flex-1 truncate text-sm text-ink-900">
@@ -498,7 +498,7 @@ export function BookingPage() {
           <ul className="mt-3 divide-y divide-ink-100">
             {selectedDresses.map((dress) => (
               <li key={dress.id} className="flex items-center gap-4 py-3">
-                <span className="w-20 shrink-0 font-mono text-2xs text-ink-300">{dress.code}</span>
+                <span className="w-20 shrink-0 code text-2xs text-ink-300">{dress.code}</span>
                 <span className="flex-1 truncate text-sm text-ink-900">{dress.name}</span>
                 <span className="numeric text-sm text-ink-600">{formatOmr(dress.rentalPrice)}</span>
                 <Button variant="ghost" size="sm" onClick={() => removeDress(dress.id)}>
@@ -528,7 +528,7 @@ export function BookingPage() {
                     onClick={() => addDress(dress.id)}
                     className="flex w-full items-center gap-4 py-3 text-start hover:bg-sand-50"
                   >
-                    <span className="w-20 shrink-0 font-mono text-2xs text-ink-300">
+                    <span className="w-20 shrink-0 code text-2xs text-ink-300">
                       {dress.code}
                     </span>
                     <span className="flex-1 truncate text-sm text-ink-900">{dress.name}</span>
@@ -575,7 +575,7 @@ export function BookingPage() {
                 <ul className="mt-2 divide-y divide-ink-100">
                   {alternatives.map(({ candidate, matched }) => (
                     <li key={candidate.id} className="flex flex-wrap items-center gap-3 py-3">
-                      <span className="w-20 shrink-0 font-mono text-2xs text-ink-300">
+                      <span className="w-20 shrink-0 code text-2xs text-ink-300">
                         {candidate.code}
                       </span>
                       <span className="flex-1 truncate text-sm text-ink-900">{candidate.name}</span>
@@ -610,7 +610,7 @@ export function BookingPage() {
 
                 return (
                   <div key={dress.id} className="flex flex-wrap gap-2">
-                    <dt className="font-mono">{dress.code}</dt>
+                    <dt className="code">{dress.code}</dt>
                     <dd>
                       {t('reservations.blockedUntil')}{' '}
                       <span className="numeric">{formatMuscat(interval.end, language)}</span>

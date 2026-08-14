@@ -230,7 +230,8 @@ function ReservationSheet({
               <td>
                 {row.customerName}
                 <br />
-                <span className="doc__small doc__muted">{row.customerPhone}</span>
+                {/* Isolated: an unisolated phone number reorders inside Arabic text. */}
+                <span className="doc__small doc__muted doc__numeric">{row.customerPhone}</span>
               </td>
               <td>
                 {gowns.map((item) => (

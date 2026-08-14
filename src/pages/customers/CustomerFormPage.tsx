@@ -160,7 +160,7 @@ export function CustomerFormPage() {
       <h1 className="display mt-2 text-3xl text-ink-900">
         {isEditing ? t('customerForm.editTitle') : t('customerForm.newTitle')}
       </h1>
-      {existing && <p className="mt-1 font-mono text-xs text-ink-400">{existing.code}</p>}
+      {existing && <p className="mt-1 code text-xs text-ink-400">{existing.code}</p>}
 
       {banner && (
         <Alert tone={banner.tone} className="mt-6">

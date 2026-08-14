@@ -290,7 +290,7 @@ export function DocumentPreviewPage() {
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="label-caps">{t('document.title')}</p>
-            <h1 className="display mt-2 font-mono text-3xl text-ink-900">{reservation.code}</h1>
+            <h1 className="display mt-2 code text-3xl text-ink-900">{reservation.code}</h1>
           </div>
 
           <Link to={`/reservations/${reservation.id}`} className={buttonClasses('ghost')}>
@@ -372,7 +372,7 @@ export function DocumentPreviewPage() {
                     to={`/documents/${document.id}`}
                     className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 hover:bg-sand-50"
                   >
-                    <span className="w-32 shrink-0 font-mono text-2xs text-ink-300">
+                    <span className="w-32 shrink-0 code text-2xs text-ink-300">
                       {document.documentNumber}
                     </span>
                     <span className="flex-1 text-sm text-ink-900">

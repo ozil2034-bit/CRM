@@ -37,7 +37,7 @@ export function DressCard({ dress }: { dress: Dress }) {
           </p>
         </div>
 
-        <span className="shrink-0 font-mono text-2xs text-ink-300">{dress.code}</span>
+        <span className="shrink-0 code text-2xs text-ink-300">{dress.code}</span>
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-3">
