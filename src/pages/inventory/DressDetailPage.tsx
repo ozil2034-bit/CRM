@@ -299,7 +299,7 @@ export function DressDetailPage() {
           {dress.notes && (
             <section className="mt-10">
               <h2 className="label-caps">{t('dress.notes')}</h2>
-              <p className="mt-3 whitespace-pre-wrap text-sm text-ink-700">{dress.notes}</p>
+              <p className="user-text mt-3 whitespace-pre-wrap text-sm text-ink-700">{dress.notes}</p>
             </section>
           )}
 

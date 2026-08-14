@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { Alert, Button, Field, Wordmark } from '@/design-system';
 import { useAuth } from '@/hooks/useAuth';
 import { AuthError, sendPasswordReset } from '@/services/auth.service';
+import { useT } from '@/hooks/useT';
 
 /**
  * The boutique sign-in screen.
@@ -13,6 +14,7 @@ import { AuthError, sendPasswordReset } from '@/services/auth.service';
  * provider buttons, no boxed card floating on grey.
  */
 export function LoginPage() {
+  const { t } = useT();
   const { signIn } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -72,18 +74,18 @@ export function LoginPage() {
           <hr className="rule-gold mt-8 w-24" />
         </div>
 
-        <p className="hidden text-xs text-ink-400 lg:block">Boutique management system</p>
+        <p className="hidden text-xs text-ink-400 lg:block">{t('auth.tagline')}</p>
       </div>
 
       {/* Form panel */}
       <div className="flex items-center justify-center px-6 py-12 lg:px-14">
         <div className="w-full max-w-sm">
-          <p className="label-caps">Welcome back</p>
-          <h1 className="display mt-2 text-3xl text-ink-900">Sign in</h1>
+          <p className="label-caps">{t('auth.welcome')}</p>
+          <h1 className="display mt-2 text-3xl text-ink-900">{t('auth.signIn')}</h1>
 
           <form onSubmit={handleSubmit} className="mt-10 flex flex-col gap-6" noValidate>
             <Field
-              label="Email"
+              label={t('auth.email')}
               type="email"
               name="email"
               autoComplete="username"
@@ -94,7 +96,7 @@ export function LoginPage() {
             />
 
             <Field
-              label="Password"
+              label={t('auth.password')}
               type="password"
               name="password"
               autoComplete="current-password"

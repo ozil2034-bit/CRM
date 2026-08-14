@@ -173,7 +173,7 @@ export function GlobalSearch() {
                         <span className="w-20 shrink-0 code text-2xs text-ink-300">
                           {row.code}
                         </span>
-                        <span className="min-w-0 flex-1 truncate text-sm text-ink-900">
+                        <span className="user-text min-w-0 flex-1 truncate text-sm text-ink-900">
                           {row.title}
                         </span>
                       </button>

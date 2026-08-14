@@ -170,7 +170,7 @@ export function CustomerDetailPage() {
       {customer.notes && (
         <section className="mt-10">
           <h2 className="label-caps">{t('customer.notes')}</h2>
-          <p className="mt-3 whitespace-pre-wrap text-sm text-ink-700">{customer.notes}</p>
+          <p className="user-text mt-3 whitespace-pre-wrap text-sm text-ink-700">{customer.notes}</p>
         </section>
       )}
 

@@ -117,7 +117,7 @@ export function CustomersPage() {
                     {customer.code}
                   </span>
 
-                  <span className="min-w-0 flex-1 truncate text-sm text-ink-900">
+                  <span className="user-text min-w-0 flex-1 truncate text-sm text-ink-900">
                     {displayName(customer, language)}
                   </span>
 

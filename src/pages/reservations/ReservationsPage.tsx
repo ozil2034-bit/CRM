@@ -289,7 +289,7 @@ export function ReservationsPage() {
                         {reservation.code}
                       </span>
 
-                      <span className="min-w-0 flex-1 truncate text-sm text-ink-900">
+                      <span className="user-text min-w-0 flex-1 truncate text-sm text-ink-900">
                         {language === 'ar' && reservation.customerNameAr.length > 0
                           ? reservation.customerNameAr
                           : reservation.customerName}

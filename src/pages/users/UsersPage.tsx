@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 
 import { Alert, Badge, Button, Field } from '@/design-system';
 import { useAuth } from '@/hooks/useAuth';
+import { useT } from '@/hooks/useT';
 import { refuseSelfAction, type Role } from '@/domain/authorization';
 import {
   createEmployee,
@@ -19,6 +20,7 @@ import {
  * this component were tampered with — it can only ask the server to.
  */
 export function UsersPage() {
+  const { t } = useT();
   const { principal } = useAuth();
   const [users, setUsers] = useState<EmployeeRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,8 +48,8 @@ export function UsersPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
-      <p className="label-caps">Administration</p>
-      <h1 className="display mt-2 text-3xl text-ink-900">Staff</h1>
+      <p className="label-caps">{t('users.administration')}</p>
+      <h1 className="display mt-2 text-3xl text-ink-900">{t('nav.staff')}</h1>
       <p className="mt-3 max-w-prose text-sm text-ink-600">
         Employees set their own passwords through an emailed link. No password is ever chosen here,
         seen here, or stored by this application.
@@ -76,9 +78,9 @@ export function UsersPage() {
       />
 
       <section className="mt-14">
-        <h2 className="label-caps">Accounts</h2>
+        <h2 className="label-caps">{t('users.accounts')}</h2>
 
-        {users === null && <p className="mt-4 text-sm text-ink-400">Loading…</p>}
+        {users === null && <p className="mt-4 text-sm text-ink-400" role="status">{t('state.loading')}</p>}
 
         {users?.length === 0 && (
           <p className="mt-4 text-sm text-ink-400">No employee accounts yet.</p>
@@ -167,6 +169,7 @@ function CreateEmployeeForm({
   onCreated: (message: string) => void;
   onFailed: (message: string) => void;
 }) {
+  const { t } = useT();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>('STAFF');
@@ -193,18 +196,18 @@ function CreateEmployeeForm({
 
   return (
     <form onSubmit={handleSubmit} className="mt-10 border-t border-ink-100 pt-8">
-      <h2 className="label-caps">Add an employee</h2>
+      <h2 className="label-caps">{t('users.addEmployee')}</h2>
 
       <div className="mt-4 grid gap-6 sm:grid-cols-3">
         <Field
-          label="Name"
+          label={t('users.name')}
           required
           value={name}
           onChange={(event) => setName(event.target.value)}
           disabled={submitting}
         />
         <Field
-          label="Email"
+          label={t('users.email')}
           type="email"
           required
           value={email}
@@ -212,15 +215,15 @@ function CreateEmployeeForm({
           disabled={submitting}
         />
         <div className="flex flex-col gap-1.5">
-          <span className="label-caps">Role</span>
+          <span className="label-caps">{t('users.role')}</span>
           <select
             value={role}
             onChange={(event) => setRole(event.target.value as Role)}
             disabled={submitting}
             className="h-11 border-0 border-b border-ink-200 bg-transparent px-0 pb-1 text-base text-ink-900 focus:border-gold-500 focus:outline-none"
           >
-            <option value="STAFF">Staff</option>
-            <option value="OWNER">Owner</option>
+            <option value="STAFF">{t('role.STAFF')}</option>
+            <option value="OWNER">{t('role.OWNER')}</option>
           </select>
         </div>
       </div>

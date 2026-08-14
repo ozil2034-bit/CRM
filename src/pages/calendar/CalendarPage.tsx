@@ -415,7 +415,7 @@ function AgendaView({
                   <EventDot kind={event.kind} /> {t(`calendar.kind.${event.kind}`)}
                 </span>
 
-                <span className="min-w-0 flex-1 truncate text-sm text-ink-900">
+                <span className="user-text min-w-0 flex-1 truncate text-sm text-ink-900">
                   {event.customerName}
                 </span>
 

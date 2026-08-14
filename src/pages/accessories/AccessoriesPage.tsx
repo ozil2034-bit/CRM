@@ -90,7 +90,10 @@ export function AccessoriesPage() {
           onChange={(event) => setCategory(event.target.value as AccessoryCategory | '')}
           options={[
             { value: '', label: t('reservations.filterAll') },
-            ...ACCESSORY_CATEGORIES.map((value) => ({ value, label: value })),
+            ...ACCESSORY_CATEGORIES.map((value) => ({
+              value,
+              label: t(`accessoryCategory.${value}`),
+            })),
           ]}
           className="w-40"
         />
@@ -140,13 +143,15 @@ export function AccessoriesPage() {
                   {accessory.code}
                 </span>
 
-                <span className="min-w-0 flex-1 truncate text-sm text-ink-900">
+                <span className="user-text min-w-0 flex-1 truncate text-sm text-ink-900">
                   {language === 'ar' && accessory.nameAr.length > 0
                     ? accessory.nameAr
                     : accessory.name}
                 </span>
 
-                <span className="shrink-0 text-2xs text-ink-400">{accessory.category}</span>
+                <span className="shrink-0 text-2xs text-ink-400">
+                  {t(`accessoryCategory.${accessory.category}`)}
+                </span>
 
                 <span className="numeric shrink-0 text-sm text-ink-600">
                   {formatOmr(accessory.rentalPrice)}

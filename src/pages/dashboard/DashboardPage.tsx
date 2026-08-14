@@ -146,7 +146,7 @@ export function DashboardPage({ isProduction }: DashboardPageProps) {
         <h1 className="display mt-2 text-3xl text-ink-900 sm:text-4xl">{name}</h1>
         {!isProduction && (
           <p className="mt-3">
-            <Badge tone="neutral">Development</Badge>
+            <Badge tone="neutral">{t('env.development')}</Badge>
           </p>
         )}
       </header>
@@ -208,7 +208,7 @@ export function DashboardPage({ isProduction }: DashboardPageProps) {
                         <span className="numeric w-14 shrink-0 text-sm text-ink-600">
                           {toMuscatTime(fitting.scheduledAt)}
                         </span>
-                        <span className="min-w-0 flex-1 truncate text-sm text-ink-900">
+                        <span className="user-text min-w-0 flex-1 truncate text-sm text-ink-900">
                           {fitting.customerName}
                         </span>
                         <span className="code text-2xs text-ink-300">
@@ -247,7 +247,7 @@ export function DashboardPage({ isProduction }: DashboardPageProps) {
                           {t(`alert.${alert.kind}`)}
                         </Badge>
 
-                        <span className="min-w-0 flex-1 truncate text-sm text-ink-900">
+                        <span className="user-text min-w-0 flex-1 truncate text-sm text-ink-900">
                           {alert.customerName}
                         </span>
 
@@ -283,7 +283,7 @@ export function DashboardPage({ isProduction }: DashboardPageProps) {
                       <span className="numeric w-28 shrink-0 text-sm text-ink-600">
                         {formatMuscatDate(row.pickupAt, language)}
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-sm text-ink-900">
+                      <span className="user-text min-w-0 flex-1 truncate text-sm text-ink-900">
                         {language === 'ar' && row.customerNameAr.length > 0
                           ? row.customerNameAr
                           : row.customerName}
@@ -390,7 +390,7 @@ function OperationRow({ row, at }: { row: OperationalReservation; at: number }) 
       >
         <span className="numeric w-14 shrink-0 text-sm text-ink-600">{toMuscatTime(at)}</span>
 
-        <span className="min-w-0 flex-1 truncate text-sm text-ink-900">
+        <span className="user-text min-w-0 flex-1 truncate text-sm text-ink-900">
           {language === 'ar' && row.customerNameAr.length > 0
             ? row.customerNameAr
             : row.customerName}

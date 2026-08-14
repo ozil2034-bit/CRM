@@ -117,7 +117,7 @@ export function AmendmentsPanel({ reservation }: { reservation: Reservation }) {
               key={line.lineId}
               className="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-1 py-2"
             >
-              <span className="min-w-0 flex-1 truncate text-sm text-ink-900">
+              <span className="user-text min-w-0 flex-1 truncate text-sm text-ink-900">
                 {language === 'ar' && line.nameAr.length > 0 ? line.nameAr : line.name}
               </span>
 

@@ -173,7 +173,7 @@ export function CustomerHistory({ customerId }: { customerId: string }) {
                 <span className="numeric w-28 shrink-0 text-sm text-ink-600">
                   {formatMuscatDate(event.occurredAt, language)}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm text-ink-700">
+                <span className="user-text min-w-0 flex-1 truncate text-sm text-ink-700">
                   {t(`event.${event.kind}`)}
                 </span>
                 {/*

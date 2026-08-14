@@ -100,6 +100,27 @@
     unicode-bidi: isolate;
   }
 
+  /*
+   * Text the boutique typed, in whichever language it typed it.
+   *
+   * `unicode-bidi: plaintext` is the CSS form of `dir="auto"`: the base
+   * direction of each paragraph comes from its own first strong character
+   * rather than from the surrounding interface.
+   *
+   * This matters for the mixing that actually happens here. An Arabic customer
+   * name — فاطمة البلوشي — inside an English list renders its letters correctly
+   * either way, but the base direction decides where trailing punctuation and
+   * any Latin fragment land. Without it, "فاطمة (VIP)" puts the bracket on the
+   * wrong side; an English note in an Arabic screen has the same problem
+   * mirrored. Applied per element rather than globally, because it must NOT
+   * affect interface chrome, whose direction is the language's, not the
+   * content's.
+   */
+  .user-text,
+  [data-user-text] {
+    unicode-bidi: plaintext;
+  }
+
   button,
   input,
   select,

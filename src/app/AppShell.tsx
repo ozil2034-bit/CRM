@@ -159,7 +159,7 @@ export function AppShell() {
             {principal && (
               <span className="hidden sm:block">
                 <Badge tone={principal.role === 'OWNER' ? 'gold' : 'neutral'}>
-                  {principal.role === 'OWNER' ? 'Owner' : 'Staff'}
+                  {t(`role.${principal.role}`)}
                 </Badge>
               </span>
             )}

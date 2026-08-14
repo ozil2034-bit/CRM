@@ -178,7 +178,7 @@ export function InventoryPage() {
           onChange={(event) => setStatus(event.target.value as DressStatus | '')}
           options={[
             { value: '', label: t('reservations.filterAll') },
-            ...DRESS_STATUSES.map((value) => ({ value, label: value })),
+            ...DRESS_STATUSES.map((value) => ({ value, label: t(`dressStatus.${value}`) })),
           ]}
           className="w-40"
         />
@@ -300,7 +300,7 @@ function DressTable({ dresses }: { dresses: readonly Dress[] }) {
                 {formatOmr(dress.rentalPrice, { withCode: false })}
               </td>
               <td className="py-2">
-                <Badge tone={STATUS_TONE[dress.status]}>{dress.status}</Badge>
+                <Badge tone={STATUS_TONE[dress.status]}>{t(`dressStatus.${dress.status}`)}</Badge>
               </td>
             </tr>
           ))}

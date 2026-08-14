@@ -265,8 +265,8 @@ export function ReportsPage() {
                   label={t('reports.deposits')}
                   value={formatOmr(summary.depositsNet)}
                 />
-                <Figure label="Late fees" value={formatOmr(summary.lateFeesCharged)} />
-                <Figure label="Waived" value={formatOmr(summary.chargesWaived)} />
+                <Figure label={t('reports.lateFees')} value={formatOmr(summary.lateFeesCharged)} />
+                <Figure label={t('reports.waived')} value={formatOmr(summary.chargesWaived)} />
               </dl>
 
               <p className="mt-4 text-2xs text-ink-400">{t('reports.depositsExcluded')}</p>
@@ -350,10 +350,10 @@ export function ReportsPage() {
       {!loading && (
         <Block title={t('reports.cancellations')}>
           <dl className="grid gap-x-8 gap-y-5 sm:grid-cols-3">
-            <Figure label="Cancelled" value={String(cancellations.cancelled)} />
-            <Figure label="No-show" value={String(cancellations.noShow)} />
+            <Figure label={t('reports.cancelled')} value={String(cancellations.cancelled)} />
+            <Figure label={t('reports.noShow')} value={String(cancellations.noShow)} />
             <Figure
-              label="Rate"
+              label={t('reports.rate')}
               value={formatPercent(cancellations.ratePercent, t('reports.notApplicable'))}
             />
           </dl>

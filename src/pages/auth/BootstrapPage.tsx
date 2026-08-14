@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 
 import { Alert, Button, Field, Wordmark } from '@/design-system';
 import { AuthError, claimInitialOwnership, createAccount } from '@/services/auth.service';
+import { useT } from '@/hooks/useT';
 
 /**
  * First-owner initialisation.
@@ -16,6 +17,7 @@ import { AuthError, claimInitialOwnership, createAccount } from '@/services/auth
  * secret before first run, and never travels in the browser bundle.
  */
 export function BootstrapPage() {
+  const { t } = useT();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,7 +73,7 @@ export function BootstrapPage() {
       <Wordmark size="md" />
 
       <p className="label-caps mt-12">First-time setup</p>
-      <h1 className="display mt-2 text-3xl text-ink-900">Create the owner account</h1>
+      <h1 className="display mt-2 text-3xl text-ink-900">{t('auth.createOwner')}</h1>
       <p className="mt-4 max-w-prose text-sm leading-relaxed text-ink-600">
         This boutique has no owner yet. The account you create here has full access to settings,
         pricing, terms and staff management. It can only be created once.
@@ -79,7 +81,7 @@ export function BootstrapPage() {
 
       <form onSubmit={handleSubmit} className="mt-10 flex flex-col gap-6" noValidate>
         <Field
-          label="Your name"
+          label={t('auth.yourName')}
           name="name"
           autoComplete="name"
           required
@@ -89,7 +91,7 @@ export function BootstrapPage() {
         />
 
         <Field
-          label="Email"
+          label={t('auth.email')}
           type="email"
           name="email"
           autoComplete="username"
@@ -100,7 +102,7 @@ export function BootstrapPage() {
         />
 
         <Field
-          label="Password"
+          label={t('auth.password')}
           type="password"
           name="new-password"
           autoComplete="new-password"
@@ -112,7 +114,7 @@ export function BootstrapPage() {
         />
 
         <Field
-          label="Confirm password"
+          label={t('auth.confirmPassword')}
           type="password"
           autoComplete="new-password"
           required
@@ -122,7 +124,7 @@ export function BootstrapPage() {
         />
 
         <Field
-          label="Setup token"
+          label={t('auth.setupToken')}
           name="setup-token"
           required
           hint="Provided with your deployment. Ask whoever configured this installation."

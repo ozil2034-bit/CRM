@@ -1,5 +1,6 @@
 import { Alert, Button, Wordmark } from '@/design-system';
 import { useAuth } from '@/hooks/useAuth';
+import { useT } from '@/hooks/useT';
 
 /**
  * Signed in, but not an active employee.
@@ -9,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
  * rather than presenting a working interface whose every write silently fails.
  */
 export function NoAccessPage() {
+  const { t } = useT();
   const { state, signOut } = useAuth();
   const email = state.status === 'signed-in' ? state.session.email : '';
 
@@ -16,8 +18,8 @@ export function NoAccessPage() {
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-6 py-16">
       <Wordmark size="md" />
 
-      <p className="label-caps mt-12">Access unavailable</p>
-      <h1 className="display mt-2 text-3xl text-ink-900">This account is not active</h1>
+      <p className="label-caps mt-12">{t('auth.noAccessTitle')}</p>
+      <h1 className="display mt-2 text-3xl text-ink-900">{t('auth.noAccessHeading')}</h1>
 
       <p className="mt-4 text-sm leading-relaxed text-ink-600">
         You are signed in as <span className="text-ink-900">{email}</span>, but this account does

@@ -187,7 +187,10 @@ export function AccessoryFormPage() {
             onChange={(event) =>
               setValues({ ...values, category: event.target.value as AccessoryFormValues['category'] })
             }
-            options={ACCESSORY_CATEGORIES.map((value) => ({ value, label: value }))}
+            options={ACCESSORY_CATEGORIES.map((value) => ({
+              value,
+              label: t(`accessoryCategory.${value}`),
+            }))}
           />
 
           <Select

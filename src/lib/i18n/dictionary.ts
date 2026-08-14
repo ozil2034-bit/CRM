@@ -452,7 +452,7 @@ export const en = {
   'notify.template': 'Template',
   'notify.language': 'Message language',
   'notify.preview': 'Preview',
-  'notify.copy': 'Copy message',
+  'notify.copy': 'نسخ الرسالة',
   'notify.openWhatsApp': 'Open WhatsApp',
   'notify.copied': 'Message copied.',
   'notify.copyFailed': 'The message could not be copied. Your browser refused clipboard access.',
@@ -570,6 +570,65 @@ export const en = {
   'settings.prefix.customer': 'Customer',
   'settings.prefix.reservation': 'Reservation',
   'settings.prefix.invoice': 'Invoice',
+
+  // Sign-in, bootstrap and access
+  'auth.tagline': 'Boutique management system',
+  'auth.welcome': 'Welcome back',
+  'auth.signIn': 'Sign in',
+  'auth.email': 'Email',
+  'auth.password': 'Password',
+  'auth.confirmPassword': 'Confirm password',
+  'auth.yourName': 'Your name',
+  'auth.setupToken': 'Setup token',
+  'auth.createOwner': 'Create the owner account',
+  'auth.noAccessTitle': 'Access unavailable',
+  'auth.noAccessHeading': 'This account is not active',
+
+  // Setup
+  'setup.title': 'Configuration required',
+  'setup.heading': 'Firebase is not configured',
+  'setup.issues': 'Issues found',
+  'setup.requiredVariables': 'Required variables',
+
+  // Staff administration
+  'users.administration': 'Administration',
+  'users.accounts': 'Accounts',
+  'users.addEmployee': 'Add an employee',
+  'users.name': 'Name',
+  'users.email': 'Email',
+  'users.role': 'Role',
+
+  // Roles
+  'role.OWNER': 'Owner',
+  'role.STAFF': 'Staff',
+
+  // Environment
+  'env.development': 'Development',
+  'env.production': 'Production',
+
+  // Report figures
+  'reports.lateFees': 'Late fees',
+  'reports.waived': 'Waived',
+  'reports.cancelled': 'Cancelled',
+  'reports.noShow': 'No-show',
+  'reports.rate': 'Rate',
+
+  // Accessory categories
+  'accessoryCategory.Veil': 'Veil',
+  'accessoryCategory.Tiara': 'Tiara',
+  'accessoryCategory.Bolero': 'Bolero',
+  'accessoryCategory.Belt': 'Belt',
+  'accessoryCategory.Jewellery': 'Jewellery',
+  'accessoryCategory.Shoes': 'Shoes',
+  'accessoryCategory.Gloves': 'Gloves',
+  'accessoryCategory.Other': 'Other',
+  'dressStatus.Available': 'Available',
+  'dressStatus.Reserved': 'Reserved',
+  'dressStatus.Out with Customer': 'Out with customer',
+  'dressStatus.In Cleaning': 'In cleaning',
+  'dressStatus.In Alteration': 'In alteration',
+  'dressStatus.Under Repair': 'Under repair',
+  'dressStatus.Retired': 'Retired',
 
   /* ---------------------------------------------------------------- *
    * Phase 7 — the employee experience
@@ -1462,6 +1521,58 @@ export const ar: Record<TranslationKey, string> = {
   'settings.prefix.customer': 'العميلة',
   'settings.prefix.reservation': 'الحجز',
   'settings.prefix.invoice': 'الفاتورة',
+
+  'auth.tagline': 'نظام إدارة البوتيك',
+  'auth.welcome': 'أهلًا بعودتك',
+  'auth.signIn': 'تسجيل الدخول',
+  'auth.email': 'البريد الإلكتروني',
+  'auth.password': 'كلمة المرور',
+  'auth.confirmPassword': 'تأكيد كلمة المرور',
+  'auth.yourName': 'اسمك',
+  'auth.setupToken': 'رمز الإعداد',
+  'auth.createOwner': 'إنشاء حساب المالكة',
+  'auth.noAccessTitle': 'الوصول غير متاح',
+  'auth.noAccessHeading': 'هذا الحساب غير نشط',
+
+  'setup.title': 'الإعداد مطلوب',
+  'setup.heading': 'لم يتم إعداد Firebase',
+  'setup.issues': 'المشكلات المكتشفة',
+  'setup.requiredVariables': 'المتغيرات المطلوبة',
+
+  'users.administration': 'الإدارة',
+  'users.accounts': 'الحسابات',
+  'users.addEmployee': 'إضافة موظفة',
+  'users.name': 'الاسم',
+  'users.email': 'البريد الإلكتروني',
+  'users.role': 'الدور',
+
+  'role.OWNER': 'المالكة',
+  'role.STAFF': 'موظفة',
+
+  'env.development': 'بيئة تطوير',
+  'env.production': 'بيئة إنتاج',
+
+  'reports.lateFees': 'رسوم التأخير',
+  'reports.waived': 'المتنازل عنه',
+  'reports.cancelled': 'ملغاة',
+  'reports.noShow': 'عدم حضور',
+  'reports.rate': 'النسبة',
+
+  'accessoryCategory.Veil': 'طرحة',
+  'accessoryCategory.Tiara': 'تاج',
+  'accessoryCategory.Bolero': 'بوليرو',
+  'accessoryCategory.Belt': 'حزام',
+  'accessoryCategory.Jewellery': 'مجوهرات',
+  'accessoryCategory.Shoes': 'أحذية',
+  'accessoryCategory.Gloves': 'قفازات',
+  'accessoryCategory.Other': 'أخرى',
+  'dressStatus.Available': 'متاح',
+  'dressStatus.Reserved': 'محجوز',
+  'dressStatus.Out with Customer': 'مع العميلة',
+  'dressStatus.In Cleaning': 'قيد التنظيف',
+  'dressStatus.In Alteration': 'قيد التعديل',
+  'dressStatus.Under Repair': 'قيد الإصلاح',
+  'dressStatus.Retired': 'متوقف',
 
 };
 

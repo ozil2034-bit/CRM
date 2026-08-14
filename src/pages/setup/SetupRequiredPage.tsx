@@ -1,5 +1,6 @@
 import { Wordmark } from '@/design-system';
 import { REQUIRED_ENV_KEYS } from '@/config/env';
+import { useT } from '@/hooks/useT';
 
 export interface SetupRequiredPageProps {
   readonly issues: readonly string[];
@@ -13,12 +14,13 @@ export interface SetupRequiredPageProps {
  * hunting through documentation for information the application already has.
  */
 export function SetupRequiredPage({ issues }: SetupRequiredPageProps) {
+  const { t } = useT();
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center px-6 py-16">
       <Wordmark size="md" />
 
-      <p className="label-caps mt-12">Configuration required</p>
-      <h1 className="display mt-3 text-3xl text-ink-900">Firebase is not configured</h1>
+      <p className="label-caps mt-12">{t('setup.title')}</p>
+      <h1 className="display mt-3 text-3xl text-ink-900">{t('setup.heading')}</h1>
 
       <p className="mt-4 max-w-prose text-sm leading-relaxed text-ink-600">
         The application cannot start until the Firebase environment is provided. Copy{' '}
@@ -28,7 +30,7 @@ export function SetupRequiredPage({ issues }: SetupRequiredPageProps) {
       </p>
 
       <section className="mt-10">
-        <h2 className="label-caps">Issues found</h2>
+        <h2 className="label-caps">{t('setup.issues')}</h2>
         <ul className="mt-3 space-y-2">
           {issues.map((issue) => (
             <li key={issue} className="flex gap-3 text-sm text-ink-700">
@@ -40,7 +42,7 @@ export function SetupRequiredPage({ issues }: SetupRequiredPageProps) {
       </section>
 
       <section className="mt-10">
-        <h2 className="label-caps">Required variables</h2>
+        <h2 className="label-caps">{t('setup.requiredVariables')}</h2>
         <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
           {REQUIRED_ENV_KEYS.map((key) => (
             <li key={key} className="code text-xs text-ink-500">

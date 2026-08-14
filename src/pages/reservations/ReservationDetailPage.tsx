@@ -285,7 +285,7 @@ export function ReservationDetailPage() {
                 {item.dressCode}
               </Link>
 
-              <span className="min-w-0 flex-1 truncate text-sm text-ink-900">{item.dressName}</span>
+              <span className="user-text min-w-0 flex-1 truncate text-sm text-ink-900">{item.dressName}</span>
 
               <span className="text-2xs text-ink-400">
                 {t('reservations.blockedUntil')}{' '}
