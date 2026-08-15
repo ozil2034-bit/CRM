@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Azhary Boutique \u2014 production wedding dress management platform",
+  "description": "Azhary Boutique — production wedding dress management platform",
   "engines": {
     "node": ">=22.12.0"
   },
@@ -34,13 +34,11 @@
     "test:functions:backup": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts backup\""
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.101.4",
     "firebase": "^12.17.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2",
-    "zod": "^4.4.3",
-    "zustand": "^5.0.14"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -59,7 +57,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.4",
-    "firebase-tools": "^15.26.0",
+    "firebase-tools": "^15.27.0",
     "globals": "^17.11.0",
     "jsdom": "^30.0.1",
     "prettier": "^3.9.6",
