@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 import { Badge, Button, Wordmark } from '@/design-system';
 import { GlobalSearch } from '@/components/GlobalSearch';
+import { ConnectivityBanner } from '@/components/ConnectivityBanner';
 import { useAuth } from '@/hooks/useAuth';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils/cn';
@@ -111,6 +112,8 @@ export function AppShell() {
 
   return (
     <div className="min-h-dvh">
+      <ConnectivityBanner />
+
       <header className="border-b border-ink-100">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3 sm:px-6 sm:py-4">
           <Wordmark size="sm" showArabic={false} />

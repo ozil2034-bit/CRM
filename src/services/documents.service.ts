@@ -29,6 +29,8 @@ import {
 import { httpsCallable } from 'firebase/functions';
 
 import { getFirebaseClient } from '@/lib/firebase/client';
+import { assertOnline } from './offline-guard';
+import type { GuardedOperation } from '@/domain/connectivity';
 import { baisa, type Baisa } from '@/domain/money';
 import {
   documentFinancialsFrom,
@@ -412,17 +414,19 @@ export interface IssueInput {
   readonly idempotencyKey: string;
 }
 
-function requireConnection(): void {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    throw new DocumentServiceError(
-      'offline',
-      'An internet connection is required to issue a document. Nothing has been saved.',
-    );
-  }
+/**
+ * Refuse before the call, with the reason for THIS operation.
+ *
+ * Delegates to the shared guard so the wording comes from
+ * `@/domain/connectivity` and every screen refuses in the same words. See
+ * `src/services/offline-guard.ts`.
+ */
+function requireConnection(operation: GuardedOperation): void {
+  assertOnline(operation, (message) => new DocumentServiceError('offline', message));
 }
 
 export async function issueDocument(input: IssueInput): Promise<IssueResult> {
-  requireConnection();
+  requireConnection('document.issue');
 
   try {
     const result = await callable<IssueInput, IssueResult>('issueDocument')(input);
@@ -436,7 +440,7 @@ export async function voidDocument(input: {
   readonly documentId: string;
   readonly reason: string;
 }): Promise<{ success: boolean; documentNumber: string }> {
-  requireConnection();
+  requireConnection('document.void');
 
   try {
     const result = await callable<typeof input, { success: boolean; documentNumber: string }>(

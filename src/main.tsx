@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 
 import { App } from '@/app/App';
 import { I18nProvider } from '@/lib/i18n/I18nProvider';
+import { ConnectivityProvider } from '@/lib/connectivity/ConnectivityProvider';
 import { readEnvironment } from '@/config/env';
 import { initializeFirebase } from '@/lib/firebase/client';
 import '@/styles/index.css';
@@ -29,7 +30,9 @@ if (!container) {
 createRoot(container).render(
   <StrictMode>
     <I18nProvider>
-      <App environment={environment} />
+      <ConnectivityProvider>
+        <App environment={environment} />
+      </ConnectivityProvider>
     </I18nProvider>
   </StrictMode>,
 );

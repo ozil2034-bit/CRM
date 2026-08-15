@@ -24,6 +24,8 @@ import {
 import { httpsCallable } from 'firebase/functions';
 
 import { getFirebaseClient } from '@/lib/firebase/client';
+import { assertOnline } from './offline-guard';
+import type { GuardedOperation } from '@/domain/connectivity';
 import { baisa, type Baisa } from '@/domain/money';
 import {
   isFinancialEventKind,
@@ -224,17 +226,23 @@ function callable<Request, Response>(name: string) {
  * since been refunded or cancelled. Nothing is stored for later; the employee is
  * told plainly and records it when the connection returns.
  */
-function requireConnection(): void {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    throw new PaymentServiceError(
-      'offline',
-      'An internet connection is required to record money. Nothing has been saved.',
-    );
-  }
+/**
+ * Refuse before the call, with the reason for THIS operation.
+ *
+ * Delegates to the shared guard so the wording comes from
+ * `@/domain/connectivity` and every screen refuses in the same words. See
+ * `src/services/offline-guard.ts`.
+ */
+function requireConnection(operation: GuardedOperation): void {
+  assertOnline(operation, (message) => new PaymentServiceError('offline', message));
 }
 
-async function post<Request>(name: string, input: Request): Promise<PostResult> {
-  requireConnection();
+async function post<Request>(
+  name: string,
+  input: Request,
+  operation: GuardedOperation = 'payment.record',
+): Promise<PostResult> {
+  requireConnection(operation);
 
   try {
     const result = await callable<Request, PostResult>(name)(input);
@@ -282,7 +290,7 @@ export interface RefundInput {
 }
 
 export function refundPayment(input: RefundInput): Promise<PostResult> {
-  return post('refundPayment', input);
+  return post('refundPayment', input, 'payment.refund');
 }
 
 export interface ReversalInput {
@@ -293,7 +301,7 @@ export interface ReversalInput {
 }
 
 export function reversePayment(input: ReversalInput): Promise<PostResult> {
-  return post('reversePayment', input);
+  return post('reversePayment', input, 'payment.reverse');
 }
 
 export interface SettleDepositInput {
@@ -308,7 +316,7 @@ export interface SettleDepositInput {
 }
 
 export function settleDeposit(input: SettleDepositInput): Promise<PostResult> {
-  return post('settleDeposit', input);
+  return post('settleDeposit', input, 'deposit.settle');
 }
 
 export interface LateFeeInput {

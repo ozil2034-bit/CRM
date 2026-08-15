@@ -2,7 +2,12 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "target": "ES2023",
-    "lib": ["ES2023"],
+    /*
+     * WebWorker and DOM are here for vite-plugin-pwa's type declarations, which
+     * describe a service worker (ExtendableEvent, CacheQueryOptions, WorkerType).
+     * The config file itself uses none of them.
+     */
+    "lib": ["ES2023", "DOM", "WebWorker"],
     "module": "ESNext",
     "types": ["node"],
 
@@ -17,7 +22,14 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    /*
+     * Third-party declaration noise only. vite-plugin-pwa references optional
+     * peer packages (@vite-pwa/assets-generator) that this project does not
+     * install, and their absence is not an error in our code.
+     */
+    "skipLibCheck": true
   },
   "include": ["vite.config.ts", "scripts/**/*.ts"]
 }

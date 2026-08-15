@@ -31,6 +31,8 @@ import {
 import { httpsCallable } from 'firebase/functions';
 
 import { getFirebaseClient } from '@/lib/firebase/client';
+import { assertOnline } from './offline-guard';
+import type { GuardedOperation } from '@/domain/connectivity';
 import { baisa, type Baisa } from '@/domain/money';
 import {
   isReservationStatus,
@@ -433,7 +435,7 @@ function callable<Request, Response>(name: string) {
 export async function createReservation(
   input: CreateReservationInput,
 ): Promise<CreateReservationResult> {
-  requireConnection();
+  requireConnection('reservation.create');
 
   try {
     const result = await callable<CreateReservationInput, CreateReservationResult>(
@@ -451,7 +453,7 @@ export async function updateReservationDates(input: {
   readonly returnAt: string;
   readonly eventDate: string | null;
 }): Promise<CreateReservationResult> {
-  requireConnection();
+  requireConnection('reservation.changeDates');
 
   try {
     const result = await callable<typeof input, CreateReservationResult>('updateReservationDates')(
@@ -468,7 +470,7 @@ export async function changeReservationStatus(input: {
   readonly status: ReservationStatus;
   readonly reason?: string;
 }): Promise<void> {
-  requireConnection();
+  requireConnection('reservation.changeStatus');
 
   try {
     await callable<typeof input, { success: true }>('changeReservationStatus')(input);
@@ -538,13 +540,15 @@ export function toInputDateTime(instant: EpochMs): string {
   return toMuscatWallTime(instant);
 }
 
-function requireConnection(): void {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    throw new ReservationServiceError(
-      'offline',
-      'An internet connection is required to create or modify a reservation.',
-    );
-  }
+/**
+ * Refuse before the call, with the reason for THIS operation.
+ *
+ * Delegates to the shared guard so the wording comes from
+ * `@/domain/connectivity` and every screen refuses in the same words. See
+ * `src/services/offline-guard.ts`.
+ */
+function requireConnection(operation: GuardedOperation): void {
+  assertOnline(operation, (message) => new ReservationServiceError('offline', message));
 }
 
 const MESSAGES: Record<string, string> = {

@@ -631,6 +631,67 @@ export const en = {
   'dressStatus.Retired': 'Retired',
 
   /* ---------------------------------------------------------------- *
+   * Phase 9 — connectivity, PWA, backup
+   * ---------------------------------------------------------------- */
+
+  'connectivity.online': 'Connected',
+  'connectivity.offline': 'Offline — some actions are unavailable',
+  'connectivity.reconnecting': 'Reconnecting…',
+  'connectivity.offlineAction': 'This needs an internet connection.',
+
+  'sync.pending': 'Saved on this device — waiting to sync',
+  'sync.synced': 'Saved',
+  'sync.failed': 'Not saved',
+  'sync.retry': 'Try again',
+
+  'pwa.updateAvailable': 'A new version is available.',
+  'pwa.update': 'Update',
+  'pwa.updating': 'Updating…',
+
+  // About
+  'about.title': 'About',
+  'about.version': 'Application version',
+  'about.environment': 'Environment',
+  'about.project': 'Firebase project',
+  'about.schemaVersion': 'Data schema version',
+  'about.fonts': 'Typefaces',
+  'about.fontsLicense': 'Inter, Cormorant Garamond, IBM Plex Sans Arabic and Noto Kufi Arabic are used under the SIL Open Font License 1.1.',
+
+  // Backup
+  'backup.title': 'Backup and restore',
+  'backup.export': 'Export all data',
+  'backup.exporting': 'Preparing the export…',
+  'backup.exported': 'The backup file was created and downloaded.',
+  'backup.exportFailed': 'The backup could not be created. Nothing was changed.',
+  'backup.exportHint':
+    'Downloads every record as one JSON file. Keep it somewhere safe — it is what the boutique would be restored from.',
+  'backup.exportNothingUploaded': 'The file is downloaded to this device only. Nothing is uploaded anywhere.',
+  'backup.records': 'records',
+
+  'backup.import': 'Restore from a backup',
+  'backup.importHint':
+    'Reads a backup file and writes it back. Records are matched by their original identifiers, so nothing is renumbered.',
+  'backup.chooseFile': 'Choose a backup file',
+  'backup.checking': 'Checking the file…',
+  'backup.valid': 'This file is valid.',
+  'backup.invalid': 'This file cannot be restored. Nothing has been changed.',
+  'backup.problems': 'Problems found',
+  'backup.summary': 'What this restore would do',
+  'backup.willCreate': 'New',
+  'backup.willUpdate': 'Overwritten',
+  'backup.confirmImport': 'Restore this data',
+  'backup.importing': 'Restoring…',
+  'backup.imported': 'The backup was restored.',
+  'backup.importFailed': 'The restore failed.',
+  'backup.overwriteWarning':
+    'Records with matching identifiers will be overwritten with the contents of this file.',
+  'backup.fileFrom': 'Exported',
+  'backup.fileProject': 'From project',
+  'backup.differentProject':
+    'This backup came from a different Firebase project than the one you are connected to.',
+  'backup.cancel': 'Choose a different file',
+
+  /* ---------------------------------------------------------------- *
    * Phase 7 — the employee experience
    * ---------------------------------------------------------------- */
 
@@ -1573,6 +1634,61 @@ export const ar: Record<TranslationKey, string> = {
   'dressStatus.In Alteration': 'قيد التعديل',
   'dressStatus.Under Repair': 'قيد الإصلاح',
   'dressStatus.Retired': 'متوقف',
+
+  'connectivity.online': 'متصل',
+  'connectivity.offline': 'غير متصل — بعض الإجراءات غير متاحة',
+  'connectivity.reconnecting': 'جارٍ إعادة الاتصال…',
+  'connectivity.offlineAction': 'يتطلب هذا اتصالًا بالإنترنت.',
+
+  'sync.pending': 'محفوظ على هذا الجهاز — بانتظار المزامنة',
+  'sync.synced': 'تم الحفظ',
+  'sync.failed': 'لم يتم الحفظ',
+  'sync.retry': 'إعادة المحاولة',
+
+  'pwa.updateAvailable': 'تتوفر نسخة جديدة.',
+  'pwa.update': 'تحديث',
+  'pwa.updating': 'جارٍ التحديث…',
+
+  'about.title': 'حول التطبيق',
+  'about.version': 'إصدار التطبيق',
+  'about.environment': 'البيئة',
+  'about.project': 'مشروع Firebase',
+  'about.schemaVersion': 'إصدار مخطط البيانات',
+  'about.fonts': 'الخطوط',
+  'about.fontsLicense': 'تُستخدم خطوط Inter وCormorant Garamond وIBM Plex Sans Arabic وNoto Kufi Arabic بموجب رخصة الخطوط المفتوحة SIL الإصدار 1.1.',
+
+  'backup.title': 'النسخ الاحتياطي والاستعادة',
+  'backup.export': 'تصدير كل البيانات',
+  'backup.exporting': 'جارٍ تجهيز التصدير…',
+  'backup.exported': 'تم إنشاء ملف النسخة الاحتياطية وتنزيله.',
+  'backup.exportFailed': 'تعذّر إنشاء النسخة الاحتياطية. لم يتغيّر شيء.',
+  'backup.exportHint':
+    'ينزّل كل السجلات في ملف JSON واحد. احفظيه في مكان آمن — فهو ما سيُستعاد منه البوتيك.',
+  'backup.exportNothingUploaded': 'يُنزَّل الملف إلى هذا الجهاز فقط. لا يُرفع إلى أي مكان.',
+  'backup.records': 'سجل',
+
+  'backup.import': 'الاستعادة من نسخة احتياطية',
+  'backup.importHint':
+    'يقرأ ملف النسخة الاحتياطية ويعيد كتابته. تُطابَق السجلات بمعرّفاتها الأصلية، فلا يُعاد ترقيم شيء.',
+  'backup.chooseFile': 'اختاري ملف نسخة احتياطية',
+  'backup.checking': 'جارٍ فحص الملف…',
+  'backup.valid': 'هذا الملف صالح.',
+  'backup.invalid': 'لا يمكن استعادة هذا الملف. لم يتغيّر شيء.',
+  'backup.problems': 'المشكلات المكتشفة',
+  'backup.summary': 'ما ستقوم به هذه الاستعادة',
+  'backup.willCreate': 'جديد',
+  'backup.willUpdate': 'سيُستبدل',
+  'backup.confirmImport': 'استعادة هذه البيانات',
+  'backup.importing': 'جارٍ الاستعادة…',
+  'backup.imported': 'تمت استعادة النسخة الاحتياطية.',
+  'backup.importFailed': 'فشلت الاستعادة.',
+  'backup.overwriteWarning':
+    'ستُستبدل السجلات ذات المعرّفات المطابقة بمحتويات هذا الملف.',
+  'backup.fileFrom': 'تاريخ التصدير',
+  'backup.fileProject': 'من مشروع',
+  'backup.differentProject':
+    'جاءت هذه النسخة الاحتياطية من مشروع Firebase مختلف عن المشروع المتصل به حاليًا.',
+  'backup.cancel': 'اختيار ملف آخر',
 
 };
 

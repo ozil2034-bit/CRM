@@ -13,6 +13,8 @@
 import { httpsCallable } from 'firebase/functions';
 
 import { getFirebaseClient } from '@/lib/firebase/client';
+import { assertOnline } from './offline-guard';
+import type { GuardedOperation } from '@/domain/connectivity';
 import type { Baisa } from '@/domain/money';
 
 export class AmendmentServiceError extends Error {
@@ -51,7 +53,7 @@ export interface AddAccessoryInput {
 export async function addReservationAccessory(
   input: AddAccessoryInput,
 ): Promise<AmendmentResult> {
-  requireConnection();
+  requireConnection('reservation.amend');
 
   try {
     const result = await callable<AddAccessoryInput, AmendmentResult>('addReservationAccessory')(
@@ -67,7 +69,7 @@ export async function removeReservationAccessory(input: {
   readonly reservationId: string;
   readonly lineId: string;
 }): Promise<AmendmentResult> {
-  requireConnection();
+  requireConnection('reservation.amend');
 
   try {
     const result = await callable<typeof input, AmendmentResult>('removeReservationAccessory')(
@@ -91,7 +93,7 @@ export interface AddAlterationInput {
 export async function addReservationAlteration(
   input: AddAlterationInput,
 ): Promise<AmendmentResult> {
-  requireConnection();
+  requireConnection('reservation.amend');
 
   try {
     const result = await callable<AddAlterationInput, AmendmentResult>(
@@ -107,7 +109,7 @@ export async function removeReservationAlteration(input: {
   readonly reservationId: string;
   readonly lineId: string;
 }): Promise<AmendmentResult> {
-  requireConnection();
+  requireConnection('reservation.amend');
 
   try {
     const result = await callable<typeof input, AmendmentResult>('removeReservationAlteration')(
@@ -132,19 +134,14 @@ export function newAmendmentKey(): string {
 }
 
 /**
- * Amending requires a connection, deliberately.
+ * Refuse before the call, with the reason for THIS operation.
  *
- * The refusal depends on server state — the reservation's status and whether an
- * invoice has been issued — so a queued amendment could commit against a
- * booking that has since been invoiced.
+ * Delegates to the shared guard so the wording comes from
+ * `@/domain/connectivity` and every screen refuses in the same words. See
+ * `src/services/offline-guard.ts`.
  */
-function requireConnection(): void {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    throw new AmendmentServiceError(
-      'offline',
-      'An internet connection is required to change what a reservation charges.',
-    );
-  }
+function requireConnection(operation: GuardedOperation): void {
+  assertOnline(operation, (message) => new AmendmentServiceError('offline', message));
 }
 
 const MESSAGES: Record<string, string> = {
