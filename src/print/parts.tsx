@@ -22,6 +22,8 @@ import {
   showsEnglish,
   type BusinessSnapshot,
   type CustomerSnapshot,
+  type DocumentAccessoryLine,
+  type DocumentAlterationLine,
   type DocumentDressLine,
   type DocumentFinancials,
   type DocumentLanguage,
@@ -339,6 +341,106 @@ export function DressInfo({
         </tbody>
       </table>
     </section>
+  );
+}
+
+/* ------------------------------------------------------------------------ *
+ * Accessories and alterations
+ * ------------------------------------------------------------------------ */
+
+/**
+ * What the accessory and alteration charges were actually for.
+ *
+ * The summary below states `Accessories — OMR 59.000` as one figure. On a real
+ * invoice that is not enough: a bride disputing a charge four months later, or
+ * an accountant reconciling one, needs to see the veil, the comb, the quantity
+ * and the unit price. A total with no line behind it is a number the boutique
+ * cannot defend.
+ *
+ * Renders nothing when there is nothing — most reservations have no amendments,
+ * and an empty table with a heading is worse than no section.
+ */
+export function AmendmentLines({
+  accessories,
+  alterations,
+  language,
+}: {
+  accessories: readonly DocumentAccessoryLine[];
+  alterations: readonly DocumentAlterationLine[];
+  language: DocumentLanguage;
+}) {
+  if (accessories.length === 0 && alterations.length === 0) return null;
+
+  return (
+    <>
+      {accessories.length > 0 && (
+        <section className="doc__section">
+          <h2>
+            <Label en="Accessories" ar="الإكسسوارات" language={language} />
+          </h2>
+
+          <table className="doc__table">
+            <thead>
+              <tr>
+                <th>
+                  <Label en="Item" ar="الصنف" language={language} />
+                </th>
+                <th className="doc__col-amount">
+                  <Label en="Qty" ar="الكمية" language={language} />
+                </th>
+                <th className="doc__col-amount">
+                  <Label en="Unit price" ar="سعر الوحدة" language={language} />
+                </th>
+                <th className="doc__col-amount">
+                  <Label en="Total" ar="الإجمالي" language={language} />
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {accessories.map((line, index) => (
+                <tr key={`${line.name}-${String(index)}`}>
+                  <td>{line.name}</td>
+                  <td className="doc__col-amount doc__numeric">{line.quantity}</td>
+                  <td className="doc__col-amount doc__amount">{formatOmr(line.unitPrice)}</td>
+                  <td className="doc__col-amount doc__amount">{formatOmr(line.lineTotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {alterations.length > 0 && (
+        <section className="doc__section">
+          <h2>
+            <Label en="Alterations" ar="التعديلات" language={language} />
+          </h2>
+
+          <table className="doc__table">
+            <thead>
+              <tr>
+                <th>
+                  <Label en="Work" ar="العمل" language={language} />
+                </th>
+                <th className="doc__col-amount">
+                  <Label en="Amount" ar="المبلغ" language={language} />
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {alterations.map((line, index) => (
+                <tr key={`${line.description}-${String(index)}`}>
+                  <td>{line.description}</td>
+                  <td className="doc__col-amount doc__amount">{formatOmr(line.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+    </>
   );
 }
 

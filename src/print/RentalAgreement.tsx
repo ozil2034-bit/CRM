@@ -18,6 +18,7 @@ import {
   DocumentFooter,
   DocumentHeader,
   DressInfo,
+  AmendmentLines,
   FinancialSummary,
   Label,
   ReservationInfo,
@@ -68,6 +69,12 @@ export function RentalAgreement({
       </div>
 
       <DressInfo dresses={document.dresses} photoUrls={photoUrls} language={lang} />
+
+      <AmendmentLines
+        accessories={document.accessories}
+        alterations={document.alterations}
+        language={lang}
+      />
 
       <FinancialSummary financials={document.financials} language={lang} />
 

@@ -639,3 +639,94 @@ describe('a voided document', () => {
     expect(screen.queryByText('VOIDED')).toBeNull();
   });
 });
+
+/* ------------------------------------------------------------------------ *
+ * Accessories and alterations — the Phase 10 regression
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Why these exist.
+ *
+ * The release gate's end-to-end journey issued an invoice for a reservation
+ * carrying two accessories and an alteration, and found the document's
+ * `accessories` and `alterations` arrays empty — while its `financials` charged
+ * for both. The customer's total was right; the lines explaining 84.000 of it
+ * were missing.
+ *
+ * It survived Phase 6 because a reservation could not have an accessory yet,
+ * and survived Phase 7 because the documents suite kept issuing documents for
+ * reservations with no amendments. Nothing was wrong on either side of the
+ * seam.
+ *
+ * So the guard is here as well as in the emulator: the Function must write the
+ * lines, and the document must print them.
+ */
+describe('accessory and alteration lines', () => {
+  const WITH_AMENDMENTS = {
+    accessories: [
+      { name: 'Cathedral veil, 3 m', quantity: 1, unitPrice: baisa(35_000), lineTotal: baisa(35_000) },
+      { name: 'Pearl hair comb', quantity: 2, unitPrice: baisa(12_000), lineTotal: baisa(24_000) },
+    ],
+    alterations: [
+      { description: 'Hem shortened 4 cm', amount: baisa(25_000) },
+    ],
+  };
+
+  it('itemises every accessory, with its quantity and unit price', () => {
+    render(
+      <TaxInvoice document={makeDocument(WITH_AMENDMENTS)} logoUrl={null} photoUrls={NO_PHOTOS} />,
+    );
+
+    expect(screen.getByText('Cathedral veil, 3 m')).toBeInTheDocument();
+    expect(screen.getByText('Pearl hair comb')).toBeInTheDocument();
+
+    // Two combs at 12.000 is a line total of 24.000, printed as such.
+    expect(screen.getByText('OMR 24.000')).toBeInTheDocument();
+  });
+
+  it('itemises the alteration work, not just its cost', () => {
+    render(
+      <TaxInvoice document={makeDocument(WITH_AMENDMENTS)} logoUrl={null} photoUrls={NO_PHOTOS} />,
+    );
+
+    expect(screen.getByText('Hem shortened 4 cm')).toBeInTheDocument();
+    expect(screen.getByText('OMR 25.000')).toBeInTheDocument();
+  });
+
+  it('itemises them on the rental agreement too', () => {
+    render(
+      <RentalAgreement
+        document={makeDocument({ ...WITH_AMENDMENTS, documentType: 'Rental Agreement' })}
+        logoUrl={null}
+        photoUrls={NO_PHOTOS}
+      />,
+    );
+
+    expect(screen.getByText('Cathedral veil, 3 m')).toBeInTheDocument();
+    expect(screen.getByText('Hem shortened 4 cm')).toBeInTheDocument();
+  });
+
+  it('prints the headings in Arabic on an Arabic document', () => {
+    render(
+      <TaxInvoice
+        document={makeDocument({ ...WITH_AMENDMENTS, language: 'ar' })}
+        logoUrl={null}
+        photoUrls={NO_PHOTOS}
+      />,
+    );
+
+    expect(screen.getByText('الإكسسوارات')).toBeInTheDocument();
+    expect(screen.getByText('التعديلات')).toBeInTheDocument();
+  });
+
+  it('renders no section at all when there are no amendments', () => {
+    /*
+     * Most reservations have none. An empty table under a heading reads as a
+     * fault on a printed invoice.
+     */
+    render(<TaxInvoice document={makeDocument()} logoUrl={null} photoUrls={NO_PHOTOS} />);
+
+    expect(screen.queryByText('Qty')).toBeNull();
+    expect(screen.queryByText('Unit price')).toBeNull();
+  });
+});

@@ -151,6 +151,55 @@ function readPricing(data: FirebaseFirestore.DocumentData | undefined): PricingS
   };
 }
 
+/**
+ * The accessory lines a reservation is carrying, as printable lines.
+ *
+ * `lineTotal` is computed here rather than stored, and that is not a violation
+ * of "documents copy, never compute": quantity and unit price are both frozen
+ * on the reservation, so this is a rendering of copied figures, not a fresh
+ * pricing decision. It is written onto the document so the printed line and the
+ * stored snapshot can never disagree.
+ */
+function readAccessoryLines(
+  data: FirebaseFirestore.DocumentData | undefined,
+): DocumentAccessoryLine[] {
+  const pricing = (data?.['pricing'] ?? {}) as Record<string, unknown>;
+  const lines = pricing['accessories'];
+
+  if (!Array.isArray(lines)) return [];
+
+  return lines.map((raw: unknown) => {
+    const line = (raw ?? {}) as Record<string, unknown>;
+    const quantity = typeof line['quantity'] === 'number' ? line['quantity'] : 1;
+    const unitPrice = int(line['unitPrice']);
+
+    return {
+      name: str(line['name']),
+      quantity,
+      unitPrice,
+      lineTotal: baisa(unitPrice * quantity),
+    };
+  });
+}
+
+function readAlterationLines(
+  data: FirebaseFirestore.DocumentData | undefined,
+): DocumentAlterationLine[] {
+  const pricing = (data?.['pricing'] ?? {}) as Record<string, unknown>;
+  const lines = pricing['alterations'];
+
+  if (!Array.isArray(lines)) return [];
+
+  return lines.map((raw: unknown) => {
+    const line = (raw ?? {}) as Record<string, unknown>;
+
+    return {
+      description: str(line['description']),
+      amount: int(line['amount']),
+    };
+  });
+}
+
 function toEvent(id: string, data: FirebaseFirestore.DocumentData): FinancialEvent {
   const at = data['occurredAt'];
 
@@ -422,8 +471,27 @@ export const issueDocument = onCall(async (request: CallableRequest<IssueRequest
       };
     });
 
-    const accessories: DocumentAccessoryLine[] = [];
-    const alterations: DocumentAlterationLine[] = [];
+    /*
+     * Accessory and alteration lines, itemised.
+     *
+     * These were empty until Phase 10 found it, and the reason is worth
+     * recording: when documents were built in Phase 6 a reservation could not
+     * *have* an accessory — amendments arrived in Phase 7 — so an empty array
+     * was correct. It stopped being correct the moment a veil could be added,
+     * and nothing said so, because the documents suite kept issuing documents
+     * for reservations with no amendments.
+     *
+     * The effect was a tax invoice charging `accessorySubtotal` and
+     * `alterationSubtotal` with nothing to say what they were for. The totals
+     * were right; the evidence was missing. An immutable snapshot that omits
+     * the lines behind its own figures is not the record this architecture
+     * claims it is.
+     *
+     * Read from the reservation's frozen pricing, like everything else on a
+     * document: copied, never recomputed.
+     */
+    const accessories: DocumentAccessoryLine[] = readAccessoryLines(reservation);
+    const alterations: DocumentAlterationLine[] = readAlterationLines(reservation);
 
     /*
      * The event id is carried alongside each line so a receipt can be matched
