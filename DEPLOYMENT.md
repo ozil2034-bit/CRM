@@ -389,6 +389,38 @@ Spark, and this application's booking, payments and documents are all Functions 
 on Spark you would get a Hosting deployment of an application that cannot take a
 booking.
 
+### Where you run this matters
+
+The four requirements above must be satisfied **on the machine that runs the
+deploy command**, not merely somewhere.
+
+This is the failure that catches people out: creating the Firebase project and
+running `firebase login` on a laptop does not authenticate a CI runner, a
+container, or a colleague's checkout. `firebase login` stores a token in
+`~/.config/configstore/firebase-tools.json` on **that machine only**. A different
+machine has no credential and cannot deploy, however correct the repository is.
+
+`npm run predeploy:uat` checks this and says so before anything is built.
+
+There are two ways to run a UAT deploy, and the first is almost always right:
+
+**A — deploy from the machine that is already authenticated.** Pull the branch,
+follow the steps below, run `npm run deploy:uat`. No credential moves anywhere.
+
+**B — authenticate the other machine.** Needed for CI. Use a service account with
+the *Firebase Admin* role and point `GOOGLE_APPLICATION_CREDENTIALS` at its key
+file, held in the CI system's secret store.
+
+> A service-account key and a `firebase login:ci` token are **credentials that
+> can deploy to any project the account can reach**. Never paste one into a chat
+> window, an issue, a commit, or a screenshot. If one is ever exposed, revoke it
+> in the Google Cloud console immediately — treat it as compromised, not as
+> probably fine.
+>
+> The six `VITE_FIREBASE_*` values are **not** credentials. They identify the
+> project, they are compiled into every browser bundle already, and security is
+> enforced by the rules (SECURITY.md §7). Those are safe to share.
+
 ### 1. Point the CLI at the development project
 
 ```bash

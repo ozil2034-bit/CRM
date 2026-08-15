@@ -153,6 +153,82 @@ if (
 }
 
 /* ------------------------------------------------------------------------ *
+ * 4. Can this machine actually deploy?
+ *
+ * Checked last, and only if the configuration itself is sound — there is no
+ * point asking whether we can reach a project whose id is a placeholder.
+ *
+ * This exists because of a real failure: configuration can be perfect in the
+ * repository while the machine running the deploy holds no credential at all.
+ * That happens whenever the person who set up the project and the machine
+ * running the command are not the same — a CI runner, a fresh container, a
+ * colleague's checkout. Without this check the deploy fails several minutes
+ * later, inside `firebase deploy`, with an error about the operation rather
+ * than about the account.
+ * ------------------------------------------------------------------------ */
+
+if (problems.length === 0) {
+  const { execFileSync } = await import('node:child_process');
+
+  const firebase = (args) =>
+    execFileSync('npx', ['--no-install', 'firebase', ...args], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 60_000,
+    });
+
+  let signedIn = false;
+
+  try {
+    // Run from outside the project so a bad .firebaserc cannot mask the answer.
+    const accounts = execFileSync('npx', ['--no-install', 'firebase', 'login:list'], {
+      cwd: '/',
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 60_000,
+    });
+
+    signedIn = !/No authorized accounts/i.test(accounts);
+  } catch {
+    signedIn = false;
+  }
+
+  if (!signedIn && (process.env.FIREBASE_TOKEN ?? '').length === 0 &&
+      (process.env.GOOGLE_APPLICATION_CREDENTIALS ?? '').length === 0) {
+    problems.push(
+      'This machine has no Firebase credential. `firebase login:list` reports no ' +
+        'authorized accounts, and neither FIREBASE_TOKEN nor ' +
+        'GOOGLE_APPLICATION_CREDENTIALS is set. Authenticating on a different ' +
+        'machine does not authenticate this one.',
+    );
+  } else {
+    /*
+     * Signed in — but signed in as whom, and can they see this project? An
+     * account with access to five projects and not this one fails here rather
+     * than half-way through a deploy.
+     */
+    try {
+      const listed = firebase(['projects:list']);
+
+      if (devProject !== null && !listed.includes(devProject)) {
+        problems.push(
+          `The authenticated account cannot see project "${devProject}". Either ` +
+            'the id is wrong or this account has not been granted access to it.',
+        );
+      } else if (devProject !== null) {
+        notes.push(`Project "${devProject}" is reachable by the signed-in account`);
+      }
+    } catch (error) {
+      problems.push(
+        `Could not list Firebase projects: ${String(error).split('\n')[0]}. ` +
+          'Check the credential and network before deploying.',
+      );
+    }
+  }
+}
+
+/* ------------------------------------------------------------------------ *
  * Report
  * ------------------------------------------------------------------------ */
 

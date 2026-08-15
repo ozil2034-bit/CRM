@@ -32,7 +32,7 @@ guessable, and this session will not invent any of them.
 | - | ------------------------------------------- | ----------------------------------------------------------- |
 | 1 | **Development Firebase project id**         | `.firebaserc` holds the placeholder `REPLACE_WITH_DEV_PROJECT_ID` |
 | 2 | **Firebase Web config** (6 `VITE_*` values) | No `.env.development` exists; only `.env.example`            |
-| 3 | **A Firebase CLI credential**               | `firebase login:list` → *No authorized accounts*. `firebase login` is an interactive browser OAuth flow and this is a non-interactive container. No `FIREBASE_TOKEN` or service account is present. |
+| 3 | **A Firebase CLI credential _on the deploying machine_** | `firebase login:list` → *No authorized accounts*. `~/.config/configstore/firebase-tools.json` holds only a message-of-the-day cache — no `tokens`, no `user`. `firebase login` is an interactive browser OAuth flow and this is a non-interactive container. No `FIREBASE_TOKEN` or `GOOGLE_APPLICATION_CREDENTIALS` is set. |
 | 4 | **A UAT bootstrap token**                   | Must be chosen by whoever deploys and set via `functions:secrets:set` — never committed |
 
 Also required on the Firebase side: the project must be on the **Blaze** plan.
@@ -42,6 +42,13 @@ that cannot take a booking.
 
 Network is not the obstacle: outbound HTTPS works from this container.
 Authentication is.
+
+**Credentials do not travel with the repository.** Creating the Firebase project
+and running `firebase login` on a laptop authenticates *that laptop*. The token
+is written to `~/.config/configstore/firebase-tools.json` on that machine and
+nowhere else, so a container, a CI runner or a second checkout still has nothing.
+`npm run predeploy:uat` now checks for this explicitly and reports it before
+anything is built — see DEPLOYMENT.md §12, "Where you run this matters".
 
 ### To deploy
 
