@@ -11,12 +11,17 @@ fittings, payments, security deposits and invoicing for a bridal boutique.
 
 ## Status
 
-**Phase 9 of 10 complete** — foundation, identity and authorization, the dress
-and customer catalogue, the reservation engine with its concurrency safety, the
-financial ledger, A4 bilingual documents, the employee experience, customer
-communication and the complete Arabic interface, and now production resilience:
-an installable application, an explicit offline contract, backup and restore, and
-CSV exports.
+**Phase 10 — release candidate, pre-production gate passed.** All ten phases
+are built: foundation, identity and authorization, the dress and customer
+catalogue, the reservation engine with its concurrency safety, the financial
+ledger, A4 bilingual documents, the employee experience, customer communication
+and the complete Arabic interface, production resilience, and now a full
+regression, security audit and end-to-end release verification.
+
+**Not deployed.** No production Firebase project is configured, no production
+bootstrap token exists, and no production deployment has been performed. The
+gate's verdict, the manual checks still outstanding, and the known limitations
+are in [RELEASE.md](./RELEASE.md).
 
 WhatsApp is click-to-chat: the application opens a link with the message ready,
 and the employee presses send. It records `Prepared`, `Opened` and `Copied` —
@@ -33,12 +38,9 @@ refusal says which piece of server state is missing.
 collection to a JSON file that is downloaded to the device and uploaded nowhere,
 plus five CSV lists for a spreadsheet. Restore is owner-only, runs as a Cloud
 Function, and writes nothing until the owner has seen what would be created and
-what would be overwritten. Ids are never regenerated and historical figures are
-never recomputed. The recovery drill — export, wipe, restore, compare every
-record — runs against the emulator on every change.
-
-Production deployment is Phase 10. Nothing is deployed and no production project
-is configured.
+what would be overwritten. The JSON is a Firestore backup and nothing else —
+photos, staff logins and roles are recovered separately, which
+[OPERATIONS.md](./OPERATIONS.md) spells out rather than glossing over.
 
 See [PROJECT_PLAN.md](./PROJECT_PLAN.md) for the full phase plan.
 
@@ -54,7 +56,8 @@ See [PROJECT_PLAN.md](./PROJECT_PLAN.md) for the full phase plan.
 | [SECURITY.md](./SECURITY.md)         | Roles, permission matrix, rules, threat notes       |
 | [TESTING.md](./TESTING.md)           | Test layers, required assertions, coverage policy   |
 | [DEPLOYMENT.md](./DEPLOYMENT.md)     | Firebase setup, environments, release procedure     |
-| [OPERATIONS.md](./OPERATIONS.md)     | Backup, restore, runbooks, manual checklists        |
+| [OPERATIONS.md](./OPERATIONS.md)     | Backup, restore, runbooks, owner acceptance checklist |
+| [RELEASE.md](./RELEASE.md)           | Release candidate, gate results, known limitations  |
 
 ---
 

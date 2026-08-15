@@ -642,3 +642,35 @@ contributor's machine has ready.
 
 Failures are fixed, not skipped or annotated away. `.skip` in a committed test is a
 defect unless accompanied by a linked reason in the same commit.
+
+
+---
+
+## 11. Release severity (Phase 10 §44)
+
+| Level  | Meaning                                                | Ships?                       |
+| ------ | ------------------------------------------------------ | ---------------------------- |
+| **P0** | Security hole, data loss, or financial corruption      | **Never**                    |
+| **P1** | A core workflow is broken                              | **Never**                    |
+| **P2** | Major usability problem, or a limit reached at scale   | Owner decides, explicitly    |
+| **P3** | Cosmetic or minor                                      | May be deferred and recorded |
+
+A defect's level is decided by what it does to the boutique, not by how hard it
+is to fix. The Phase 10 accessory-line defect is the worked example: a one-line
+omission in a Function, and P1 — because a tax invoice that charges 84.000 with
+nothing to say what it was for is a document the boutique cannot defend.
+
+## 12. The Phase 10 gate
+
+Everything in §10, plus:
+
+```bash
+npm run test:functions:e2e       # three complete boutique journeys
+npm run test:functions:security  # the denial sweep
+```
+
+and the manual checks that no emulator can perform: real devices, a real
+printer, a real WhatsApp send, and an installed PWA taking a real update. Those
+are listed in the release report and marked **MANUAL VERIFICATION REQUIRED**
+until someone has actually done them. A gate that counts an unperformed test as
+passed is not a gate.

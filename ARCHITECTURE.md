@@ -10,7 +10,7 @@
 │  src/app · src/pages · src/components · src/design-system    │
 │  Renders state. Dispatches intent. No business rules.        │
 └───────────────────────────┬─────────────────────────────────┘
-                            │ hooks (TanStack Query)
+                            │ observeX() subscriptions + React state
 ┌───────────────────────────▼─────────────────────────────────┐
 │  Application / Service Layer                                 │
 │  src/services                                                │
@@ -79,21 +79,22 @@ azhary-boutique/
 │   │   ├── similar-dresses.ts  # Alternatives when a gown is taken
 │   │   ├── authorization.ts
 │   │   ├── dress.ts · customer.ts · phone.ts · search.ts
-│   │   └── (payments, late fees, cancellation — Phase 5)
+│   │   ├── ledger.ts · document.ts · terms.ts · whatsapp.ts
+│   │   └── connectivity.ts · backup.ts · csv.ts · firebase-errors.ts
 │   ├── schemas/                # Zod schemas — validation + inferred types
-│   ├── types/                  # Shared domain types, branded primitives
 │   ├── hooks/                  # Cross-cutting React hooks
-│   ├── stores/                 # Zustand: auth session, UI preferences
 │   ├── lib/
 │   │   ├── firebase/           # SDK init, typed converters, collection refs
-│   │   ├── datetime/           # Timezone-safe date helpers
 │   │   ├── i18n/               # Typed translation system, EN/AR dictionaries
+│   │   ├── connectivity/       # Online / offline / reconnecting state
+│   │   ├── pwa/                # Service-worker registration
 │   │   └── utils/
+│   ├── assets/fonts/           # Self-hosted WOFF2 + OFL licences
+│   ├── styles/                 # Tailwind entry and design tokens
 │   ├── config/                 # Env parsing + runtime validation, constants
 │   └── print/                  # A4 document components (invoice, contract)
 ├── functions/                  # Cloud Functions (Phase 2+)
 ├── tests/                      # Integration + security-rules tests
-├── scripts/                    # seed:demo, backup, migrations
 ├── firestore.rules
 ├── storage.rules
 ├── firestore.indexes.json
@@ -1151,6 +1152,52 @@ navigation goes to `/`, not a reload in place, so the next employee starts at th
 sign-in screen rather than at whichever customer was open. It happens last, so a
 failed cache clear — another tab still holds the database — never leaves a
 session signed in.
+
+---
+
+## 11e. Read volume, and where it stops scaling (Phase 10 §29)
+
+Audited at the release gate. Two findings, one clean and one a limitation the
+boutique should know about before it becomes a surprise.
+
+**Listeners are all cleaned up.** Every `observeX` call site either returns the
+unsubscribe directly from `useEffect` or collects several and stops them in a
+returned cleanup. There are no leaked listeners, no duplicate subscriptions to
+the same query, and no query without either a `where` or an `orderBy` outside
+the backup exporter — which reads everything once, deliberately, and is not a
+listener.
+
+**The operational screens subscribe to whole collections.**
+`observeLiveReservations` joins two live listeners — every reservation, and
+every financial event — and drives the dashboard, the reservations list, the
+reports and the sheets. `observeCustomers` and `observeDresses` are likewise
+unbounded.
+
+That is the right shape for a boutique with hundreds of records and the wrong
+shape for one with tens of thousands, so the threshold matters more than the
+observation:
+
+| Records                    | Documents read when the dashboard mounts | Assessment                     |
+| -------------------------- | ---------------------------------------- | ------------------------------ |
+| Year 1 (~200 reservations) | ~1,500                                   | Unnoticeable                   |
+| Year 3 (~700)              | ~5,000                                   | Fine; a slower first paint     |
+| Year 5 (~1,200)            | ~9,000                                   | Noticeable on a phone          |
+| Year 10 (~2,500)           | ~20,000                                  | Needs the fix below            |
+
+Firestore's persistent cache absorbs most of this in steady state — a resumed
+listener fetches only what changed — so the full read happens on a device's
+first sync and after each sign-out, which clears the cache. On a shared tablet
+signed in and out several times a day, that is the case that bites first.
+
+**The fix, when it is needed:** window `observeLiveReservations` by date (the
+dashboard only ever shows today and the near future) and paginate the
+reservations and customers lists. Neither is difficult; both are a behaviour
+change to four screens, which is why they were **not** done at a release gate
+for a boutique that starts with zero records. Recorded as **P2** in the Phase 10
+report rather than fixed quietly.
+
+Client-side search over the full customer list has the same shape and the same
+threshold, and is documented in DATABASE.md §4.
 
 ---
 

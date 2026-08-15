@@ -194,10 +194,19 @@ application says so.
 
 ## 7. Demo data
 
-`npm run seed:demo` (added in Phase 3) exists for development only. It refuses to
-run unless `VITE_DEMO_MODE=true` **and** the target is the emulator. It is never
-executed automatically, never in CI, and never against a live project
-(specification §52).
+**There is none, and there is no script that could create any.**
+
+Earlier drafts of this document described a guarded `npm run seed:demo`. It was
+never written, and by Phase 10 that is the better outcome rather than an
+oversight to correct: a seeding script that refuses to run in production is one
+misconfiguration away from running in production, and the safest version of that
+script is the one that does not exist.
+
+`VITE_DEMO_MODE` remains in the environment schema and must be `false` in
+production — it gates development affordances, not data.
+
+Test fixtures live in `tests/`, run only against the emulator project
+`demo-azhary-functions`, and have no path to a live project.
 
 ---
 
@@ -265,3 +274,88 @@ Four families ship as WOFF2 in the bundle (`src/assets/fonts/`) with their OFL
 licences. Nothing is fetched from Google Fonts. A CSP that blocks
 `fonts.googleapis.com` therefore breaks nothing, and the application renders its
 own text with no network at all.
+
+
+---
+
+## 11. Rollback
+
+Four things deploy independently, and **they roll back differently**. Treating
+them as one release is the mistake that turns a bad deploy into a bad day.
+
+### The application (Hosting) — instant, safe
+
+```bash
+npx firebase hosting:releases:list --project <production-project-id>
+npx firebase hosting:rollback --project <production-project-id>
+```
+
+Hosting keeps previous releases. Rolling back swaps the served bundle in
+seconds and loses nothing.
+
+**The one wrinkle: installed devices.** A tablet running the PWA holds the old
+service worker until it notices a new one and the employee accepts the prompt.
+After a rollback, some devices will be on the rolled-back version and some on
+the version you just withdrew, until each is prompted again. Plan for a short
+window where both are in use; this is also why the two must be compatible with
+the same Firestore rules.
+
+### Cloud Functions — redeploy, not rollback
+
+There is no `functions:rollback`. The way back is to deploy the previous commit:
+
+```bash
+git checkout <previous-release-tag>
+npm run build:functions
+npx firebase deploy --only functions --project <production-project-id>
+```
+
+Deploy functions **before** rolling back Hosting if the old client calls a
+function the new one renamed, and **after** if the reverse. When in doubt,
+deploy functions first: an old client calling a new function that still accepts
+its arguments is survivable; a new client calling a function that no longer
+exists is not.
+
+### Firestore and Storage rules — redeploy from the previous commit
+
+```bash
+git checkout <previous-release-tag> -- firestore.rules storage.rules
+npx firebase deploy --only firestore:rules,storage:rules --project <production-project-id>
+```
+
+Rules take effect within seconds and apply to every client immediately,
+including ones running the old bundle. **Never roll rules back to something more
+permissive than the deployed application needs** — a rules rollback that
+re-opens a path is a security regression, not a recovery.
+
+### Firestore data — NOT a rollback
+
+This is the one that must not be described the way the others are.
+
+**Data cannot be rolled back.** There is no previous version to swap to. What
+exists is a restore: taking a backup from a point in time and writing it over
+the current state — which **discards everything that happened since**, including
+every reservation taken and every payment recorded in the meantime.
+
+That is a business decision, not an operational one. It belongs to the owner,
+not to whoever is deploying. Before any restore into production:
+
+1. Export the current state first, whatever you believe is in it.
+2. Establish what the boutique will lose — the reservations and payments between
+   the backup's `exportedAt` and now.
+3. Get the owner's explicit agreement to lose them.
+4. Then restore, following OPERATIONS.md §3a.
+
+A bad deploy is almost never fixed by restoring data. Roll the code back first;
+the data is usually fine.
+
+### Order of operations for a bad release
+
+1. **Assess.** Is it the bundle, a function, or a rule? Hosting rollback fixes
+   only the first.
+2. Roll Hosting back. Most releases end here.
+3. If a function is at fault, redeploy the previous commit's functions.
+4. If a rule is at fault, redeploy the previous commit's rules — never a looser
+   version.
+5. Touch data only if data was actually corrupted, and only with the owner's
+   agreement, per above.

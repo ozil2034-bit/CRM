@@ -43,7 +43,8 @@ These constraints apply to every phase and every commit.
    `src/domain/*`. Components render and dispatch.
 3. **No dummy data in production.** Zero seeded dresses, customers, reservations,
    payments, invoices or fittings. Empty database renders helpful empty states.
-   Demo data exists only behind `npm run seed:demo`, which never runs automatically.
+   No seeding script exists at all — not even a guarded one. Test fixtures run
+   only against the emulator project and have no path to a live project.
 4. **No invented business information.** VAT number, CR number, address and phone stay
    blank until the owner configures them. Never `OM123456789`. Never `CR-1098234`.
 5. **No `allow read, write: if true`.** Ever.
@@ -62,12 +63,13 @@ These constraints apply to every phase and every commit.
 | Build        | Vite 8                                                  | Fast builds, static output for Firebase Hosting  |
 | Styling      | Tailwind CSS 4 (CSS-first tokens)                       | Design tokens in one file, no config drift       |
 | Routing      | React Router 7                                          | Data router, nested layouts                      |
-| Server state | TanStack Query 5                                        | Cache, retry, optimistic updates, offline-aware  |
-| Client state | Zustand 5                                               | Small, typed, no boilerplate                     |
+| Server state | Firestore `onSnapshot` in React state                   | The listener is already a cache; a second one would be two things to invalidate |
+| Client state | React context (auth, language, connectivity)            | Three values, read almost everywhere, changed rarely |
 | Validation   | Zod 4                                                   | One schema shared by client, Functions and tests |
 | Backend      | Firebase (Auth, Firestore, Storage, Functions, Hosting) | Managed, offline-capable, rules-enforced         |
 | Tests        | Vitest 4 + Testing Library + Firebase Emulator          | Unit, integration, rules                         |
-| Lint/format  | ESLint 9 (flat) + Prettier 3                            | Enforced in the phase gate                       |
+| Lint/format  | ESLint 10 (flat) + Prettier 3                           | Enforced in the phase gate                       |
+| PWA          | vite-plugin-pwa (generateSW, prompt)                    | Installable shell; no runtime caching of data    |
 
 **Dependency policy.** Every dependency must earn its place. Notable deliberate
 omissions and their replacements:

@@ -130,11 +130,46 @@ collections will have been written and others not. **Run the same file again.**
 Every record is keyed by its original id, so a repeat converges on the correct
 state rather than duplicating anything.
 
-**Photos and staff accounts are not in the file.** Dress and damage photos are
-bytes in Cloud Storage; employee logins are Firebase Auth accounts and custom
-claims. Neither can be carried in a JSON document, and a backup that appeared to
-restore access would be worse than one that plainly does not. Restoring those is
-the `gcloud`/console procedure in §3.
+**The JSON export is NOT a complete infrastructure backup.** It is a Firestore
+backup and nothing else. Three things it does not contain, and cannot:
+
+| Not in the file            | Where it actually lives             | How it is recovered                                      |
+| -------------------------- | ----------------------------------- | -------------------------------------------------------- |
+| Dress and damage photos    | Cloud Storage objects               | `gsutil` bucket copy, or Storage's own restore            |
+| Employee logins            | Firebase Auth accounts              | Auth export/import, or re-create through Settings → Users |
+| Roles and activation flags | Firebase Auth **custom claims**     | Re-applied by the owner through Settings → Users          |
+
+A backup that appeared to restore access would be worse than one that plainly
+does not, so the file does not pretend: `users` is not among its sixteen
+collections, and the restore screen does not claim otherwise.
+
+**What that means in a real disaster.** Restoring the JSON gives back every
+customer, reservation, payment, invoice and audit entry, with their original ids
+and figures — the business record, intact. It does **not** give back the ability
+to sign in. Recovery order:
+
+1. Re-create the owner account (bootstrap, §6 of DEPLOYMENT.md).
+2. Restore the JSON through Settings → Data.
+3. Re-create staff accounts through Settings → Users. Their historical actions
+   are already in the restored audit trail under their old uid; new accounts get
+   new uids, so the trail names them by the `actorName` recorded at the time.
+4. Restore the Storage bucket separately if photos are needed.
+
+### Photo and Auth recovery
+
+```bash
+# Photos — Cloud Storage, entirely separate from the JSON file.
+gsutil -m cp -r gs://<backup-bucket>/storage/<date>/* gs://<production-bucket>/
+
+# Auth accounts — exported and imported with the Firebase CLI.
+npx firebase auth:export accounts.json --project <production-project-id>
+npx firebase auth:import accounts.json --project <production-project-id>
+```
+
+`auth:export` does **not** carry custom claims in a form the application trusts.
+Roles are re-applied through Settings → Users, which is the only path that
+writes a claim — by design, and the reason a stolen backup file grants nobody
+anything.
 
 ### Restore drill
 
@@ -728,3 +763,72 @@ or delete an audit entry.
    denials, Functions logs).
 4. A rules denial in the logs usually means the correct control fired — confirm
    the user's role and active flag before treating it as a bug.
+
+
+---
+
+## 11. Owner acceptance checklist
+
+Before the boutique relies on the system for real bookings, the owner works
+through this once. Everything is done from **Settings** unless stated.
+
+### Business setup
+
+- [ ] **Business profile** — name in English and Arabic, address in both,
+      phone, email, website. These print on every document.
+- [ ] **Logo** — PNG, JPEG or WebP under 2 MB. Without one, documents print the
+      business name instead, which is a valid choice rather than a fault.
+- [ ] **VAT registration number** — enter the real one, or leave it blank.
+      The system will never invent or default it, and a guessed number on a tax
+      invoice is a false statement to a customer and to the tax authority.
+- [ ] **CR number** — same rule.
+- [ ] **VAT rate** — 0% or 5%. This is the rate charged from now on; invoices
+      already issued keep the rate they were issued under.
+- [ ] **Late fee per day**, **minimum pickup payment %**, **cancellation
+      tiers**, **default cleaning buffer**.
+- [ ] **Terms & Conditions** — the real text, in both languages. Publishing a
+      version freezes it: documents copy the version in force when they are
+      issued, so later edits never change what a customer already signed.
+
+### The boutique's own data
+
+- [ ] **Dresses** — added with real rental price, security deposit, size, and a
+      photograph. Purchase cost is owner-only and never appears on a document,
+      a CSV export, or a staff member's screen.
+- [ ] **Accessories** — veils, combs, jewellery, with their prices.
+- [ ] **Customers** — added as they come in. Nothing is pre-loaded; the system
+      starts empty on purpose.
+
+### Check one of each, end to end
+
+- [ ] **A reservation** — availability refuses a double booking, and the
+      cleaning buffer is respected.
+- [ ] **A payment** and a **security deposit** — the balance is what you expect.
+- [ ] **An invoice** — every figure correct, both languages readable, the logo
+      and address right. Print it and look at the paper.
+- [ ] **A rental agreement** — the terms are the ones you published.
+- [ ] **A WhatsApp message** — opens the right contact with the right text.
+      Note the wording: the system records **Prepared**, **Opened** and
+      **Copied**. It never says *Sent*, *Delivered* or *Read*, because with
+      click-to-chat it cannot observe those and will not claim them.
+- [ ] **The reports** — the figures match what you know you took.
+
+### Backup and access
+
+- [ ] **Take a backup** (Settings → Data → Export all data) and keep it
+      somewhere off the tablet.
+- [ ] **Read what a backup does not contain** — photos, staff logins and roles
+      are recovered separately (OPERATIONS.md §3a).
+- [ ] **Add staff** through Settings → Users. Each receives a password-set link;
+      no password is ever typed by anyone but them.
+- [ ] **Try signing out and back in** on a shared tablet, and confirm the
+      previous session leaves nothing behind.
+
+### Understood, not just ticked
+
+- [ ] Offline: reading works, editing a dress or customer works, but **taking a
+      payment, creating a reservation and issuing an invoice need a
+      connection** — and the system says which and why.
+- [ ] Issued invoices cannot be edited. A mistake is corrected by voiding with a
+      reason and issuing a new one; both stay in the record.
+- [ ] Nobody, including the owner, can delete a payment or an audit entry.
