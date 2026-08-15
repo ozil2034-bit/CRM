@@ -3,7 +3,7 @@
   "version": "0.9.0",
   "private": true,
   "type": "module",
-  "description": "Azhary Boutique — production wedding dress management platform",
+  "description": "Azhary Boutique \u2014 production wedding dress management platform",
   "engines": {
     "node": ">=22.12.0"
   },
@@ -33,7 +33,12 @@
     "test:functions:amendments": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts amendments\"",
     "test:functions:backup": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts backup\"",
     "test:functions:e2e": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts release-e2e\"",
-    "test:functions:security": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts security-audit\""
+    "test:functions:security": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts security-audit\"",
+    "predeploy:uat": "node scripts/check-uat-target.mjs",
+    "deploy:uat": "npm run predeploy:uat && npm run build && npm run deploy:uat:rules && npm run deploy:uat:functions && npm run deploy:uat:hosting",
+    "deploy:uat:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage:rules --project development",
+    "deploy:uat:functions": "firebase deploy --only functions --project development",
+    "deploy:uat:hosting": "firebase deploy --only hosting --project development"
   },
   "dependencies": {
     "firebase": "^12.17.1",

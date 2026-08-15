@@ -359,3 +359,164 @@ the data is usually fine.
    version.
 5. Touch data only if data was actually corrupted, and only with the owner's
    agreement, per above.
+
+
+---
+
+## 12. Development / UAT deployment (Phase 10A)
+
+The purpose of this environment is the one thing an emulator cannot do: put the
+application on a real iPhone, a real iPad, a real printer and a real WhatsApp
+account. It is a **development** deployment in every respect — its own project,
+its own owner, its own synthetic data — and nothing about it is a rehearsal for
+production credentials.
+
+### What must exist before any of this runs
+
+The repository ships with placeholders on purpose, and they are not guessable.
+Four things are required, and **all four come from the boutique's own Firebase
+console**:
+
+| Required                             | Where it comes from                                  |
+| ------------------------------------ | ---------------------------------------------------- |
+| Development project id               | Firebase console → the development project           |
+| Firebase Web config (6 values)       | Project settings → General → Your apps → Web app     |
+| A CLI credential for deployment      | `firebase login`, or a CI service account            |
+| A UAT bootstrap token                | Chosen by whoever runs the deployment; never committed |
+
+The project must be on the **Blaze** plan. Cloud Functions cannot be deployed on
+Spark, and this application's booking, payments and documents are all Functions —
+on Spark you would get a Hosting deployment of an application that cannot take a
+booking.
+
+### 1. Point the CLI at the development project
+
+```bash
+# Replace with the real development project id. This file is committed, so use
+# the alias form and never put a production id in it.
+npx firebase use --add          # choose the dev project, alias it "development"
+```
+
+`.firebaserc` currently reads `REPLACE_WITH_DEV_PROJECT_ID`. Until it does not,
+every deploy command below fails with `Invalid project id` — deliberately.
+
+### 2. Write the environment file
+
+```bash
+cp .env.example .env.development
+```
+
+Fill in the six `VITE_FIREBASE_*` values from the console, and leave:
+
+```
+VITE_APP_ENV=development
+VITE_DEMO_MODE=false
+VITE_USE_EMULATORS=false
+```
+
+`VITE_DEMO_MODE=false` even in UAT. There is no demo data path in this
+application at all, and UAT data is created through the interface like any other
+record — see UAT.md §2.
+
+**`.env.development` is not committed.** `.gitignore` covers it; check before
+your first commit after creating it.
+
+### 3. Set the bootstrap secret
+
+```bash
+npx firebase functions:secrets:set AZHARY_BOOTSTRAP_TOKEN --project development
+```
+
+The command prompts for the value and stores it in Secret Manager. It is never
+echoed, never written to a file, and never appears in the bundle — the token is
+read only inside `claimInitialOwnership`.
+
+Use a **different token from the one production will use**, chosen at random:
+
+```bash
+openssl rand -base64 32
+```
+
+Do not paste it into a commit message, a screenshot, an issue, or this file.
+
+### 4. Verify before deploying
+
+Run all four and read the output rather than the exit code:
+
+```bash
+npx firebase use                                   # names the active project
+npx firebase projects:list                         # confirms it exists and you can reach it
+grep VITE_FIREBASE_PROJECT_ID .env.development     # matches the active project
+npm run verify                                     # lint + typecheck + test + build
+```
+
+The project id in `.env.development` and the active CLI project **must be the
+same**. A bundle built against one project and hosted on another produces an
+application that loads, shows a sign-in screen, and fails every write — which is
+the exact failure the placeholder check exists to prevent, arriving by a
+different route.
+
+### 5. Deploy
+
+Rules first, then functions, then hosting. The order matters: a client reaching a
+function that is not deployed yet is a broken screen; a function reaching rules
+that are not deployed yet is a permission error on live data.
+
+```bash
+npm run deploy:uat
+```
+
+which is:
+
+```bash
+npm run build \
+  && npx firebase deploy --only firestore:rules,firestore:indexes,storage:rules --project development \
+  && npx firebase deploy --only functions --project development \
+  && npx firebase deploy --only hosting --project development
+```
+
+**Only those four targets.** No Authentication configuration, no Remote Config,
+no Analytics.
+
+### 6. After deploying
+
+1. Firebase console → Authentication → **enable Email/Password** if it is not
+   already. Nothing else — no Google, no anonymous, no public sign-up flow
+   beyond what the application drives.
+2. Open the hosting URL. It shows the **setup screen**, because no owner exists.
+3. Create the UAT owner through that screen, using the bootstrap token from
+   step 3 and a **UAT-only** email — never the address that will own production.
+4. Confirm the database is empty: Firestore console shows no collections until
+   the first record is created.
+
+### The UAT owner
+
+| Field    | Value                                                  |
+| -------- | ------------------------------------------------------ |
+| Email    | A dedicated UAT address, e.g. `uat-owner@<your-domain>` |
+| Password | Chosen at setup; never reused from anywhere            |
+| Role     | OWNER, granted by `claimInitialOwnership`               |
+
+This account exists only in the development project. It has no relationship to
+the production owner, and the production project — when it exists — will be
+bootstrapped separately with its own token.
+
+### Deploying version N+1 for the PWA update test
+
+The update test needs a second deployment that differs visibly but harmlessly.
+
+```bash
+npm version 0.9.1 --no-git-tag-version
+npm run deploy:uat
+```
+
+The version appears in **Settings → Data → About**, which is where a tester
+confirms which build a device is running. Bump the version and nothing else: the
+point is to observe the update prompt, not to test a change.
+
+### What this environment must never receive
+
+- Real customer names, phone numbers or event dates.
+- The production project id, in `.firebaserc` or anywhere else.
+- The production bootstrap token.
+- A restore of a production backup.
