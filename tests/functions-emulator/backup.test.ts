@@ -677,3 +677,172 @@ describe('CSV export', () => {
     }
   }, 180_000);
 });
+
+/* ------------------------------------------------------------------------ *
+ * §24 — an interrupted restore
+ * ------------------------------------------------------------------------ */
+
+describe('an interrupted restore converges when re-run', () => {
+  /**
+   * Drive a restore chunk by chunk, stopping partway.
+   *
+   * `importBackup` cannot be interrupted from outside — that is the point of it
+   * — so the interruption is staged by calling the same Cloud Function the
+   * service calls, and simply stopping. That reproduces exactly what a closed
+   * tab or a dropped connection leaves behind: some collections written, the
+   * rest not, and no audit entry, because `finishRestore` never ran.
+   */
+  async function restorePartially(
+    file: { schemaVersion: number; collections: Record<string, unknown[]> },
+    stopAfter: number,
+  ): Promise<string[]> {
+    const restoreChunk = httpsCallable<
+      { schemaVersion: number; collection: string; records: unknown[] },
+      { written: number }
+    >(functions, 'restoreBackupChunk');
+
+    const done: string[] = [];
+
+    for (const name of BACKUP_COLLECTIONS) {
+      if (done.length >= stopAfter) break;
+
+      const records = file.collections[name] ?? [];
+      if (records.length === 0) continue;
+
+      await restoreChunk({ schemaVersion: file.schemaVersion, collection: name, records });
+      done.push(name);
+    }
+
+    return done;
+  }
+
+  it('leaves a half-restored database, then repairs it on a second run', async () => {
+    const exported = await exportNow();
+    const file = JSON.parse(exported.json) as {
+      schemaVersion: number;
+      collections: Record<string, unknown[]>;
+    };
+    const original = await readEverything();
+
+    /* --- The disaster, again --- */
+    await wipeEverything();
+
+    /* --- A restore that stops after three collections --- */
+    const partial = await restorePartially(file, 3);
+
+    expect(partial.length).toBe(3);
+
+    // Some collections are back; the reservation is not.
+    const midway = await readEverything();
+    expect((midway['reservations'] ?? new Map()).size).toBe(0);
+
+    // And no audit entry claims a restore happened, because none finished.
+    const claimedMidway = [...(midway['auditLogs'] ?? new Map()).values()].filter(
+      (entry) => entry['action'] === 'data.imported',
+    );
+    expect(claimedMidway).toHaveLength(0);
+
+    /* --- The same file, run again --- */
+    const result = await importBackup({
+      file,
+      actor: { uid: ownerUid, name: 'Backup Owner', role: 'OWNER' },
+    });
+
+    expect(result.written).toBe(exported.totalRecords);
+
+    /* --- Converged --- */
+    const after = await readEverything();
+
+    for (const name of BACKUP_COLLECTIONS) {
+      const before = original[name] ?? new Map();
+      const now = after[name] ?? new Map();
+
+      for (const id of before.keys()) {
+        expect(now.has(id), `${name}/${id} missing after the second run`).toBe(true);
+      }
+    }
+  }, 300_000);
+
+  it('creates NO duplicates — every record keeps its original id', async () => {
+    /*
+     * The property that makes re-running safe. Records are written by id, so a
+     * second write of the same record replaces it rather than adding another.
+     * A restore that allocated fresh ids would double the boutique every time
+     * somebody retried a failed one.
+     */
+    const after = await readEverything();
+
+    const reservations = after['reservations'] ?? new Map();
+    const items = after['reservationItems'] ?? new Map();
+    const events = after['financialEvents'] ?? new Map();
+
+    expect(reservations.size).toBe(1);
+    expect(items.size).toBe(1);
+
+    // The two idempotency-keyed events, once each.
+    expect([...events.keys()].filter((id) => id === 'backup-deposit-1')).toHaveLength(1);
+    expect([...events.keys()].filter((id) => id === 'backup-payment-1')).toHaveLength(1);
+  }, 120_000);
+
+  it('leaves no dangling reference behind', async () => {
+    const after = await readEverything();
+
+    const customers = after['customers'] ?? new Map();
+    const reservations = after['reservations'] ?? new Map();
+    const items = after['reservationItems'] ?? new Map();
+    const dresses = after['dresses'] ?? new Map();
+
+    for (const [id, reservation] of reservations) {
+      expect(customers.has(String(reservation['customerId'])), `${id} -> customer`).toBe(true);
+    }
+
+    for (const [id, item] of items) {
+      expect(reservations.has(String(item['reservationId'])), `${id} -> reservation`).toBe(true);
+      expect(dresses.has(String(item['dressId'])), `${id} -> dress`).toBe(true);
+    }
+
+    for (const [id, event] of after['financialEvents'] ?? new Map()) {
+      expect(reservations.has(String(event['reservationId'])), `${id} -> reservation`).toBe(true);
+    }
+  }, 120_000);
+
+  it('still reconciles to the same balance it had before any of this', async () => {
+    const reservation = (await getDoc(doc(db, 'reservations', reservationId))).data();
+    const pricing = reservation?.['pricing'] as Record<string, unknown>;
+
+    const events = [...(await readEverything())['financialEvents']!.values()].filter(
+      (event) => event['reservationId'] === reservationId,
+    );
+
+    const position = reduceLedger(
+      {
+        rentalSubtotal: Number(pricing['rentalSubtotal']) as never,
+        accessorySubtotal: Number(pricing['accessorySubtotal']) as never,
+        alterationSubtotal: Number(pricing['alterationSubtotal']) as never,
+        discountAmount: Number(pricing['discountAmount']) as never,
+        taxableSubtotal: Number(pricing['taxableSubtotal']) as never,
+        vatRatePercent: Number(pricing['vatRatePercent']),
+        vatAmount: Number(pricing['vatAmount']) as never,
+        securityDepositTotal: Number(pricing['securityDepositTotal']) as never,
+        grandTotal: Number(pricing['grandTotal']) as never,
+      },
+      events.map((event) => ({
+        id: String(event['idempotencyKey']),
+        reservationId,
+        kind: event['kind'] as never,
+        amount: Number(event['amount']) as never,
+        method: null,
+        type: null,
+        occurredAt: (event['occurredAt'] as Timestamp).toMillis(),
+        reference: '',
+        reason: '',
+        employeeId: '',
+        reversesEventId: null,
+        idempotencyKey: String(event['idempotencyKey']),
+      })),
+    );
+
+    expect(position.depositHeld).toBe(DEPOSIT);
+    expect(position.netPaid).toBe(200_000);
+  }, 120_000);
+});
