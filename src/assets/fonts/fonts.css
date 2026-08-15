@@ -1,0 +1,173 @@
+/**
+ * Self-hosted typefaces.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * WHY THESE FILES ARE IN THE REPOSITORY
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Phase 1 loaded these from Google Fonts, which is incompatible with an
+ * application that has to work offline: a boutique whose connection drops mid-
+ * morning would lose its Arabic typeface and fall back to whatever the device
+ * happens to have, which for Arabic is frequently something that renders the
+ * shop's own name badly.
+ *
+ * It is also a third-party request carrying the visitor's IP on every load, for
+ * a file that never changes.
+ *
+ * So the files are vendored. They are served from the same origin as the
+ * application, cached by the service worker with everything else, and work with
+ * no network at all.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * WHAT IS HERE, AND WHAT IS NOT
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Three weights per family — 400, 500, 600 — because those are the three the
+ * design tokens use. Shipping the full 100–900 range would be roughly seven
+ * times the bytes for weights nothing references.
+ *
+ * One subset per family, chosen by what the family is for: Latin for Inter and
+ * Cormorant Garamond, Arabic for IBM Plex Sans Arabic and Noto Kufi Arabic. The
+ * Cyrillic, Greek and Vietnamese subsets the upstream packages also ship are
+ * deliberately absent.
+ *
+ * No italics. Nothing in the design system uses one.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * PROVENANCE AND LICENCE
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Extracted from the `@fontsource` packages (v5), which repackage the upstream
+ * Google Fonts releases:
+ *
+ *   Inter                  — @fontsource/inter
+ *   Cormorant Garamond     — @fontsource/cormorant-garamond
+ *   IBM Plex Sans Arabic   — @fontsource/ibm-plex-sans-arabic
+ *   Noto Kufi Arabic       — @fontsource/noto-kufi-arabic
+ *
+ * All four are licensed under the SIL Open Font License 1.1. The full licence
+ * text for each is in `./licenses/`, as the OFL requires it to travel with the
+ * files. See `./README.md` for how to refresh them.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * font-display
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * `swap` throughout. The alternative, `block`, hides text for up to three
+ * seconds while a face loads; an employee looking at an empty screen cannot
+ * tell that from a broken application. Swapping means text is readable
+ * immediately in a fallback and reflows once — which is the right trade for a
+ * tool somebody uses all day.
+ */
+
+/* ------------------------------------------------------------------------ *
+ * Inter — Latin body text
+ * ------------------------------------------------------------------------ */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./inter-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./inter-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./inter-600.woff2') format('woff2');
+}
+
+/* ------------------------------------------------------------------------ *
+ * Cormorant Garamond — Latin display, headings only
+ * ------------------------------------------------------------------------ */
+
+@font-face {
+  font-family: 'Cormorant Garamond';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./cormorant-garamond-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Cormorant Garamond';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./cormorant-garamond-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Cormorant Garamond';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./cormorant-garamond-600.woff2') format('woff2');
+}
+
+/* ------------------------------------------------------------------------ *
+ * IBM Plex Sans Arabic — Arabic body text
+ * ------------------------------------------------------------------------ */
+
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./ibm-plex-sans-arabic-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./ibm-plex-sans-arabic-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./ibm-plex-sans-arabic-600.woff2') format('woff2');
+}
+
+/* ------------------------------------------------------------------------ *
+ * Noto Kufi Arabic — Arabic display, headings only
+ * ------------------------------------------------------------------------ */
+
+@font-face {
+  font-family: 'Noto Kufi Arabic';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./noto-kufi-arabic-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Noto Kufi Arabic';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./noto-kufi-arabic-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Noto Kufi Arabic';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./noto-kufi-arabic-600.woff2') format('woff2');
+}

@@ -1,8 +1,13 @@
 /*
  * Azhary Boutique — stylesheet entry point.
  *
- * Order matters: tokens declare the vocabulary (and pull in Tailwind),
- * base applies it to elements.
+ * Order matters: the font faces are declared first, then tokens declare the
+ * vocabulary (and pull in Tailwind), then base applies it to elements.
+ *
+ * The faces are self-hosted and bundled — see ../assets/fonts/README.md. The
+ * application makes no third-party font request, because it has to render
+ * correctly with no connection at all.
  */
+@import '../assets/fonts/fonts.css';
 @import '../design-system/tokens.css';
 @import '../design-system/base.css';

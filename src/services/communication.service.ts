@@ -15,7 +15,7 @@
  *
  * A record claiming delivery would eventually be quoted back to a customer who
  * never received the message, and the boutique would have no way to tell which
- * of its records were真 and which were assumptions.
+ * of its records were true and which were assumptions.
  *
  * ─────────────────────────────────────────────────────────────────────────
  * WHY THE MESSAGE TEXT IS STORED WITH THE LOG
