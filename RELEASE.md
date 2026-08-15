@@ -7,7 +7,7 @@
 | Field                  | Value                                                        |
 | ---------------------- | ------------------------------------------------------------ |
 | Application version    | `0.9.0`                                                       |
-| Git commit             | `764e5ac9cff775ddfaa12fe8232494d34241a3aa`                    |
+| Git commit             | `e88f495` (the commit adding this record; gate ran at `764e5ac`) |
 | Branch                 | `claude/azhary-boutique-env-setup-fyoja2`                     |
 | Gate run               | 2026-08-15                                                    |
 | Node / npm             | 22.22.2 / 10.9.7                                              |
