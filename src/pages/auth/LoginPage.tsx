@@ -2,8 +2,9 @@ import { useState, type FormEvent } from 'react';
 
 import { Alert, Button, Field, Wordmark } from '@/design-system';
 import { useAuth } from '@/hooks/useAuth';
-import { AuthError, sendPasswordReset } from '@/services/auth.service';
+import { sendPasswordReset } from '@/services/auth.service';
 import { useT } from '@/hooks/useT';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 
 /**
  * The boutique sign-in screen.
@@ -15,6 +16,7 @@ import { useT } from '@/hooks/useT';
  */
 export function LoginPage() {
   const { t } = useT();
+  const friendly = useFriendlyError();
   const { signIn } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -38,7 +40,7 @@ export function LoginPage() {
       // On success the auth listener swaps the route; this component unmounts.
     } catch (caught) {
       // The email is deliberately preserved — only the password is cleared.
-      setError(caught instanceof AuthError ? caught.message : 'Unable to sign in.');
+      setError(friendly(caught).message);
       setPassword('');
     } finally {
       setSubmitting(false);

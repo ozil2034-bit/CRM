@@ -28,13 +28,13 @@ import {
   saveBusinessProfile,
   setActiveTermsVersion,
   uploadLogo,
-  BusinessServiceError,
   EMPTY_BUSINESS,
   type TermsVersion,
 } from '@/services/business.service';
 import { missingSections, type TermsSectionKey } from '@/domain/terms';
 import type { BusinessSnapshot, TermsSection } from '@/domain/document';
 import { formatMuscat } from '@/domain/datetime';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 
 export interface BusinessSettingsPageProps {
   /**
@@ -55,6 +55,7 @@ export function BusinessSettingsPage({
   withHeading = true,
 }: BusinessSettingsPageProps = {}) {
   const { t, language } = useT();
+  const friendly = useFriendlyError();
   const { principal } = useAuth();
 
   const [profile, setProfile] = useState<BusinessSnapshot>(EMPTY_BUSINESS);
@@ -70,7 +71,10 @@ export function BusinessSettingsPage({
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => observeBusinessProfile(setProfile, (caught) => setError(caught.message)), []);
+  useEffect(
+    () => observeBusinessProfile(setProfile, (caught) => setError(friendly(caught).message)),
+    [friendly],
+  );
   useEffect(() => observeTermsVersions(setVersions, () => setVersions([])), []);
   useEffect(() => observeActiveTermsVersionId(setActiveId, () => setActiveId(null)), []);
 
@@ -112,11 +116,11 @@ export function BusinessSettingsPage({
       setDraft(null);
       setNotice(t('settings.saved'));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : t('error.loadFailed'));
+      setError(friendly(caught).message);
     } finally {
       setBusy(false);
     }
-  }, [values, principal, t]);
+  }, [values, principal, t, friendly]);
 
   const chooseLogo = useCallback(
     async (file: File) => {
@@ -135,18 +139,12 @@ export function BusinessSettingsPage({
         await uploadLogo(file, principal.uid);
         setNotice(t('settings.saved'));
       } catch (caught) {
-        setError(
-          caught instanceof BusinessServiceError
-            ? caught.message
-            : caught instanceof Error
-              ? caught.message
-              : t('error.loadFailed'),
-        );
+        setError(friendly(caught).message);
       } finally {
         setBusy(false);
       }
     },
-    [principal, t],
+    [principal, t, friendly],
   );
 
   const publish = useCallback(async () => {
@@ -164,17 +162,11 @@ export function BusinessSettingsPage({
       await setActiveTermsVersion(id, principal.uid);
       setNotice(t('settings.saved'));
     } catch (caught) {
-      setError(
-        caught instanceof BusinessServiceError
-          ? caught.message
-          : caught instanceof Error
-            ? caught.message
-            : t('error.loadFailed'),
-      );
+      setError(friendly(caught).message);
     } finally {
       setBusy(false);
     }
-  }, [versionLabel, sections, principal, t]);
+  }, [versionLabel, sections, principal, t, friendly]);
 
   const missing = missingSections(sections);
 

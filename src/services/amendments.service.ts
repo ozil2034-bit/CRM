@@ -16,14 +16,11 @@ import { getFirebaseClient } from '@/lib/firebase/client';
 import { assertOnline } from './offline-guard';
 import type { GuardedOperation } from '@/domain/connectivity';
 import type { Baisa } from '@/domain/money';
+import { AppError } from './errors';
 
-export class AmendmentServiceError extends Error {
-  readonly code: string;
-
+export class AmendmentServiceError extends AppError {
   constructor(code: string, message: string) {
-    super(message);
-    this.name = 'AmendmentServiceError';
-    this.code = code;
+    super('AmendmentServiceError', code, message);
   }
 }
 

@@ -21,7 +21,6 @@ import {
   changeReservationStatus,
   observeReservation,
   observeReservationItems,
-  ReservationServiceError,
   toInputDateTime,
   updateReservationDates,
   updateReservationNotes,
@@ -44,10 +43,12 @@ import { MoneyPanel } from './MoneyPanel';
 import { AmendmentsPanel } from './AmendmentsPanel';
 import { NotifyPanel } from './NotifyPanel';
 import { FITTING_STATUS_TONE, RESERVATION_STATUS_TONE } from './status-tone';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 
 export function ReservationDetailPage() {
   const { reservationId = '' } = useParams();
   const { t, language } = useT();
+  const friendly = useFriendlyError();
   const { can, principal, state } = useAuth();
 
   const actorName = state.status === 'signed-in' ? state.session.name : '';
@@ -75,9 +76,9 @@ export function ReservationDetailPage() {
     () =>
       observeReservation(reservationId, setReservation, (caught) => {
         setReservation(null);
-        setError(caught.message);
+        setError(friendly(caught).message);
       }),
-    [reservationId],
+    [reservationId, friendly],
   );
 
   useEffect(
@@ -99,17 +100,11 @@ export function ReservationDetailPage() {
     try {
       await action();
     } catch (caught) {
-      setError(
-        caught instanceof ReservationServiceError
-          ? caught.message
-          : caught instanceof Error
-            ? caught.message
-            : 'Something went wrong.',
-      );
+      setError(friendly(caught).message);
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [friendly]);
 
   if (reservation === undefined) {
     return <main className="mx-auto max-w-3xl px-6 py-10 text-sm text-ink-400" role="status">{t('state.loading')}</main>;

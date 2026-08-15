@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
 
 import { Alert, Button, Field, Wordmark } from '@/design-system';
-import { AuthError, claimInitialOwnership, createAccount } from '@/services/auth.service';
+import { claimInitialOwnership, createAccount } from '@/services/auth.service';
 import { useT } from '@/hooks/useT';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 
 /**
  * First-owner initialisation.
@@ -18,6 +19,7 @@ import { useT } from '@/hooks/useT';
  */
 export function BootstrapPage() {
   const { t } = useT();
+  const friendly = useFriendlyError();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -56,11 +58,7 @@ export function BootstrapPage() {
       await claimInitialOwnership({ setupToken: setupToken.trim(), name: name.trim() });
       // The auth listener now sees an OWNER principal and swaps the route.
     } catch (caught) {
-      setError(
-        caught instanceof AuthError
-          ? caught.message
-          : ((caught as { message?: string }).message ?? 'Setup could not be completed.'),
-      );
+      setError(friendly(caught).message);
       setPassword('');
       setConfirmPassword('');
     } finally {

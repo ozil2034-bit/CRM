@@ -23,6 +23,7 @@ import {
   customerFormSchema,
   type CustomerFormValues,
 } from '@/schemas/customer';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 
 export function CustomerFormPage() {
   const { customerId } = useParams<{ customerId: string }>();
@@ -30,6 +31,7 @@ export function CustomerFormPage() {
 
   const navigate = useNavigate();
   const { t, language } = useT();
+  const friendly = useFriendlyError();
   const { principal, state } = useAuth();
 
   const [values, setValues] = useState<CustomerFormValues>(EMPTY_CUSTOMER_FORM);
@@ -123,7 +125,7 @@ export function CustomerFormPage() {
       if (isEditing && existing !== null && customerId !== undefined) {
         const outcome = await updateCustomer(
           { customerId, before: existing, values: parsed.data, actor },
-          (error) => setBanner({ tone: 'error', text: error.message }),
+          (error) => setBanner({ tone: 'error', text: friendly(error).message }),
         );
         if (outcome.status === 'pending') {
           setBanner({ tone: 'info', text: t('write.pending') });
@@ -136,7 +138,7 @@ export function CustomerFormPage() {
     } catch (caught) {
       setBanner({
         tone: 'error',
-        text: (caught as { message?: string }).message ?? t('error.loadFailed'),
+        text: friendly(caught).message,
       });
     } finally {
       setSubmitting(false);

@@ -66,3 +66,13 @@ export {
   addReservationAlteration,
   removeReservationAlteration,
 } from './amendments';
+
+/*
+ * Phase 9. A restore writes reservations, the ledger, invoices and audit logs —
+ * every one of which refuses client writes entirely, and correctly so. Restore
+ * therefore joins the other trusted operations here, owner-only, where the
+ * Admin SDK bypasses the rules and an ownership check stands in their place.
+ *
+ * Export needs no Function: an owner may already read everything.
+ */
+export { restoreBackupChunk, finishRestore } from './backup';

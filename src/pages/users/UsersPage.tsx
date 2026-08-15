@@ -11,6 +11,7 @@ import {
   setUserRole,
   type EmployeeRecord,
 } from '@/services/users.service';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 
 /**
  * Staff management. Owner only.
@@ -21,6 +22,7 @@ import {
  */
 export function UsersPage() {
   const { t } = useT();
+  const friendly = useFriendlyError();
   const { principal } = useAuth();
   const [users, setUsers] = useState<EmployeeRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function UsersPage() {
       await action();
       setNotice(success);
     } catch (caught) {
-      setError((caught as { message?: string }).message ?? 'That change could not be applied.');
+      setError(friendly(caught).message);
     } finally {
       setBusyUid(null);
     }
@@ -170,6 +172,7 @@ function CreateEmployeeForm({
   onFailed: (message: string) => void;
 }) {
   const { t } = useT();
+  const friendly = useFriendlyError();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>('STAFF');
@@ -188,7 +191,7 @@ function CreateEmployeeForm({
       setRole('STAFF');
     } catch (caught) {
       // Input is preserved so nothing is retyped after a failure.
-      onFailed((caught as { message?: string }).message ?? 'The account could not be created.');
+      onFailed(friendly(caught).message);
     } finally {
       setSubmitting(false);
     }

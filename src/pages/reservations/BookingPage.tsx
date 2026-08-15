@@ -45,11 +45,13 @@ import { displayName } from '@/domain/customer';
 import { formatOmr } from '@/domain/money';
 import { rankMatches } from '@/domain/search';
 import { ConflictPanel } from './ConflictPanel';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 
 const MAX_DRESSES = 10;
 
 export function BookingPage() {
   const { t, language } = useT();
+  const friendly = useFriendlyError();
   const { principal, state } = useAuth();
   const navigate = useNavigate();
 
@@ -80,15 +82,17 @@ export function BookingPage() {
   useEffect(
     () =>
       observeCustomers({ includeArchived: false }, setCustomers, (caught) =>
-        setError(caught.message),
+        setError(friendly(caught).message),
       ),
-    [],
+    [friendly],
   );
 
   useEffect(
     () =>
-      observeDresses({ includeRetired: false }, setDresses, (caught) => setError(caught.message)),
-    [],
+      observeDresses({ includeRetired: false }, setDresses, (caught) =>
+        setError(friendly(caught).message),
+      ),
+    [friendly],
   );
 
   /*
@@ -337,10 +341,10 @@ export function BookingPage() {
         });
         setNotice(t('waitlist.added'));
       } catch (caught) {
-        setError(caught instanceof Error ? caught.message : t('error.loadFailed'));
+        setError(friendly(caught).message);
       }
     },
-    [customer, principal, actorName, dates, pickupAt, returnAt, eventDate, t],
+    [customer, principal, actorName, dates, pickupAt, returnAt, eventDate, t, friendly],
   );
 
   const blocked = customer === null || dates === null || selectedDressIds.length === 0 || saving;
@@ -372,9 +376,7 @@ export function BookingPage() {
       setError(
         caught instanceof ReservationServiceError && caught.code === 'offline'
           ? t('booking.offline')
-          : caught instanceof Error
-            ? caught.message
-            : t('error.loadFailed'),
+          : friendly(caught).message,
       );
     } finally {
       setSaving(false);

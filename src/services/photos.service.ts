@@ -25,6 +25,7 @@ import { getFirebaseClient } from '@/lib/firebase/client';
 import { primaryAfterRemoval, type DressPhoto } from '@/domain/dress';
 import { auditWriteFor, type AuditActor } from './audit.service';
 import { resizeToBlob, readImageDimensions, type Dimensions } from '@/lib/images/resize';
+import { AppError } from './errors';
 
 /** Mirrors the Storage rules exactly. A mismatch would surface as a denial. */
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
@@ -44,13 +45,9 @@ export const PHOTO_REJECTION_MESSAGES: Readonly<Record<PhotoRejection, string>> 
   NOT_AN_IMAGE: 'That file could not be read as an image.',
 };
 
-export class PhotoUploadError extends Error {
-  readonly code: string;
-
+export class PhotoUploadError extends AppError {
   constructor(code: string, message: string) {
-    super(message);
-    this.name = 'PhotoUploadError';
-    this.code = code;
+    super('PhotoUploadError', code, message);
   }
 }
 

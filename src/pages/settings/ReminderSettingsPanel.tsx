@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useT } from '@/hooks/useT';
 import { DEFAULT_REMINDERS, validateReminder, type ReminderPreference } from '@/domain/settings';
 import { observeReminders, saveReminders } from '@/services/communication.service';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 
 /**
  * Reminder preferences.
@@ -29,6 +30,7 @@ import { observeReminders, saveReminders } from '@/services/communication.servic
  */
 export function ReminderSettingsPanel() {
   const { t } = useT();
+  const friendly = useFriendlyError();
   const { principal, state } = useAuth();
 
   const [stored, setStored] = useState<readonly ReminderPreference[] | null>(null);
@@ -38,8 +40,8 @@ export function ReminderSettingsPanel() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    return observeReminders(setStored, (caught) => setError(caught.message));
-  }, []);
+    return observeReminders(setStored, (caught) => setError(friendly(caught).message));
+  }, [friendly]);
 
   const reminders = draft ?? stored ?? DEFAULT_REMINDERS;
 
@@ -69,7 +71,7 @@ export function ReminderSettingsPanel() {
       });
 
       if (outcome.status === 'failed') {
-        setError(outcome.error.message);
+        setError(friendly(outcome.error).message);
         return;
       }
 

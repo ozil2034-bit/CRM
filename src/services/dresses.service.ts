@@ -43,6 +43,7 @@ import { counterIdFor, formatFor } from '@/domain/numbering';
 import { auditWriteFor, writeAuditInTransaction, type AuditActor } from './audit.service';
 import { commitTransactionWithRetry, commitWrite, type WriteOutcome } from './write';
 import type { DressFormValues } from '@/schemas/dress';
+import { AppError } from './errors';
 
 export interface Dress {
   readonly id: string;
@@ -77,13 +78,9 @@ export interface Dress {
   readonly createdAt: EpochMs;
 }
 
-export class DressServiceError extends Error {
-  readonly code: string;
-
+export class DressServiceError extends AppError {
   constructor(code: string, message: string) {
-    super(message);
-    this.name = 'DressServiceError';
-    this.code = code;
+    super('DressServiceError', code, message);
   }
 }
 

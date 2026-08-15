@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from '@/app/App';
+import { RootErrorBoundary } from '@/app/RootErrorBoundary';
 import { I18nProvider } from '@/lib/i18n/I18nProvider';
 import { ConnectivityProvider } from '@/lib/connectivity/ConnectivityProvider';
 import { readEnvironment } from '@/config/env';
@@ -29,10 +30,17 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <I18nProvider>
-      <ConnectivityProvider>
-        <App environment={environment} />
-      </ConnectivityProvider>
-    </I18nProvider>
+    {/*
+     * Outside every provider on purpose. A crash inside `AuthProvider` or the
+     * router is exactly the crash the route boundary cannot catch, and it is
+     * the one that would otherwise leave a blank tab.
+     */}
+    <RootErrorBoundary>
+      <I18nProvider>
+        <ConnectivityProvider>
+          <App environment={environment} />
+        </ConnectivityProvider>
+      </I18nProvider>
+    </RootErrorBoundary>
   </StrictMode>,
 );

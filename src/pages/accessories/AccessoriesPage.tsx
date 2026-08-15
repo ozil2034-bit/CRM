@@ -13,6 +13,7 @@ import {
   type AccessoryCategory,
 } from '@/domain/accessory';
 import { observeAccessories } from '@/services/accessories.service';
+import { toFriendlyError, type ErrorKind } from '@/domain/firebase-errors';
 
 /**
  * The accessory catalogue.
@@ -27,7 +28,7 @@ export function AccessoriesPage() {
 
   const [snapshot, setSnapshot] = useState<{
     accessories: Accessory[];
-    error: string | null;
+    error: ErrorKind | null;
   } | null>(null);
   const [term, setTerm] = useState('');
   const [category, setCategory] = useState<AccessoryCategory | ''>('');
@@ -36,7 +37,7 @@ export function AccessoriesPage() {
   useEffect(() => {
     return observeAccessories(
       (next) => setSnapshot({ accessories: next, error: null }),
-      (caught) => setSnapshot({ accessories: [], error: caught.message }),
+      (caught) => setSnapshot({ accessories: [], error: toFriendlyError(caught).kind }),
     );
   }, []);
 
@@ -107,7 +108,7 @@ export function AccessoriesPage() {
 
       {snapshot?.error !== null && snapshot?.error !== undefined && (
         <Alert tone="error" className="mt-6">
-          {snapshot.error}
+          {t(`errorKind.${snapshot.error}`)}
         </Alert>
       )}
 

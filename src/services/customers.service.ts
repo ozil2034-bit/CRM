@@ -37,6 +37,7 @@ import { counterIdFor, formatFor } from '@/domain/numbering';
 import { auditWriteFor, writeAuditInTransaction, type AuditActor } from './audit.service';
 import { commitTransactionWithRetry, commitWrite, type WriteOutcome } from './write';
 import type { CustomerFormValues } from '@/schemas/customer';
+import { AppError } from './errors';
 
 export interface Customer {
   readonly id: string;
@@ -58,13 +59,9 @@ export interface Customer {
   readonly updatedBy: string;
 }
 
-export class CustomerServiceError extends Error {
-  readonly code: string;
-
+export class CustomerServiceError extends AppError {
   constructor(code: string, message: string) {
-    super(message);
-    this.name = 'CustomerServiceError';
-    this.code = code;
+    super('CustomerServiceError', code, message);
   }
 }
 

@@ -23,6 +23,7 @@ import { clearIndexedDbPersistence, terminate } from 'firebase/firestore';
 
 import { getFirebaseClient } from '@/lib/firebase/client';
 import { resolveEffectiveRole, type Principal } from '@/domain/authorization';
+import { AppError } from './errors';
 
 export interface AuthSession {
   readonly uid: string;
@@ -41,15 +42,9 @@ export type AuthState =
   | { readonly status: 'signed-out' }
   | { readonly status: 'signed-in'; readonly session: AuthSession };
 
-export class AuthError extends Error {
-  // Declared explicitly rather than as a constructor parameter property:
-  // `erasableSyntaxOnly` forbids syntax that TypeScript has to emit code for.
-  readonly code: string;
-
+export class AuthError extends AppError {
   constructor(code: string, message: string) {
-    super(message);
-    this.name = 'AuthError';
-    this.code = code;
+    super('AuthError', code, message);
   }
 }
 

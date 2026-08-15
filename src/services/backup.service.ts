@@ -34,15 +34,8 @@
  * internally broken, and nobody can tell which half arrived.
  */
 
-import {
-  collection,
-  doc,
-  getDocs,
-  setDoc,
-  Timestamp,
-  writeBatch,
-  type Firestore,
-} from 'firebase/firestore';
+import { collection, getDocs, Timestamp, type Firestore } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 
 import { getFirebaseClient } from '@/lib/firebase/client';
 import {
@@ -56,19 +49,16 @@ import {
   type ImportPlan,
   type ValidationResult,
 } from '@/domain/backup';
-import { auditWriteFor, type AuditActor } from './audit.service';
+import type { AuditActor } from './audit.service';
+import { AppError } from './errors';
 
 function db(): Firestore {
   return getFirebaseClient().db;
 }
 
-export class BackupServiceError extends Error {
-  readonly code: string;
-
+export class BackupServiceError extends AppError {
   constructor(code: string, message: string) {
-    super(message);
-    this.name = 'BackupServiceError';
-    this.code = code;
+    super('BackupServiceError', code, message);
   }
 }
 
@@ -102,50 +92,16 @@ function serialise(value: unknown): unknown {
   return value;
 }
 
-/**
- * Field names that were timestamps and must become timestamps again.
+/*
+ * Deserialisation lives in the Cloud Function, not here.
  *
- * Restored by name, because a number cannot say whether it was an instant or a
- * quantity. The alternative — a tagged wrapper like `{__ts: 1234}` — would make
- * the file harder to read and to repair by hand, which is exactly what somebody
- * doing a restore at nine in the evening needs to be able to do.
+ * The client no longer writes restored records — the rules refuse it — so
+ * turning epoch milliseconds back into `Timestamp` happens in
+ * `functions/src/backup.ts`, next to the writes that need it. Keeping a second
+ * copy here would be two lists of timestamp field names drifting apart, and a
+ * field missing from one restores as a plain number: every date query touching
+ * it silently stops matching.
  */
-const TIMESTAMP_FIELDS: ReadonlySet<string> = new Set([
-  'at',
-  'occurredAt',
-  'issuedAt',
-  'createdAt',
-  'updatedAt',
-  'pickupAt',
-  'returnAt',
-  'actualReturnAt',
-  'blockStartAt',
-  'blockEndAt',
-  'scheduledAt',
-  'eventAt',
-  'voidedAt',
-  'publishedAt',
-]);
-
-function deserialise(value: unknown, key?: string): unknown {
-  if (key !== undefined && TIMESTAMP_FIELDS.has(key)) {
-    if (value === null) return null;
-    if (typeof value === 'number') return Timestamp.fromMillis(value);
-  }
-
-  if (Array.isArray(value)) return value.map((entry) => deserialise(entry));
-
-  if (typeof value === 'object' && value !== null) {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([name, entry]) => [
-        name,
-        deserialise(entry, name),
-      ]),
-    );
-  }
-
-  return value;
-}
 
 /* ------------------------------------------------------------------------ *
  * Export
@@ -302,20 +258,14 @@ export async function inspectBackup(text: string): Promise<InspectedBackup> {
  * ------------------------------------------------------------------------ */
 
 /**
- * Firestore caps a batch at 500 writes.
+ * How many records travel in one request.
  *
- * A restore of a real boutique is thousands of records, so it is committed in
- * chunks. That means a restore is **not atomic across the whole file**, which
- * is a genuine limitation and not a design choice — Firestore offers no
- * cross-batch transaction at this size.
- *
- * What mitigates it: validation has already passed completely, so a mid-restore
- * failure is an infrastructure failure rather than a data one, and re-running
- * the same file is safe because every write is keyed by its original id and
- * therefore idempotent. OPERATIONS.md says to re-run on failure for exactly
- * this reason.
+ * A callable is capped at 10 MB. Reservations carry a whole pricing snapshot and
+ * invoices carry an entire frozen document, so 200 is a size that stays well
+ * inside the cap for the heaviest collection rather than one tuned for the
+ * lightest.
  */
-const BATCH_LIMIT = 450;
+const CHUNK_SIZE = 200;
 
 export interface ImportProgress {
   readonly collection: BackupCollection;
@@ -329,16 +279,37 @@ export interface ImportResult {
 }
 
 /**
- * Write a validated backup back into Firestore.
+ * Restore a validated backup.
  *
- * **Refuses an invalid file outright.** Re-validated here rather than trusting
- * the caller's earlier check: this is the last point before data is written,
- * and the file could have been swapped between inspection and confirmation.
+ * ─────────────────────────────────────────────────────────────────────────
+ * WHY THIS GOES THROUGH A CLOUD FUNCTION
+ * ─────────────────────────────────────────────────────────────────────────
  *
- * Every record keeps its id, so a restore over a live database updates the
- * matching records and creates the rest. Nothing is deleted — a restore puts
- * data back; removing records the file does not mention would make it a
- * synchronisation, which is a different and far more dangerous operation.
+ * A restore writes `reservations`, `reservationItems`, `financialEvents`,
+ * `invoices` and `auditLogs`. Every one of those refuses client writes
+ * entirely — a browser that could write a financial event could write any
+ * financial event — so the rules would reject this from here, and rightly.
+ *
+ * The Function is owner-only and re-validates every chunk with the same domain
+ * validator used below, so the check here is a courtesy that fails fast and
+ * cheaply, not the control.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * WHAT THIS IS NOT
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * **Not atomic across the file.** Firestore has no transaction at this size and
+ * a callable has a 10 MB request cap, so the file goes up a page at a time.
+ *
+ * What makes that survivable: the whole file is validated before anything is
+ * sent, so a mid-restore failure is an infrastructure failure rather than a
+ * data one; and every write is keyed by its original id, so re-running an
+ * interrupted restore converges rather than duplicating. OPERATIONS.md says to
+ * re-run for exactly this reason.
+ *
+ * **Not a synchronisation.** Records the file does not mention are left alone.
+ * Deleting them would make this a very different and far more dangerous
+ * operation.
  */
 export async function importBackup(input: {
   readonly file: unknown;
@@ -355,6 +326,12 @@ export async function importBackup(input: {
   }
 
   const file = input.file as BackupFile;
+
+  const restoreChunk = httpsCallable<
+    { schemaVersion: number; collection: BackupCollection; records: readonly BackupRecord[] },
+    { written: number }
+  >(getFirebaseClient().functions, 'restoreBackupChunk');
+
   let written = 0;
   let touchedCollections = 0;
 
@@ -364,45 +341,42 @@ export async function importBackup(input: {
 
     touchedCollections += 1;
 
-    for (let offset = 0; offset < records.length; offset += BATCH_LIMIT) {
-      const chunk = records.slice(offset, offset + BATCH_LIMIT);
-      const batch = writeBatch(db());
+    for (let offset = 0; offset < records.length; offset += CHUNK_SIZE) {
+      const page = records.slice(offset, offset + CHUNK_SIZE);
 
-      for (const record of chunk) {
-        batch.set(
-          doc(db(), name, record.id),
-          deserialise(record.data) as Record<string, unknown>,
-        );
-      }
+      const result = await restoreChunk({
+        schemaVersion: file.schemaVersion,
+        collection: name,
+        records: page,
+      });
 
-      await batch.commit();
-      written += chunk.length;
-
+      written += result.data.written;
       input.onProgress?.({ collection: name, written, total: validation.totalRecords });
     }
   }
 
   /*
-   * Audited after the fact, and deliberately not inside the restore: an audit
-   * entry claiming a restore that then failed would be worse than none. This
-   * one records what actually landed.
+   * Audited after the chunks, never before. An entry claiming a restore that
+   * then failed halfway would be worse than none; this one records what landed.
    */
-  const audit = auditWriteFor(db(), {
-    actor: input.actor,
-    action: 'data.imported',
-    entityType: 'settings',
-    entityId: 'backup',
-    entityCode: 'backup',
-    after: {
-      records: written,
-      collections: touchedCollections,
-      schemaVersion: file.schemaVersion,
-      exportedAt: file.exportedAt,
-      fromProject: file.projectId,
+  const finish = httpsCallable<
+    {
+      records: number;
+      collections: number;
+      schemaVersion: number;
+      exportedAt: string;
+      fromProject: string;
     },
-  });
+    { ok: true }
+  >(getFirebaseClient().functions, 'finishRestore');
 
-  await setDoc(audit.ref, audit.data);
+  await finish({
+    records: written,
+    collections: touchedCollections,
+    schemaVersion: file.schemaVersion,
+    exportedAt: file.exportedAt,
+    fromProject: file.projectId,
+  });
 
   return { written, collections: touchedCollections };
 }

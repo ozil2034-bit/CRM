@@ -16,6 +16,7 @@ import { DRESS_CONDITIONS } from '@/domain/dress';
 import { EMPTY_DRESS_FORM, dressFormSchema, type DressFormValues } from '@/schemas/dress';
 import type { Baisa } from '@/domain/money';
 import type { WriteOutcome } from '@/services/write';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 
 /**
  * Create or edit a dress.
@@ -34,6 +35,7 @@ export function DressFormPage() {
 
   const navigate = useNavigate();
   const { t } = useT();
+  const friendly = useFriendlyError();
   const { principal, state, can } = useAuth();
 
   const [values, setValues] = useState<DressFormValues>(EMPTY_DRESS_FORM);
@@ -119,7 +121,7 @@ export function DressFormPage() {
             actor,
             canSetPurchaseCost: canSeeCost,
           },
-          (error) => setBanner({ tone: 'error', text: error.message }),
+          (error) => setBanner({ tone: 'error', text: friendly(error).message }),
         );
         reportOutcome(outcome);
         navigate(`/inventory/${dressId}`);
@@ -135,7 +137,7 @@ export function DressFormPage() {
       // Form values are untouched — nothing is retyped after a failure.
       setBanner({
         tone: 'error',
-        text: (caught as { message?: string }).message ?? t('error.loadFailed'),
+        text: friendly(caught).message,
       });
     } finally {
       setSubmitting(false);

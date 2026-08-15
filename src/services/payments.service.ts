@@ -39,14 +39,11 @@ import {
 } from '@/domain/ledger';
 import type { PricingSnapshot } from '@/domain/reservation-pricing';
 import type { EpochMs } from '@/domain/datetime';
+import { AppError } from './errors';
 
-export class PaymentServiceError extends Error {
-  readonly code: string;
-
+export class PaymentServiceError extends AppError {
   constructor(code: string, message: string) {
-    super(message);
-    this.name = 'PaymentServiceError';
-    this.code = code;
+    super('PaymentServiceError', code, message);
   }
 }
 

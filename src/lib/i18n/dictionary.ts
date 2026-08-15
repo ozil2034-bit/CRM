@@ -441,6 +441,35 @@ export const en = {
   'error.permission': 'You do not have permission to do that.',
   'error.notFound': 'Not found.',
   'error.required': 'This field is required.',
+
+  /*
+   * The situations `toFriendlyError` recognises, one string each.
+   *
+   * The domain module decides *which* situation a thrown value is; the
+   * wording lives here, because an Arabic employee reading a failure deserves
+   * Arabic as much as one reading a label.
+   */
+  'errorKind.offline':
+    'This needs an internet connection. Check the connection and try again — nothing was lost.',
+  'errorKind.timeout': 'The server took too long to answer. Try again.',
+  'errorKind.permission': 'You do not have permission to do that. Ask the owner if you need access.',
+  'errorKind.unauthenticated': 'Your session has ended. Sign in again to continue.',
+  'errorKind.notFound': 'That record no longer exists. It may have been removed on another device.',
+  'errorKind.conflict':
+    'Somebody else changed this at the same moment. Reload to see the current version, then try again.',
+  'errorKind.quota': 'The system is busy. Wait a moment and try again.',
+  'errorKind.invalid': 'Some of the details are not valid. Check the form and try again.',
+  'errorKind.unknown': 'Something went wrong. Try again, and tell the owner if it keeps happening.',
+
+  // The error boundary
+  'crash.title': 'This screen could not be displayed',
+  'crash.eyebrow': 'Something went wrong',
+  'crash.reassurance':
+    'Nothing you had already saved has been affected. Nothing was written to the boutique’s records by this failure.',
+  'crash.retry': 'Try this screen again',
+  'crash.home': 'Return to Today',
+  'crash.reload': 'Reload the application',
+  'crash.detail': 'Technical detail',
   /* ---------------------------------------------------------------- *
    * Phase 8 — communication, Arabic and settings
    * ---------------------------------------------------------------- */
@@ -1300,6 +1329,26 @@ export const ar: Record<TranslationKey, string> = {
   'error.permission': 'ليس لديك صلاحية للقيام بذلك.',
   'error.notFound': 'غير موجود.',
   'error.required': 'هذا الحقل مطلوب.',
+
+  'errorKind.offline':
+    'يتطلب هذا اتصالًا بالإنترنت. تحقّقي من الاتصال ثم أعيدي المحاولة — لم يُفقد شيء.',
+  'errorKind.timeout': 'استغرق الخادم وقتًا طويلًا للرد. أعيدي المحاولة.',
+  'errorKind.permission': 'ليس لديك صلاحية للقيام بذلك. اطلبي من المالك منحك الصلاحية.',
+  'errorKind.unauthenticated': 'انتهت جلستك. سجّلي الدخول مرة أخرى للمتابعة.',
+  'errorKind.notFound': 'لم يعد هذا السجل موجودًا. ربما حُذف من جهاز آخر.',
+  'errorKind.conflict':
+    'قام شخص آخر بتغيير هذا في اللحظة نفسها. أعيدي تحميل الصفحة لرؤية النسخة الحالية ثم حاولي مجددًا.',
+  'errorKind.quota': 'النظام مشغول. انتظري لحظة ثم أعيدي المحاولة.',
+  'errorKind.invalid': 'بعض البيانات غير صالحة. راجعي النموذج ثم أعيدي المحاولة.',
+  'errorKind.unknown': 'حدث خطأ ما. أعيدي المحاولة، وأبلغي المالك إذا تكرر الأمر.',
+
+  'crash.title': 'تعذّر عرض هذه الشاشة',
+  'crash.eyebrow': 'حدث خطأ ما',
+  'crash.reassurance': 'لم يتأثر أي شيء سبق حفظه. ولم يُكتب أي شيء في سجلات البوتيك بسبب هذا الخطأ.',
+  'crash.retry': 'إعادة محاولة هذه الشاشة',
+  'crash.home': 'العودة إلى اليوم',
+  'crash.reload': 'إعادة تحميل التطبيق',
+  'crash.detail': 'تفاصيل تقنية',
 
   'nav.calendar': 'التقويم',
   'nav.accessories': 'الإكسسوارات',

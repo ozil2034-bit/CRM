@@ -30,6 +30,7 @@ import {
 import type { CancellationTier } from '@/domain/cancellation';
 import { auditWriteFor, type AuditActor } from './audit.service';
 import { commitWrite, type WriteOutcome } from './write';
+import { AppError } from './errors';
 
 const SETTINGS_PATH = ['settings', 'app'] as const;
 
@@ -37,13 +38,9 @@ function db(): Firestore {
   return getFirebaseClient().db;
 }
 
-export class SettingsServiceError extends Error {
-  readonly code: string;
-
+export class SettingsServiceError extends AppError {
   constructor(code: string, message: string) {
-    super(message);
-    this.name = 'SettingsServiceError';
-    this.code = code;
+    super('SettingsServiceError', code, message);
   }
 }
 

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Azhary Boutique — production wedding dress management platform",
+  "description": "Azhary Boutique \u2014 production wedding dress management platform",
   "engines": {
     "node": ">=22.12.0"
   },
@@ -24,13 +24,14 @@
     "test:rules": "firebase emulators:exec --only firestore,storage --project demo-azhary-rules \"vitest run --config vitest.rules.config.ts\"",
     "emulators": "firebase emulators:start",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
-    "test:functions": "npm run build:functions && npm run test:functions:auth && npm run test:functions:catalogue && npm run test:functions:reservations && npm run test:functions:payments && npm run test:functions:documents && npm run test:functions:amendments",
+    "test:functions": "npm run build:functions && npm run test:functions:auth && npm run test:functions:catalogue && npm run test:functions:reservations && npm run test:functions:payments && npm run test:functions:documents && npm run test:functions:amendments && npm run test:functions:backup",
     "test:functions:auth": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts auth-flow\"",
     "test:functions:catalogue": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts catalogue-crud\"",
     "test:functions:reservations": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts reservations\"",
     "test:functions:payments": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts payments\"",
     "test:functions:documents": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts documents\"",
-    "test:functions:amendments": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts amendments\""
+    "test:functions:amendments": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts amendments\"",
+    "test:functions:backup": "npm run build:functions && AZHARY_BOOTSTRAP_TOKEN=emulator-setup-token firebase emulators:exec --only auth,firestore,functions,storage --project demo-azhary-functions \"vitest run --config vitest.functions.config.ts backup\""
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",

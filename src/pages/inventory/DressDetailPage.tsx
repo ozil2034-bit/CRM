@@ -16,10 +16,12 @@ import { removeDressPhoto, setPrimaryPhoto, uploadDressPhoto } from '@/services/
 import { DRESS_STATUSES, refuseManualStatusChange, resolvePrimaryPhoto } from '@/domain/dress';
 import { formatOmr, type Baisa } from '@/domain/money';
 import { cn } from '@/lib/utils/cn';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 
 export function DressDetailPage() {
   const { dressId } = useParams<{ dressId: string }>();
   const { t } = useT();
+  const friendly = useFriendlyError();
   const { principal, state, can } = useAuth();
 
   const [dress, setDress] = useState<Dress | null>(null);
@@ -98,7 +100,7 @@ export function DressDetailPage() {
     } catch (caught) {
       setBanner({
         tone: 'error',
-        text: (caught as { message?: string }).message ?? 'The photo could not be uploaded.',
+        text: friendly(caught).message,
       });
     } finally {
       setUploading(false);
@@ -127,7 +129,7 @@ export function DressDetailPage() {
     } catch (caught) {
       setBanner({
         tone: 'error',
-        text: (caught as { message?: string }).message ?? t('error.loadFailed'),
+        text: friendly(caught).message,
       });
     } finally {
       setBusy(false);

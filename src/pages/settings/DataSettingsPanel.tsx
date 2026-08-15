@@ -4,13 +4,14 @@ import { Alert, Button } from '@/design-system';
 import { useAuth } from '@/hooks/useAuth';
 import { useT } from '@/hooks/useT';
 import { useConnectivity } from '@/hooks/useConnectivity';
-import { toFriendlyError } from '@/domain/firebase-errors';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 import { CURRENT_SCHEMA_VERSION, type BackupProblem } from '@/domain/backup';
 import {
   downloadBackup,
   exportAllData,
   importBackup,
   inspectBackup,
+  BackupServiceError,
   type InspectedBackup,
 } from '@/services/backup.service';
 import { readEnvironment } from '@/config/env';
@@ -26,6 +27,7 @@ export function DataSettingsPanel() {
   const { t } = useT();
   const { principal, state } = useAuth();
   const { isOffline } = useConnectivity();
+  const friendly = useFriendlyError();
 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -72,7 +74,7 @@ export function DataSettingsPanel() {
         `${t('backup.exported')} ${String(result.totalRecords)} ${t('backup.records')}.`,
       );
     } catch (caught) {
-      setError(toFriendlyError(caught).message);
+      setError(friendly(caught).message);
     } finally {
       setProgress(null);
       setBusy(false);
@@ -88,7 +90,7 @@ export function DataSettingsPanel() {
     try {
       setInspected(await inspectBackup(await file.text()));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : toFriendlyError(caught).message);
+      setError(caught instanceof BackupServiceError ? caught.message : friendly(caught).message);
     } finally {
       setBusy(false);
     }
@@ -111,7 +113,7 @@ export function DataSettingsPanel() {
       setNotice(`${t('backup.imported')} ${String(result.written)} ${t('backup.records')}.`);
       setInspected(null);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : toFriendlyError(caught).message);
+      setError(caught instanceof BackupServiceError ? caught.message : friendly(caught).message);
     } finally {
       setProgress(null);
       setBusy(false);

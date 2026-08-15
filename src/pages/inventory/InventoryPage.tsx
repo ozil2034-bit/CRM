@@ -12,6 +12,7 @@ import { rankMatches } from '@/domain/search';
 import { DRESS_STATUSES, resolvePrimaryPhoto, type DressStatus } from '@/domain/dress';
 import { formatOmr } from '@/domain/money';
 import { cn } from '@/lib/utils/cn';
+import { toFriendlyError, type ErrorKind } from '@/domain/firebase-errors';
 
 type ViewMode = 'gallery' | 'list';
 
@@ -30,7 +31,7 @@ export function InventoryPage() {
   const [snapshot, setSnapshot] = useState<{
     key: string;
     dresses: Dress[];
-    error: string | null;
+    error: ErrorKind | null;
   } | null>(null);
   const [term, setTerm] = useState('');
   const [includeRetired, setIncludeRetired] = useState(false);
@@ -55,7 +56,7 @@ export function InventoryPage() {
     return observeDresses(
       { includeRetired },
       (next) => setSnapshot({ key, dresses: next, error: null }),
-      (caught) => setSnapshot({ key, dresses: [], error: caught.message }),
+      (caught) => setSnapshot({ key, dresses: [], error: toFriendlyError(caught).kind }),
     );
   }, [includeRetired]);
 
@@ -212,7 +213,7 @@ export function InventoryPage() {
 
       {error && (
         <Alert tone="error" className="mt-6">
-          {error}
+          {t(`errorKind.${error}`)}
         </Alert>
       )}
 

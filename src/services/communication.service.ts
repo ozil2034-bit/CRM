@@ -60,6 +60,7 @@ import {
 import type { EpochMs } from '@/domain/datetime';
 import { auditWriteFor, type AuditActor } from './audit.service';
 import { commitWrite, type WriteOutcome } from './write';
+import { AppError } from './errors';
 
 const TEMPLATES_PATH = ['settings', 'messageTemplates'] as const;
 const LOGS = 'notificationLogs';
@@ -75,13 +76,9 @@ const millis = (value: unknown): EpochMs => {
   return typeof value === 'number' ? value : 0;
 };
 
-export class CommunicationServiceError extends Error {
-  readonly code: string;
-
+export class CommunicationServiceError extends AppError {
   constructor(code: string, message: string) {
-    super(message);
-    this.name = 'CommunicationServiceError';
-    this.code = code;
+    super('CommunicationServiceError', code, message);
   }
 }
 

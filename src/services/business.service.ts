@@ -20,14 +20,11 @@ import { getDownloadURL, ref, uploadBytes, type FirebaseStorage } from 'firebase
 import { getFirebaseClient } from '@/lib/firebase/client';
 import type { BusinessSnapshot, TermsSection } from '@/domain/document';
 import { emptyTermsSections, isPublishable } from '@/domain/terms';
+import { AppError } from './errors';
 
-export class BusinessServiceError extends Error {
-  readonly code: string;
-
+export class BusinessServiceError extends AppError {
   constructor(code: string, message: string) {
-    super(message);
-    this.name = 'BusinessServiceError';
-    this.code = code;
+    super('BusinessServiceError', code, message);
   }
 }
 

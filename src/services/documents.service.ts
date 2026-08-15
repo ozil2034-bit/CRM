@@ -57,14 +57,11 @@ import {
 import type { PricingSnapshot } from '@/domain/reservation-pricing';
 import type { EpochMs } from '@/domain/datetime';
 import type { DisplayEvent } from './payments.service';
+import { AppError } from './errors';
 
-export class DocumentServiceError extends Error {
-  readonly code: string;
-
+export class DocumentServiceError extends AppError {
   constructor(code: string, message: string) {
-    super(message);
-    this.name = 'DocumentServiceError';
-    this.code = code;
+    super('DocumentServiceError', code, message);
   }
 }
 

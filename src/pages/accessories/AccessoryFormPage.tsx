@@ -18,6 +18,7 @@ import {
   updateAccessory,
 } from '@/services/accessories.service';
 import type { Baisa } from '@/domain/money';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 
 /**
  * Create or edit an accessory.
@@ -33,6 +34,7 @@ export function AccessoryFormPage() {
 
   const navigate = useNavigate();
   const { t } = useT();
+  const friendly = useFriendlyError();
   const { principal, state, can } = useAuth();
 
   const [values, setValues] = useState<AccessoryFormValues>(EMPTY_ACCESSORY_FORM);
@@ -102,7 +104,7 @@ export function AccessoryFormPage() {
         });
 
         if (outcome.status === 'failed') {
-          setBanner({ tone: 'error', text: outcome.error.message });
+          setBanner({ tone: 'error', text: friendly(outcome.error).message });
           return;
         }
 
@@ -132,7 +134,7 @@ export function AccessoryFormPage() {
     });
 
     if (outcome.status === 'failed') {
-      setBanner({ tone: 'error', text: outcome.error.message });
+      setBanner({ tone: 'error', text: friendly(outcome.error).message });
     }
   }
 

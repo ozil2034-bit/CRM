@@ -8,6 +8,7 @@ import { observeCustomers, type Customer } from '@/services/customers.service';
 import { displayName } from '@/domain/customer';
 import { rankMatches } from '@/domain/search';
 import { tryParseOmanPhone } from '@/domain/phone';
+import { toFriendlyError, type ErrorKind } from '@/domain/firebase-errors';
 
 export function CustomersPage() {
   const { t, language } = useT();
@@ -16,7 +17,7 @@ export function CustomersPage() {
   const [snapshot, setSnapshot] = useState<{
     key: string;
     customers: Customer[];
-    error: string | null;
+    error: ErrorKind | null;
   } | null>(null);
   const [term, setTerm] = useState('');
   const [includeArchived, setIncludeArchived] = useState(false);
@@ -32,7 +33,7 @@ export function CustomersPage() {
     return observeCustomers(
       { includeArchived },
       (next) => setSnapshot({ key, customers: next, error: null }),
-      (caught) => setSnapshot({ key, customers: [], error: caught.message }),
+      (caught) => setSnapshot({ key, customers: [], error: toFriendlyError(caught).kind }),
     );
   }, [includeArchived]);
 
@@ -82,7 +83,7 @@ export function CustomersPage() {
 
       {error && (
         <Alert tone="error" className="mt-6">
-          {error}
+          {t(`errorKind.${error}`)}
         </Alert>
       )}
 

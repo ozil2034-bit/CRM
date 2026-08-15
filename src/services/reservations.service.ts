@@ -42,6 +42,7 @@ import {
 import { toMuscatWallTime, type EpochMs } from '@/domain/datetime';
 import type { PricingSnapshot, ReservationLineItem } from '@/domain/reservation-pricing';
 import type { ReservationAccessory, ReservationAlteration } from '@/domain/amendment';
+import { AppError } from './errors';
 
 export interface ReservationItem {
   readonly id: string;
@@ -92,13 +93,9 @@ export interface Reservation {
   readonly createdBy: string;
 }
 
-export class ReservationServiceError extends Error {
-  readonly code: string;
-
+export class ReservationServiceError extends AppError {
   constructor(code: string, message: string) {
-    super(message);
-    this.name = 'ReservationServiceError';
-    this.code = code;
+    super('ReservationServiceError', code, message);
   }
 }
 

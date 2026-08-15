@@ -14,6 +14,7 @@ import {
   type TemplateKind,
 } from '@/domain/message-template';
 import { observeTemplates, saveTemplates } from '@/services/communication.service';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 
 /**
  * The template editor.
@@ -27,6 +28,7 @@ import { observeTemplates, saveTemplates } from '@/services/communication.servic
  */
 export function TemplateSettingsPanel() {
   const { t } = useT();
+  const friendly = useFriendlyError();
   const { principal, state } = useAuth();
 
   const [stored, setStored] = useState<MessageTemplate[] | null>(null);
@@ -38,8 +40,8 @@ export function TemplateSettingsPanel() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    return observeTemplates(setStored, (caught) => setError(caught.message));
-  }, []);
+    return observeTemplates(setStored, (caught) => setError(friendly(caught).message));
+  }, [friendly]);
 
   // The draft wins while editing; the listener wins when nothing is being typed.
   const templates = draft ?? stored;
@@ -88,7 +90,7 @@ export function TemplateSettingsPanel() {
       });
 
       if (outcome.status === 'failed') {
-        setError(outcome.error.message);
+        setError(friendly(outcome.error).message);
         return;
       }
 

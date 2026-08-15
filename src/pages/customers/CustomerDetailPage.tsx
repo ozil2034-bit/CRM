@@ -10,10 +10,12 @@ import { tryParseOmanPhone } from '@/domain/phone';
 import { cn } from '@/lib/utils/cn';
 import { CustomerHistory } from './CustomerHistory';
 import { CustomerMessages } from './CustomerMessages';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 
 export function CustomerDetailPage() {
   const { customerId } = useParams<{ customerId: string }>();
   const { t, language } = useT();
+  const friendly = useFriendlyError();
   const { principal, state, can } = useAuth();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -76,7 +78,7 @@ export function CustomerDetailPage() {
     } catch (caught) {
       setBanner({
         tone: 'error',
-        text: (caught as { message?: string }).message ?? t('error.loadFailed'),
+        text: friendly(caught).message,
       });
     } finally {
       setBusy(false);

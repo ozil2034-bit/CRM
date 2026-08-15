@@ -28,7 +28,6 @@ import {
   refundPayment,
   reversePayment,
   settleDeposit,
-  PaymentServiceError,
   type CancellationQuoteResult,
   type DisplayEvent,
 } from '@/services/payments.service';
@@ -44,6 +43,7 @@ import { formatMuscat, toMuscatWallTime } from '@/domain/datetime';
 import { baisa, formatOmr, type Baisa } from '@/domain/money';
 import type { Reservation } from '@/services/reservations.service';
 import { MoneyField } from '@/components/MoneyField';
+import { useFriendlyError } from '@/hooks/useFriendlyError';
 
 /** Which action form is open. Only one at a time — this is a counter, not a form. */
 type OpenForm =
@@ -63,6 +63,7 @@ export interface MoneyPanelProps {
 
 export function MoneyPanel({ reservation, minPickupPaymentPercent }: MoneyPanelProps) {
   const { t, language } = useT();
+  const friendly = useFriendlyError();
   const { isOwner } = useAuth();
 
   const [events, setEvents] = useState<DisplayEvent[]>([]);
@@ -75,9 +76,9 @@ export function MoneyPanel({ reservation, minPickupPaymentPercent }: MoneyPanelP
     () =>
       observeFinancialEvents(reservation.id, setEvents, (caught) => {
         setEvents([]);
-        setError(caught.message);
+        setError(friendly(caught).message);
       }),
-    [reservation.id],
+    [reservation.id, friendly],
   );
 
   const position = positionOf(reservation.pricing, events);
@@ -101,18 +102,12 @@ export function MoneyPanel({ reservation, minPickupPaymentPercent }: MoneyPanelP
         setNotice(result.duplicate ? t('money.alreadyRecorded') : t('money.recorded'));
         setOpen('none');
       } catch (caught) {
-        setError(
-          caught instanceof PaymentServiceError
-            ? caught.message
-            : caught instanceof Error
-              ? caught.message
-              : t('error.loadFailed'),
-        );
+        setError(friendly(caught).message);
       } finally {
         setBusy(false);
       }
     },
-    [t],
+    [t, friendly],
   );
 
   return (

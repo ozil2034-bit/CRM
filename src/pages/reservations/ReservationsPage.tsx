@@ -15,6 +15,7 @@ import {
   type ReservationItem,
 } from '@/services/reservations.service';
 import { RESERVATION_STATUS_TONE } from './status-tone';
+import { toFriendlyError, type ErrorKind } from '@/domain/firebase-errors';
 
 /** Bookings that are over, and would otherwise bury the live ones. */
 const FINISHED = new Set<ReservationStatus>(['Closed', 'Cancelled', 'No-Show']);
@@ -37,7 +38,7 @@ export function ReservationsPage() {
 
   const [snapshot, setSnapshot] = useState<{
     reservations: LiveReservation[];
-    error: string | null;
+    error: ErrorKind | null;
   } | null>(null);
   const [items, setItems] = useState<ReservationItem[]>([]);
 
@@ -51,7 +52,7 @@ export function ReservationsPage() {
   useEffect(() => {
     return observeLiveReservations(
       (next) => setSnapshot({ reservations: next, error: null }),
-      (caught) => setSnapshot({ reservations: [], error: caught.message }),
+      (caught) => setSnapshot({ reservations: [], error: toFriendlyError(caught).kind }),
     );
   }, []);
 
@@ -240,7 +241,7 @@ export function ReservationsPage() {
 
       {snapshot?.error !== null && snapshot?.error !== undefined && (
         <Alert tone="error" className="mt-6">
-          {snapshot.error}
+          {t(`errorKind.${snapshot.error}`)}
         </Alert>
       )}
 

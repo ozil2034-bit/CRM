@@ -37,6 +37,7 @@ import { counterIdFor, formatFor } from '@/domain/numbering';
 import { auditWriteFor, writeAuditInTransaction, type AuditActor } from './audit.service';
 import { commitTransactionWithRetry, commitWrite, type WriteOutcome } from './write';
 import type { AccessoryFormValues } from '@/schemas/accessory';
+import { AppError } from './errors';
 
 const ACCESSORIES = 'accessories';
 
@@ -44,13 +45,9 @@ function db(): Firestore {
   return getFirebaseClient().db;
 }
 
-export class AccessoryServiceError extends Error {
-  readonly code: string;
-
+export class AccessoryServiceError extends AppError {
   constructor(code: string, message: string) {
-    super(message);
-    this.name = 'AccessoryServiceError';
-    this.code = code;
+    super('AccessoryServiceError', code, message);
   }
 }
 
