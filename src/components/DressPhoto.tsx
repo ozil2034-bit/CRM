@@ -8,6 +8,14 @@ export interface DressPhotoProps {
   readonly photo: DressPhotoRef | null;
   readonly alt: string;
   readonly prefer?: 'thumb' | 'large';
+  /**
+   * Load immediately rather than when scrolled into view.
+   *
+   * For the one photograph that is certainly above the fold — a dress detail
+   * page's hero. Everything in a grid stays lazy: a boutique with three hundred
+   * gowns must not fetch three hundred images to show twelve.
+   */
+  readonly eager?: boolean;
   readonly className?: string;
 }
 
@@ -24,7 +32,13 @@ interface Resolved {
  * to fill a tile cuts off the hem or the neckline, which are exactly what staff
  * are looking at. Letterboxing shows the whole garment at its true proportions.
  */
-export function DressPhoto({ photo, alt, prefer = 'thumb', className }: DressPhotoProps) {
+export function DressPhoto({
+  photo,
+  alt,
+  prefer = 'thumb',
+  eager = false,
+  className,
+}: DressPhotoProps) {
   const [resolved, setResolved] = useState<Resolved | null>(null);
 
   const path =
@@ -84,7 +98,7 @@ export function DressPhoto({ photo, alt, prefer = 'thumb', className }: DressPho
         <img
           src={current.url}
           alt={alt}
-          loading="lazy"
+          loading={eager ? 'eager' : 'lazy'}
           decoding="async"
           className="size-full object-contain"
           onError={() => setResolved({ path: path ?? '', url: null, failed: true })}

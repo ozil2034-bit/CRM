@@ -103,6 +103,31 @@ export function readEnvironment(
     };
   }
 
+  /*
+   * A production build must never carry a placeholder (§9.35).
+   *
+   * The failure this prevents is quiet and expensive: a build that looks
+   * production-ready, deploys, and points at nothing — or worse, at the
+   * development project, where it would write real customer records into a
+   * database nobody backs up.
+   *
+   * Checked here rather than only in a deploy script because the deploy script
+   * is the thing somebody bypasses at eleven at night.
+   */
+  if (isProduction) {
+    const placeholders = findPlaceholders(value);
+
+    if (placeholders.length > 0) {
+      return {
+        status: 'invalid',
+        issues: placeholders.map(
+          (key) =>
+            `${key} still contains a placeholder value. A production build requires the real Firebase configuration.`,
+        ),
+      };
+    }
+  }
+
   return {
     status: 'ok',
     env: {
@@ -120,6 +145,38 @@ export function readEnvironment(
       isProduction,
     },
   };
+}
+
+/**
+ * Markers that mean "somebody has not filled this in yet".
+ *
+ * Matched case-insensitively as a substring, because the shapes people actually
+ * leave behind vary: `REPLACE_WITH_PROD_PROJECT_ID`, `your-project-id`,
+ * `xxx`, `TODO`.
+ */
+const PLACEHOLDER_MARKERS: readonly string[] = [
+  'replace_with',
+  'replace-with',
+  'your-project',
+  'your_project',
+  'yourproject',
+  'changeme',
+  'change-me',
+  'placeholder',
+  'example.com',
+  'todo',
+  'xxxx',
+];
+
+/** Which required Firebase values still look like a template. */
+function findPlaceholders(value: Record<string, unknown>): string[] {
+  return REQUIRED_ENV_KEYS.filter((key) => {
+    const entry = value[key];
+    if (typeof entry !== 'string') return false;
+
+    const lowered = entry.toLowerCase();
+    return PLACEHOLDER_MARKERS.some((marker) => lowered.includes(marker));
+  });
 }
 
 /** The environment variables this application reads, for setup diagnostics. */

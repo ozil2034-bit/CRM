@@ -157,6 +157,7 @@ export function DressDetailPage() {
             photo={shown}
             alt={dress.name}
             prefer="large"
+            eager
             className="aspect-[3/4] w-full"
           />
 

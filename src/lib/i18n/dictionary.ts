@@ -634,6 +634,7 @@ export const en = {
    * Phase 9 — connectivity, PWA, backup
    * ---------------------------------------------------------------- */
 
+  'settings.tabData': 'Data',
   'connectivity.online': 'Connected',
   'connectivity.offline': 'Offline — some actions are unavailable',
   'connectivity.reconnecting': 'Reconnecting…',
@@ -1635,6 +1636,7 @@ export const ar: Record<TranslationKey, string> = {
   'dressStatus.Under Repair': 'قيد الإصلاح',
   'dressStatus.Retired': 'متوقف',
 
+  'settings.tabData': 'البيانات',
   'connectivity.online': 'متصل',
   'connectivity.offline': 'غير متصل — بعض الإجراءات غير متاحة',
   'connectivity.reconnecting': 'جارٍ إعادة الاتصال…',

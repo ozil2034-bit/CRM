@@ -60,7 +60,10 @@ export type AuditAction =
   | 'templates.updated'
   | 'communication.prepared'
   | 'communication.opened'
-  | 'communication.copied';
+  | 'communication.copied'
+  // Phase 9
+  | 'data.exported'
+  | 'data.imported';
 
 export interface AuditActor {
   readonly uid: string;

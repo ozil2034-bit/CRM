@@ -11,8 +11,16 @@ import { FinancialSettingsPanel } from './FinancialSettingsPanel';
 import { ReservationSettingsPanel } from './ReservationSettingsPanel';
 import { TemplateSettingsPanel } from './TemplateSettingsPanel';
 import { ReminderSettingsPanel } from './ReminderSettingsPanel';
+import { DataSettingsPanel } from './DataSettingsPanel';
 
-type Tab = 'business' | 'financial' | 'reservation' | 'templates' | 'terms' | 'notifications';
+type Tab =
+  | 'business'
+  | 'financial'
+  | 'reservation'
+  | 'templates'
+  | 'terms'
+  | 'notifications'
+  | 'data';
 
 const TABS: readonly { readonly id: Tab; readonly labelKey: TranslationKey }[] = [
   { id: 'business', labelKey: 'settings.tabBusiness' },
@@ -21,12 +29,13 @@ const TABS: readonly { readonly id: Tab; readonly labelKey: TranslationKey }[] =
   { id: 'templates', labelKey: 'settings.tabTemplates' },
   { id: 'terms', labelKey: 'settings.tabTerms' },
   { id: 'notifications', labelKey: 'settings.tabNotifications' },
+  { id: 'data', labelKey: 'settings.tabData' },
 ];
 
 /**
  * Settings, in sections.
  *
- * Six tabs rather than one column of fifty fields. The owner visits this screen
+ * Seven tabs rather than one column of fifty fields. The owner visits this screen
  * rarely and knows what they came to change; a wall of controls makes them read
  * everything to find one thing, and makes a mis-click on the VAT rate more
  * likely, not less.
@@ -89,6 +98,7 @@ export function SettingsPage() {
         {tab === 'reservation' && <ReservationSettingsPanel />}
         {tab === 'templates' && <TemplateSettingsPanel />}
         {tab === 'notifications' && <ReminderSettingsPanel />}
+        {tab === 'data' && <DataSettingsPanel />}
       </div>
     </main>
   );

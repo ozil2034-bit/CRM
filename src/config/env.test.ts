@@ -114,3 +114,84 @@ describe('readEnvironment()', () => {
     expect(result.issues.join('\n')).toContain('VITE_FIREBASE_API_KEY');
   });
 });
+
+/* ------------------------------------------------------------------------ *
+ * Production safety (Phase 9, §34–35)
+ * ------------------------------------------------------------------------ */
+
+describe('a production build must not ship a placeholder', () => {
+  const production = (overrides: Record<string, string> = {}) => ({
+    VITE_FIREBASE_API_KEY: 'AIzaReal',
+    VITE_FIREBASE_AUTH_DOMAIN: 'azhary.firebaseapp.com',
+    VITE_FIREBASE_PROJECT_ID: 'azhary-prod',
+    VITE_FIREBASE_STORAGE_BUCKET: 'azhary-prod.appspot.com',
+    VITE_FIREBASE_MESSAGING_SENDER_ID: '123456789',
+    VITE_FIREBASE_APP_ID: '1:123:web:abc',
+    VITE_APP_ENV: 'production',
+    ...overrides,
+  });
+
+  it('accepts a fully configured production environment', () => {
+    expect(readEnvironment(production()).status).toBe('ok');
+  });
+
+  it('REFUSES the literal placeholder from the template', () => {
+    /*
+     * The failure this prevents is quiet and expensive: a build that looks
+     * production-ready, deploys, and points at nothing.
+     */
+    const result = readEnvironment(
+      production({ VITE_FIREBASE_PROJECT_ID: 'REPLACE_WITH_PROD_PROJECT_ID' }),
+    );
+
+    expect(result.status).toBe('invalid');
+    if (result.status !== 'invalid') return;
+    expect(result.issues.join(' ')).toContain('VITE_FIREBASE_PROJECT_ID');
+  });
+
+  it.each([
+    'your-project-id',
+    'YOUR_PROJECT',
+    'changeme',
+    'placeholder-value',
+    'TODO',
+    'xxxx',
+  ])('refuses the placeholder shape %s', (value) => {
+    expect(readEnvironment(production({ VITE_FIREBASE_PROJECT_ID: value })).status).toBe(
+      'invalid',
+    );
+  });
+
+  it('catches a placeholder in ANY required value, not only the project id', () => {
+    for (const key of [
+      'VITE_FIREBASE_API_KEY',
+      'VITE_FIREBASE_AUTH_DOMAIN',
+      'VITE_FIREBASE_STORAGE_BUCKET',
+      'VITE_FIREBASE_APP_ID',
+    ]) {
+      expect(readEnvironment(production({ [key]: 'REPLACE_WITH_VALUE' })).status).toBe('invalid');
+    }
+  });
+
+  it('ALLOWS a placeholder in development — that is what development is for', () => {
+    const result = readEnvironment(
+      production({ VITE_APP_ENV: 'development', VITE_FIREBASE_PROJECT_ID: 'demo-azhary' }),
+    );
+
+    expect(result.status).toBe('ok');
+  });
+
+  it('does not mistake a legitimate value for a placeholder', () => {
+    // A real project id containing "x" must not trip a substring check.
+    expect(readEnvironment(production({ VITE_FIREBASE_PROJECT_ID: 'azhary-xr-2026' })).status).toBe(
+      'ok',
+    );
+  });
+
+  it('keeps development and production from pointing at each other', () => {
+    // Emulators and demo data are refused in production, so a production build
+    // cannot quietly run against a local or seeded database.
+    expect(readEnvironment(production({ VITE_USE_EMULATORS: 'true' })).status).toBe('invalid');
+    expect(readEnvironment(production({ VITE_DEMO_MODE: 'true' })).status).toBe('invalid');
+  });
+});
