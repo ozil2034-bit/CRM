@@ -11,17 +11,34 @@ fittings, payments, security deposits and invoicing for a bridal boutique.
 
 ## Status
 
-**Phase 8 of 10 complete** — foundation, identity and authorization, the dress
+**Phase 9 of 10 complete** — foundation, identity and authorization, the dress
 and customer catalogue, the reservation engine with its concurrency safety, the
-financial ledger, A4 bilingual documents, the employee experience, and now
-customer communication and the complete Arabic interface.
+financial ledger, A4 bilingual documents, the employee experience, customer
+communication and the complete Arabic interface, and now production resilience:
+an installable application, an explicit offline contract, backup and restore, and
+CSV exports.
 
 WhatsApp is click-to-chat: the application opens a link with the message ready,
 and the employee presses send. It records `Prepared`, `Opened` and `Copied` —
 never `Sent`, because it cannot observe that.
 
-Offline and PWA are Phase 9; production deployment is Phase 10. Nothing is
-deployed and no production project is configured.
+**Offline is a contract, not a feeling.** Reading works from the cache and
+editing an existing dress or customer queues. Creating a reservation, taking a
+payment and issuing a document are **refused**, because their legality depends on
+what the server knows right now — and a reservation judged against an hour-old
+picture of the shop is how the same dress gets promised to two brides. Each
+refusal says which piece of server state is missing.
+
+**Backup and restore are in the application.** Settings → Data exports every
+collection to a JSON file that is downloaded to the device and uploaded nowhere,
+plus five CSV lists for a spreadsheet. Restore is owner-only, runs as a Cloud
+Function, and writes nothing until the owner has seen what would be created and
+what would be overwritten. Ids are never regenerated and historical figures are
+never recomputed. The recovery drill — export, wipe, restore, compare every
+record — runs against the emulator on every change.
+
+Production deployment is Phase 10. Nothing is deployed and no production project
+is configured.
 
 See [PROJECT_PLAN.md](./PROJECT_PLAN.md) for the full phase plan.
 
@@ -89,7 +106,7 @@ project data is read or written in this mode.
 | `npm run test:watch`     | Tests in watch mode                             |
 | `npm run test:coverage`  | Coverage report                                 |
 | `npm run test:rules`     | Security rules against the emulator             |
-| `npm run test:functions` | Cloud Function integration tests (six suites)   |
+| `npm run test:functions` | Cloud Function integration tests (seven suites) |
 | `npm run format`         | Prettier write                                  |
 | `npm run emulators`      | Firebase Emulator Suite                         |
 | **`npm run verify`**     | **Phase gate: lint + typecheck + test + build** |
@@ -101,7 +118,11 @@ project data is read or written in this mode.
 ## Technology
 
 React 19 · TypeScript 6 (strict) · Vite 8 · Tailwind CSS 4 · React Router 7 ·
-TanStack Query 5 · Zustand 5 · Zod 4 · Firebase 12 · Vitest 4
+Zod 4 · Firebase 12 · Vitest 4 · vite-plugin-pwa
+
+Server state is Firestore listeners held in React state; session and preference
+state is React context. `@tanstack/react-query` and `zustand` remain in
+`package.json` from the Phase 1 plan but are not imported anywhere.
 
 ---
 
@@ -112,7 +133,22 @@ monetary value is an integer, branded as `Baisa` in TypeScript. Floating-point
 rials are never stored or computed. See [`src/domain/money.ts`](./src/domain/money.ts).
 
 **Firestore is the source of truth.** IndexedDB offline persistence is a cache.
-`localStorage` is not a database and is blocked by lint.
+`localStorage` is not a database and is blocked by lint; the one thing kept there
+is the interface language.
+
+**An operation whose legality depends on current server state is refused
+offline**, not queued. Availability, a balance, a document number and a unique
+code cannot be decided by a device that has not seen the server. See
+[ARCHITECTURE.md §11a](./ARCHITECTURE.md).
+
+**Nothing private is cached where a sign-out cannot reach it.** The service
+worker precaches the application shell only — no Firestore, Storage or Functions
+responses. Sign-out drops the token, clears the Firestore cache and reloads the
+tab.
+
+**An employee never sees an SDK error message.** A raw `FirebaseError` names
+collections and document paths, and a document path names a customer. See
+[SECURITY.md §7b](./SECURITY.md).
 
 **Business logic lives in `src/domain` and `src/services`, never in components.**
 ESLint enforces the boundary: components cannot import the Firebase SDK, and the

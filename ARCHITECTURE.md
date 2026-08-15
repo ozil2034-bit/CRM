@@ -834,15 +834,23 @@ prevents two employees double-booking one dress (§19 of the specification).
 
 ## 5. Data flow and caching
 
-- **TanStack Query** owns server state. Query keys are structured
-  (`['reservations', { status, dateRange }]`) so invalidation is precise.
-- **Firestore listeners** feed Query's cache for live operational screens
-  (today's pickups, returns, fittings). Everything else uses one-shot reads.
-- **Zustand** holds only session and UI preference state: current user, role,
-  language, direction, sidebar state. Never business data.
+- **Firestore listeners are the state layer.** `observeX(…)` in a service returns
+  an unsubscribe function; a screen subscribes in `useEffect` and holds the
+  result in `useState`. There is no query-cache library between the SDK and the
+  component, because Firestore's own listener *is* a subscription with a cache
+  — putting a second cache in front of it would mean two things to invalidate
+  and two answers to reconcile.
+- **Session and preference state** lives in React context: `AuthProvider` for
+  the identity, `I18nProvider` for language and direction, `ConnectivityProvider`
+  for the connection state. Never business data.
 - **Firestore offline persistence** (IndexedDB, multi-tab) is the offline cache.
   It is a cache. The application never treats it as the record of truth, and never
   reports a write as successful until the server acknowledges it.
+
+> `@tanstack/react-query` and `zustand` appear in `package.json` from the Phase 1
+> plan and are **not imported anywhere**. Nothing bundles them. They are listed
+> here so the discrepancy is recorded rather than discovered; removing them is a
+> Phase 10 cleanup decision.
 
 ### Record creation requires a connection
 
@@ -971,9 +979,178 @@ Every mutation exposes loading, success and failure. Beyond that:
 - Failure preserves form input. Users never retype a reservation.
 - Submit buttons are disabled while in flight and mutations are idempotency-guarded,
   so a double click cannot create two payments.
-- Errors are typed (`AppError` with a code), so the UI can show an actionable
-  message rather than a raw Firebase string.
-- A route-level error boundary catches render failures without blanking the app.
+- Errors are typed, and the type is what decides what an employee sees.
+- Two error boundaries, one for what the router can catch and one for what it
+  cannot.
+
+### Two kinds of error, and why the distinction is a class
+
+`src/services/errors.ts` defines `AppError`, and every deliberate service failure
+extends it — `ReservationServiceError`, `PaymentServiceError`, `AuthError` and ten
+more. That base class exists to answer one question at a `catch` site:
+
+| Thrown value                                   | What it is                                          | What the employee sees      |
+| ---------------------------------------------- | --------------------------------------------------- | --------------------------- |
+| `AppError` subclass                            | A message this application wrote for the counter    | The message, verbatim       |
+| `FirebaseError`, `TypeError`, anything else    | Wording written for a developer, or a bug           | A translated sentence       |
+
+Nothing on a bare `Error` distinguishes the two, and `caught instanceof Error ?
+caught.message : …` — which reads as defensive — will happily print *"Missing or
+insufficient permissions"* to a bride's stylist. The class is what makes the
+check correct.
+
+`useFriendlyError()` performs it. It maps a Firebase code to one of nine
+situations (`src/domain/firebase-errors.ts` — offline, timeout, permission,
+unauthenticated, notFound, conflict, quota, invalid, unknown), looks the
+situation up in the dictionary so an Arabic employee reads Arabic, and passes an
+`AppError`'s own message through untouched. The original goes to the console in
+**development only**: a boutique tablet's console is not a private place, and a
+Firestore error routinely carries the document path of the customer on screen.
+
+### The two boundaries
+
+- **`AppErrorBoundary`** is the router's `errorElement`. It offers a way out
+  rather than a dead end: *try this screen again* re-navigates to the same
+  address, which clears the router's error state and re-mounts the route without
+  a page load; *return to Today* leaves for a screen known to work.
+- **`RootErrorBoundary`** wraps everything in `main.tsx`, outside every provider.
+  It catches what the router cannot — a provider that throws while mounting, a
+  router that could not be constructed — so it deliberately depends on nothing:
+  no hooks, no design-system components, no i18n context. It reads the language
+  preference straight from storage and indexes the dictionary as a plain object,
+  because the screen an Arabic employee is most likely to be alarmed by should
+  not be the one screen that reverts to English.
+
+---
+
+## 11a. Offline — what a disconnected device may decide (Phase 9)
+
+Being installable and working on a weak connection is not permission to do
+everything offline. The governing rule is one sentence:
+
+> **An operation whose legality depends on current server state cannot be
+> decided on a device that has not seen the server.**
+
+`src/domain/connectivity.ts` is that rule as data. It lists fourteen
+`GUARDED_OPERATIONS` and, for each, *which* piece of server state is missing —
+because the refusal an employee reads should say something true about their
+situation, not "you are offline":
+
+| Reason            | Operations                                              | What cannot be known offline                            |
+| ----------------- | ------------------------------------------------------- | ------------------------------------------------------- |
+| `AVAILABILITY`    | reservation create, date change, status change          | Whether another till just booked the same dress          |
+| `LEDGER`          | payment, deposit, refund, reversal, settlement, late fee | The balance, which is a reduction over an event query    |
+| `DOCUMENT_NUMBER` | document issue, void                                    | The next number in a per-year counter                    |
+| `UNIQUE_CODE`     | dress create, customer create, accessory create         | The next code in a counter, with the rule that guards it |
+| `IDENTITY`        | employee create, role change                            | A custom claim only the Admin SDK can write              |
+
+`isOperationAllowed()` returns `state === 'online'` for all fourteen. The
+operation stays a parameter anyway: the *reason* differs per operation, and the
+day one of these becomes safely queueable, that function is the single place
+that changes.
+
+`reconnecting` counts as offline. A device that is trying to reconnect has not
+yet seen the server, and treating "probably back" as "back" is exactly how a
+dress gets double-booked.
+
+The guard is enforced in the service layer (`src/services/offline-guard.ts`,
+called from the reservation, payment, document and amendment services) and not
+merely by disabling a button — a disabled button is a courtesy, not a control.
+
+What *is* allowed offline: reading anything already cached, and editing an
+existing dress or customer. Those are ordinary Firestore writes that apply to the
+local cache immediately and sync later, and the interface says **"Saved on this
+device — it will sync when the connection returns"** rather than "Saved".
+
+---
+
+## 11b. The PWA and the service worker
+
+Generated by `vite-plugin-pwa` in `generateSW` mode. Three choices are worth
+recording:
+
+- **`registerType: 'prompt'`, not `autoUpdate`.** An employee mid-way through
+  taking a payment must not have the application swap underneath them. A new
+  version waits, and is offered.
+- **No runtime caching of Firestore, Storage or Functions.** The precache holds
+  the application shell only — JS, CSS, fonts, icons. Business data caching is
+  Firestore's own IndexedDB persistence, which is bound to a signed-in session
+  and cleared on sign-out. A service worker cache is not: it is shared by
+  everyone who opens the browser, and a cached customer record in it would
+  outlive the session that fetched it.
+- **Source maps are excluded from the precache** (`globIgnores: ['**/*.map']`),
+  so they are not shipped to every installed device.
+
+### Fonts are self-hosted
+
+Inter, Cormorant Garamond, IBM Plex Sans Arabic and Noto Kufi Arabic live in
+`src/assets/fonts/` as WOFF2, with their OFL licences beside them. Nothing is
+requested from Google Fonts. That is partly privacy — a font request tells a
+third party which boutique tablet opened the application and when — and partly
+that an offline-capable application cannot depend on a CDN for its own text.
+
+`font-display: swap` means a first paint before the fonts land may briefly use a
+fallback. On the **print** documents that would be visible in the output, so
+printing is done from a session that has already rendered the application; the
+fonts are in the precache by then.
+
+---
+
+## 11c. Backup and recovery
+
+Export is a client operation and needs no Cloud Function: an owner may already
+*read* everything, so the browser reads all sixteen collections and writes a
+JSON file. Restore is the opposite — `reservations`, `reservationItems`,
+`financialEvents`, `invoices` and `auditLogs` refuse every client write, and that
+refusal is one of the properties the platform rests on. So restore is an
+owner-only Cloud Function (`functions/src/backup.ts`), where the Admin SDK
+bypasses the rules and an ownership check stands in their place.
+
+- **The file carries an envelope**: schema version, export time, application
+  version, project id and environment. A restore into the wrong project is
+  visible before anything is written.
+- **Nothing is written until the owner confirms.** The file is validated whole,
+  then the screen shows what would be created and what would be *overwritten*,
+  per collection.
+- **Ids are never regenerated and figures are never recomputed.** A restored
+  invoice carries the number it was issued with; a restored balance is the
+  reduction of the restored events, not a fresh calculation.
+- **Chunked, therefore not atomic across the whole file.** A callable is capped
+  at 10 MB, and Firestore has no transaction at backup size. What makes that
+  survivable: the client validates the whole file first, the Function
+  re-validates every chunk with the same domain validator, and every write is
+  keyed by its original id — so re-running an interrupted restore converges
+  instead of duplicating.
+- **No secrets, ever.** `FORBIDDEN_FIELDS` in `src/domain/backup.ts` rejects a
+  file containing a bootstrap token, a private key or a credential, in both
+  directions: an export that somehow contained one would fail validation before
+  being offered for download.
+
+The recovery drill (`tests/functions-emulator/backup.test.ts`) runs the whole
+thing end to end against the emulator — build a boutique, export, wipe, restore,
+and compare every record, relationship, financial event, snapshot and audit
+entry with what was there before.
+
+---
+
+## 11d. Sign-out on a shared tablet
+
+The boutique's devices are shared, so sign-out has to settle three things:
+
+1. **Auth** — the token is dropped.
+2. **Disk** — Firestore's IndexedDB cache holds the working set of every customer
+   and reservation the session opened. Signing out does not touch it, so it is
+   terminated and cleared explicitly.
+3. **Memory** — the React tree still holds what it last rendered, and the
+   Firestore handle has just been terminated, so a second sign-in in the same tab
+   would meet a dead client on every read.
+
+A full page load settles all three at once, which is what makes the guarantee
+simple enough to state: **after sign-out there is nothing left in this tab.** The
+navigation goes to `/`, not a reload in place, so the next employee starts at the
+sign-in screen rather than at whichever customer was open. It happens last, so a
+failed cache clear — another tab still holds the database — never leaves a
+session signed in.
 
 ---
 
@@ -1012,6 +1189,12 @@ Detail: [TESTING.md](./TESTING.md).
 | Idempotency key as doc id    | Key stored as a field          | Duplicate detection becomes existence, not a race to detect           |
 | Deposit tracked separately   | One combined balance           | A deposit is not revenue and must never settle a rental               |
 | Overpayment refused          | Accept and hold credit         | Almost always a typing error; credit must be designed, not accidental |
+| Prompt for a new version     | `autoUpdate` service worker    | The application must not swap under an employee taking a payment      |
+| No runtime caching of data   | Cache Firestore responses      | A service-worker cache outlives the session that filled it            |
+| Self-hosted fonts            | Google Fonts CDN               | Offline capability, and no third party told which tablet opened when  |
+| Restore as a Cloud Function  | Relax the rules for restore    | A browser that can write a financial event can write any of them      |
+| Restore chunked, not atomic  | One transaction                | Firestore has no transaction at backup size; convergence instead      |
+| Full page load on sign-out   | Reset state in place           | The only teardown whose completeness can actually be stated           |
 
 ### Revisit if requirements change
 

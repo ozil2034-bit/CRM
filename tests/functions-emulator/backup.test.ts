@@ -47,6 +47,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { initializeFirebaseForTests } from './test-client';
 import { exportAllData, importBackup, inspectBackup } from '@/services/backup.service';
 import { validateBackup, BACKUP_COLLECTIONS, type BackupCollection } from '@/domain/backup';
+import { exportCsv, CSV_SUBJECTS } from '@/services/csv-export.service';
 import { reduceLedger } from '@/domain/ledger';
 
 const PROJECT_ID = 'demo-azhary-functions';
@@ -573,4 +574,106 @@ describe('refusing to restore', () => {
     expect(reservations?.create).toBe(0);
     expect(reservations?.update).toBeGreaterThan(0);
   }, 120_000);
+});
+
+/* ------------------------------------------------------------------------ *
+ * CSV — the lists the boutique is asked for
+ * ------------------------------------------------------------------------ */
+
+describe('CSV export', () => {
+  /** The file, split into rows, with the byte-order mark removed. */
+  async function rowsOf(subject: Parameters<typeof exportCsv>[0]): Promise<string[]> {
+    const result = await exportCsv(subject);
+    return result.content.replace(/^\uFEFF/, '').trimEnd().split('\r\n');
+  }
+
+  it('begins with the byte-order mark, so Excel reads Arabic', async () => {
+    const result = await exportCsv('customers');
+
+    expect(result.content.charCodeAt(0)).toBe(0xfeff);
+  }, 120_000);
+
+  it('carries the Arabic name through unchanged', async () => {
+    const rows = await rowsOf('customers');
+
+    expect(rows.some((row) => row.includes('عروس النسخة الاحتياطية'))).toBe(true);
+  }, 120_000);
+
+  it('exports every customer, one row each, under a heading row', async () => {
+    const customers = await getDocs(collection(db, 'customers'));
+    const rows = await rowsOf('customers');
+
+    expect(rows).toHaveLength(customers.size + 1);
+    expect(rows[0]).toContain('Code');
+  }, 120_000);
+
+  it('writes money as a bare three-decimal number a spreadsheet can sum', async () => {
+    const rows = await rowsOf('payments');
+    const body = rows.slice(1);
+
+    // The 200.000 payment and the 100.000 deposit, as plain numbers.
+    expect(body.some((row) => row.includes('200.000'))).toBe(true);
+    expect(body.some((row) => row.includes('100.000'))).toBe(true);
+
+    for (const row of body) {
+      expect(row).not.toContain('OMR');
+    }
+  }, 120_000);
+
+  it('never exports a dress purchase cost', async () => {
+    /*
+     * Purchase cost is owner-only inside the application. A spreadsheet that
+     * leaves the building must not be the way it escapes.
+     */
+    const result = await exportCsv('dresses');
+
+    expect(result.content.toLowerCase()).not.toContain('purchase');
+  }, 120_000);
+
+  it('never exports a customer measurement', async () => {
+    const result = await exportCsv('customers');
+    const lowered = result.content.toLowerCase();
+
+    for (const field of ['bust', 'waist', 'hips', 'measurement']) {
+      expect(lowered).not.toContain(field);
+    }
+  }, 120_000);
+
+  it('carries no credential, in any list', async () => {
+    for (const subject of CSV_SUBJECTS) {
+      const result = await exportCsv(subject);
+      const lowered = result.content.toLowerCase();
+
+      for (const forbidden of ['bootstraptoken', 'setuptoken', 'privatekey', 'password']) {
+        expect(lowered, `${subject} contains ${forbidden}`).not.toContain(forbidden);
+      }
+    }
+  }, 180_000);
+
+  it('names the file after the list and the day', async () => {
+    const result = await exportCsv('invoices');
+
+    expect(result.filename).toMatch(/^azhary-invoices-\d{4}-\d{2}-\d{2}\.csv$/);
+  }, 120_000);
+
+  it('reports the issued invoice with the number it was issued under', async () => {
+    const invoices = await getDocs(collection(db, 'invoices'));
+    const issued = invoices.docs[0]?.data()['documentNumber'] as string;
+    const rows = await rowsOf('invoices');
+
+    expect(rows.some((row) => row.startsWith(issued))).toBe(true);
+  }, 120_000);
+
+  it('gives every list a heading row, whatever it contains', async () => {
+    /*
+     * A zero-byte file looks like a failure. A heading row says "there are no
+     * payments yet", which is a different and true thing.
+     */
+    for (const subject of CSV_SUBJECTS) {
+      const rows = await rowsOf(subject);
+
+      expect(rows.length, subject).toBeGreaterThanOrEqual(1);
+      expect(rows[0], subject).not.toBe('');
+    }
+  }, 180_000);
 });

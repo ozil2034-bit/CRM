@@ -948,3 +948,102 @@ type, size and role on every path (§57, see SECURITY.md).
   fabricated KPI counters would be exactly the fake dashboard the spec forbids.
   If read volume later justifies aggregation, counters will be maintained by Cloud
   Functions from real writes.
+
+---
+
+## 7. The backup file (Phase 9)
+
+A backup is a single JSON document. It is not a Firestore export, it is not a
+proprietary format, and it is deliberately readable and repairable by hand —
+because the person opening it is doing so at nine in the evening after something
+went wrong.
+
+```jsonc
+{
+  "schemaVersion": 1,
+  "exportedAt": "2026-08-15T14:31:07.204Z", // ISO 8601, UTC
+  "applicationVersion": "0.1.0",
+  "projectId": "azhary-boutique-dev",
+  "environment": "development",
+  "collections": {
+    "customers": [{ "id": "8kQ…", "data": { "nameEn": "…", "createdAt": 1755267067204 } }]
+  }
+}
+```
+
+### The envelope
+
+Every field in it answers a question somebody restoring will actually ask.
+
+| Field                | Question it answers                                        |
+| -------------------- | ---------------------------------------------------------- |
+| `schemaVersion`      | Can this application read this file at all?                |
+| `exportedAt`         | How much work happened after this snapshot?                |
+| `applicationVersion` | Which build wrote it?                                      |
+| `projectId`          | Am I about to restore development data into production?    |
+| `environment`        | Same question, in words                                    |
+
+`CURRENT_SCHEMA_VERSION` is `1` and `SUPPORTED_SCHEMA_VERSIONS` is `[1]`. A file
+from an unsupported version is refused with that reason, not with a parse error
+three collections in.
+
+### The collections, in dependency order
+
+`BACKUP_COLLECTIONS` is ordered so that a record's referents are restored before
+it is:
+
+```
+businessProfile → settings → termsVersions → counters →
+dresses → customers → accessories →
+reservations → reservationItems → fittings → waitlist →
+financialEvents → invoices → damageLogs → notificationLogs → auditLogs
+```
+
+`users` is **not** in the list. Identity lives in Firebase Auth and in custom
+claims; a backup can carry neither, and pretending otherwise would produce a file
+that looks like it could restore access and cannot.
+
+### Timestamps
+
+Firestore `Timestamp` values are written as **epoch milliseconds** and restored by
+field name — `TIMESTAMP_FIELDS` in `functions/src/backup.ts` lists them. A tagged
+wrapper (`{"__ts": 1755267067204}`) would be unambiguous but would make the file
+hostile to read and to repair, which is the property that matters more here.
+
+The consequence: **a timestamp field missing from that list restores as a plain
+number**, and every date query touching it silently stops matching. That is the
+kind of failure discovered weeks later by a booking that does not appear on a
+calendar, so the list is kept in step with the exporter and the recovery drill
+asserts that a restored `pickupAt` is a `Timestamp` and not a number.
+
+### Validation
+
+`validateBackup()` (`src/domain/backup.ts`) runs to completion and reports **all**
+problems rather than stopping at the first, because a file with thirty problems
+should produce one conversation, not thirty.
+
+It checks:
+
+- the envelope and the schema version;
+- that every collection name is one this application restores;
+- that every record has a non-empty id and an object `data`;
+- that **money fields are integers** — checked by field *name*, since a quantity
+  of `3` and `3` baisa are both integers and only the name says which;
+- that timestamps are plausible epoch milliseconds, within `[0, 4102444800000]`
+  (the year 2100);
+- that no record contains a `FORBIDDEN_FIELD` — a bootstrap token, a private key,
+  a password, a credential.
+
+References are checked across the whole file (a `reservationItem` pointing at an
+absent `reservation` is a problem), which is why the Cloud Function — which sees
+one collection at a time — skips that check and the client validates the whole
+file before sending anything.
+
+### What a restore does, and does not do
+
+- Writes each record under **its original id**. Ids are never regenerated.
+- Overwrites a document that exists; creates one that does not. The screen shows
+  which, per collection, before anything is written.
+- Never recomputes a figure. A restored invoice carries the number and totals it
+  was issued with; a restored balance is the reduction of the restored events.
+- Writes one audit entry at the end, recording the totals — not one per chunk.

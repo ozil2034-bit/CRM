@@ -140,12 +140,29 @@ export async function signIn(email: string, password: string): Promise<void> {
 }
 
 /**
- * Sign out and clear every local trace of the session.
+ * Sign out and clear every local trace of the session — §37, §38.
  *
  * The boutique works from shared tablets, so one employee's cached customers,
  * reservations and payments must not survive into the next employee's session.
- * Firestore's IndexedDB cache is cleared explicitly; simply signing out leaves
- * it on disk.
+ * That takes three things, and the third is the one that is easy to forget:
+ *
+ *   1. **Auth.** `firebaseSignOut` drops the token.
+ *   2. **Disk.** Firestore's IndexedDB cache holds the working set — every
+ *      customer and reservation the last session opened — and signing out does
+ *      not touch it. It is terminated and cleared explicitly.
+ *   3. **Memory.** A React tree still holds whatever it last rendered, and the
+ *      module-level Firestore handle has just been *terminated*, so a second
+ *      sign-in in the same tab would meet a dead client on every read.
+ *
+ * A full page load is the only thing that settles all three at once, and it is
+ * what makes the guarantee simple enough to state: after sign-out there is
+ * nothing left in this tab. Anything subtler — resetting the client, unmounting
+ * the tree — would be a claim about state that is hard to verify and easy to
+ * quietly break.
+ *
+ * The reload is deliberately *last*: if clearing the cache fails, the reload
+ * still happens, and a session is never left signed in because a cleanup step
+ * threw.
  */
 export async function signOut(): Promise<void> {
   const { auth, db } = getFirebaseClient();
@@ -161,6 +178,12 @@ export async function signOut(): Promise<void> {
      * itself has already succeeded, so this is not worth surfacing to the user —
      * but it is why sign-out does not claim the cache was cleared.
      */
+  }
+
+  if (typeof window !== 'undefined') {
+    // `assign`, not `reload`: the next employee starts at the sign-in screen
+    // rather than at whichever customer the last one had open.
+    window.location.assign('/');
   }
 }
 

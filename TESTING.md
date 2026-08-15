@@ -461,6 +461,96 @@ rendered message.** Around it:
 
 ---
 
+## 4e. Resilience, offline, backup and CSV (Phase 9)
+
+### The recovery drill (§46)
+
+`tests/functions-emulator/backup.test.ts` is the load-bearing test of this phase,
+because it is the only one that answers the question a backup exists to answer.
+It builds a boutique through the **real** services and Cloud Functions — an
+Arabic-named customer, a dress, a reservation, a security deposit, a payment, a
+two-unit accessory line and an issued tax invoice — then:
+
+```
+export → wipe every collection → import → compare
+```
+
+and asserts, against what was there before the wipe:
+
+- every record is back **under its original id**;
+- the reservation still points at its customer, and the items at their
+  reservation;
+- both financial events are back, and `reduceLedger` over the *restored* snapshot
+  and the *restored* events produces the same balance as before — so a restore
+  that recomputed a total, or dropped an event, fails here;
+- the pricing snapshot survives with its nested accessory lines intact;
+- the issued invoice carries the number it was issued under;
+- every audit entry is back, plus exactly one new one for the restore itself;
+- `عروس النسخة الاحتياطية` is byte-for-byte identical;
+- `pickupAt` is a `Timestamp` and **not a number** — the failure mode where a
+  restore looks fine and every date query silently stops matching.
+
+**The wipe goes around the rules on purpose.** The rules refuse a client delete
+of reservations, the ledger, invoices and audit logs, and that refusal is a
+property under test elsewhere. Rather than weakening it so a test could tidy up,
+the drill empties the collections through the emulator's administrative REST
+endpoint — which is closer to what a real disaster looks like anyway. `users` is
+left alone, because a backup does not contain it and the restore needs an owner
+to authorise it.
+
+### Offline
+
+`connectivity.test.ts` covers the rule as data: fourteen guarded operations, each
+with the reason its decision needs the server, and `reconnecting` treated as
+offline. The point of asserting the *reason* separately from the *answer* is that
+today every answer is the same — a test that only checked "is it allowed" would
+pass against a function that ignored its argument.
+
+### Backup validation
+
+`backup.test.ts` (the domain one) covers what a file must not be allowed to be:
+a fractional amount, an unsupported schema version, an unknown collection, an
+implausible timestamp, a record with no id, a credential in any field. Two
+properties are asserted about the validator itself — that it **runs to
+completion** and reports every problem rather than the first, and that money is
+judged by field *name*, since `3` as a quantity and `3` as baisa are both
+integers.
+
+### CSV
+
+`csv.test.ts` covers the format; the emulator suite covers the content.
+
+The one worth naming is **formula injection**: a customer name is free text, and
+a spreadsheet executes a cell beginning `=`, `+`, `-`, `@`, tab or carriage
+return. `=HYPERLINK(...)` in a customer's name would become a live link in the
+accountant's sheet. Cells starting with those characters are prefixed so they are
+read as text — *except* plain numbers, because neutralising `-50.000` would turn
+every refund into text and make the accountant's `SUM` skip it. Both halves are
+asserted; the second is the one a naive fix breaks.
+
+Also asserted: the UTF-8 byte-order mark (without it Excel renders Arabic as
+mojibake), CRLF row endings, a header row even for an empty list, and — against
+the emulator — that no CSV contains a dress purchase cost, a customer
+measurement, or anything resembling a credential.
+
+### Sign-out
+
+`auth.service.test.ts` asserts the three-step teardown and its order: token,
+then cache, then a fresh page load — and that the page load happens **even when
+clearing the cache throws**, since a cleanup failure must never leave a session
+open on a shared tablet. Verified by removing the navigation and watching three
+of the four tests fail.
+
+### Errors
+
+`useFriendlyError.test.tsx` asserts that an SDK message is never repeated back to
+an employee, that the replacement is in the employee's language, and that an
+`AppError` this application raised deliberately keeps its own wording — the three
+properties that together decide what a boutique tablet displays when something
+goes wrong.
+
+---
+
 ## 5. Rules tests (Phase 2)
 
 Full assertion list in [SECURITY.md §8](./SECURITY.md#8-security-testing-56).

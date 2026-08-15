@@ -721,6 +721,22 @@ export const en = {
     'This backup came from a different Firebase project than the one you are connected to.',
   'backup.cancel': 'Choose a different file',
 
+  // Spreadsheet exports
+  'csv.title': 'Export a list for a spreadsheet',
+  'csv.hint':
+    'A dated CSV file, downloaded to this device. Opens in Excel, Numbers or Google Sheets, and reads Arabic correctly.',
+  'csv.excludes':
+    'Purchase cost, measurements and internal notes are never included in these files.',
+  'csv.customers': 'Customers',
+  'csv.dresses': 'Dresses',
+  'csv.reservations': 'Reservations',
+  'csv.payments': 'Payments and deposits',
+  'csv.invoices': 'Invoices and documents',
+  'csv.exporting': 'Preparing the file…',
+  'csv.exported': 'Downloaded',
+  'csv.rows': 'rows',
+  'csv.empty': 'There is nothing to export yet. The file contains the column headings only.',
+
   /* ---------------------------------------------------------------- *
    * Phase 7 — the employee experience
    * ---------------------------------------------------------------- */
@@ -1740,6 +1756,20 @@ export const ar: Record<TranslationKey, string> = {
   'backup.differentProject':
     'جاءت هذه النسخة الاحتياطية من مشروع Firebase مختلف عن المشروع المتصل به حاليًا.',
   'backup.cancel': 'اختيار ملف آخر',
+
+  'csv.title': 'تصدير قائمة لجدول بيانات',
+  'csv.hint':
+    'ملف CSV مؤرّخ يُنزَّل على هذا الجهاز. يفتح في Excel أو Numbers أو Google Sheets، ويعرض العربية بشكل صحيح.',
+  'csv.excludes': 'لا تتضمن هذه الملفات تكلفة الشراء ولا المقاسات ولا الملاحظات الداخلية.',
+  'csv.customers': 'العميلات',
+  'csv.dresses': 'الفساتين',
+  'csv.reservations': 'الحجوزات',
+  'csv.payments': 'المدفوعات والتأمينات',
+  'csv.invoices': 'الفواتير والمستندات',
+  'csv.exporting': 'جارٍ تجهيز الملف…',
+  'csv.exported': 'تم التنزيل',
+  'csv.rows': 'صفوف',
+  'csv.empty': 'لا يوجد ما يُصدَّر بعد. يحتوي الملف على عناوين الأعمدة فقط.',
 
 };
 

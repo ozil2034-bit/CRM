@@ -196,7 +196,7 @@ prepared, nothing is dispatched (Phase 8); full RTL polish and Arabic review
 (Phase 8); CSV export (Phase 9). Nothing is deployed, no production project is
 configured, and no production bootstrap token exists.
 
-### Phase 8 scope (current)
+### Phase 8 scope
 
 - [x] WhatsApp click-to-chat: `wa.me` links through the one phone normaliser,
       whole-body URL encoding, and no control at all without a valid number
@@ -229,6 +229,54 @@ surfaces what is due; editable record-number prefixes, which need the format
 stored per record rather than a settings field; offline and PWA (Phase 9).
 Nothing is deployed, no production project is configured, and no production
 bootstrap token exists.
+
+### Phase 9 scope (current)
+
+- [x] Installable PWA: manifest, maskable icons, offline shell. Updates are
+      **prompted, never automatic** — the application must not swap versions
+      under an employee taking a payment
+- [x] No runtime caching of Firestore, Storage or Functions. The service-worker
+      cache is shared by everyone who opens the browser, so nothing private
+      goes in it
+- [x] Self-hosted fonts (Inter, Cormorant Garamond, IBM Plex Sans Arabic, Noto
+      Kufi Arabic) with their OFL licences. Nothing is requested from Google
+      Fonts
+- [x] Offline as a rule rather than a feeling: fourteen guarded operations, each
+      recording *which* server state its decision needs, enforced in the service
+      layer and not merely by a disabled button. `reconnecting` counts as offline
+- [x] JSON backup: full export, validated before it is offered, downloaded to the
+      device and uploaded nowhere
+- [x] Restore: owner-only, as a Cloud Function, because the rules refuse every
+      client write to reservations, the ledger, invoices and audit logs — and
+      that refusal was not weakened to make restore possible
+- [x] Nothing is written until the owner sees what would be created and what
+      would be overwritten, per collection, and confirms
+- [x] Ids are never regenerated; historical figures are never recomputed
+- [x] Exports carry no credential, asserted over the raw file text
+- [x] §46 recovery drill against the emulator: export → wipe → import → every
+      record, relationship, financial event, snapshot and audit entry compared
+- [x] CSV export of customers, dresses, reservations, payments and invoices —
+      UTF-8 BOM for Arabic, formula injection neutralised, money as a plain
+      three-decimal number a spreadsheet can sum
+- [x] Sign-out clears the token, the disk cache and the page, so a shared tablet
+      carries nothing into the next session
+- [x] Production builds refuse to ship a placeholder project id
+- [x] Errors: `AppError` distinguishes wording written for the counter from
+      wording written for a developer; the second never reaches an employee, and
+      the first is translated
+- [x] Two error boundaries — one inside the router with a real way out, one
+      outside every provider that depends on nothing
+- [x] Phase gate green
+
+**Explicitly not in Phase 9:** background sync or a write queue for reservations,
+payments and documents — an operation whose legality depends on current server
+state cannot be decided on a device that has not seen the server, so it is
+refused rather than queued and reconciled; photo and staff-account recovery in
+the JSON backup — photos are bytes in Storage and logins are Auth accounts with
+custom claims, neither of which a JSON document can carry, and a file that
+appeared to restore access would be worse than one that plainly does not; push
+notifications. Nothing is deployed, no production project is configured, and no
+production bootstrap token exists.
 
 ---
 

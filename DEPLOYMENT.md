@@ -209,3 +209,59 @@ schedule are in [OPERATIONS.md](./OPERATIONS.md).
 
 A backup that has never been restored is a hypothesis, not a backup — the restore
 drill is part of the operations runbook for that reason.
+
+The application also has its own JSON backup and restore under **Settings →
+Data**, owner-only, which is what the boutique uses day to day. Restore runs as a
+Cloud Function (`restoreBackupChunk`, `finishRestore`), so it must be deployed
+along with everything else; a client alone cannot perform one, by design.
+
+---
+
+## 9. The build refuses to ship a placeholder
+
+`readEnvironment()` scans configuration for placeholder markers —
+`REPLACE_WITH`, `your-project`, `changeme`, `placeholder`, `todo`, `xxxx` and
+others — and a **production** build fails with the offending variable named.
+
+This exists because the alternative failure is silent and expensive: an
+application built against `REPLACE_WITH_PROD_PROJECT_ID` deploys, loads, shows a
+sign-in screen, and only reveals the problem when the first employee's first
+write disappears into a project that does not exist.
+
+```
+Environment configuration is not production-ready:
+  VITE_FIREBASE_PROJECT_ID contains the placeholder "REPLACE_WITH"
+```
+
+Development builds are unaffected — a placeholder there is a work in progress,
+not a deployment.
+
+---
+
+## 10. The service worker and updates
+
+The build produces `dist/sw.js` and a precache manifest alongside the bundle.
+Three consequences at deploy time:
+
+- **A deployment is what triggers the update prompt.** Installed devices notice
+  the new service worker, and each shows a prompt on its next load. Nothing
+  updates silently mid-task (`registerType: 'prompt'`).
+- **Employees may run the previous version for a while.** They are prompted, not
+  forced. A change that requires everyone to be on the new version — a Firestore
+  rules tightening, say — needs that thought through, because the rules deploy
+  instantly and the clients do not.
+- **Outdated precaches are cleaned up automatically**
+  (`cleanupOutdatedCaches: true`), so old asset revisions do not accumulate on a
+  device.
+
+Nothing private is precached: the manifest covers JS, CSS, fonts, icons and the
+HTML shell, and there is **no runtime caching of Firestore, Storage or Cloud
+Functions**. Source maps are excluded from the precache but are still emitted to
+`dist/`; do not upload them to a public host if the bundle should stay opaque.
+
+### Fonts
+
+Four families ship as WOFF2 in the bundle (`src/assets/fonts/`) with their OFL
+licences. Nothing is fetched from Google Fonts. A CSP that blocks
+`fonts.googleapis.com` therefore breaks nothing, and the application renders its
+own text with no network at all.

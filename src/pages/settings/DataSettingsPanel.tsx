@@ -14,6 +14,12 @@ import {
   BackupServiceError,
   type InspectedBackup,
 } from '@/services/backup.service';
+import {
+  CSV_SUBJECTS,
+  downloadCsv,
+  exportCsv,
+  type CsvSubject,
+} from '@/services/csv-export.service';
 import { readEnvironment } from '@/config/env';
 
 /**
@@ -72,6 +78,33 @@ export function DataSettingsPanel() {
 
       setNotice(
         `${t('backup.exported')} ${String(result.totalRecords)} ${t('backup.records')}.`,
+      );
+    } catch (caught) {
+      setError(friendly(caught).message);
+    } finally {
+      setProgress(null);
+      setBusy(false);
+    }
+  }
+
+  async function handleCsv(subject: CsvSubject): Promise<void> {
+    if (busy) return;
+
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    setProgress(t('csv.exporting'));
+
+    try {
+      const result = await exportCsv(subject);
+
+      // Handed over first, then reported — the same order as the JSON export.
+      downloadCsv(result);
+
+      setNotice(
+        result.rows === 0
+          ? t('csv.empty')
+          : `${t('csv.exported')}: ${result.filename} — ${String(result.rows)} ${t('csv.rows')}.`,
       );
     } catch (caught) {
       setError(friendly(caught).message);
@@ -160,6 +193,26 @@ export function DataSettingsPanel() {
         <Button className="mt-4" disabled={busy || isOffline} onClick={() => void handleExport()}>
           {busy && progress !== null ? t('backup.exporting') : t('backup.export')}
         </Button>
+      </section>
+
+      {/* Spreadsheet exports --------------------------------------------- */}
+      <section className="mt-10 border-t border-ink-100 pt-6">
+        <h2 className="label-caps">{t('csv.title')}</h2>
+        <p className="mt-2 max-w-prose text-2xs text-ink-400">{t('csv.hint')}</p>
+        <p className="mt-1 max-w-prose text-2xs text-ink-400">{t('csv.excludes')}</p>
+
+        <div className="mt-4 flex flex-wrap gap-3">
+          {CSV_SUBJECTS.map((subject) => (
+            <Button
+              key={subject}
+              variant="secondary"
+              disabled={busy || isOffline}
+              onClick={() => void handleCsv(subject)}
+            >
+              {t(`csv.${subject}`)}
+            </Button>
+          ))}
+        </div>
       </section>
 
       {/* Import ---------------------------------------------------------- */}

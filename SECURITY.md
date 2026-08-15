@@ -479,12 +479,76 @@ Client checks improve experience; they are never the control.
   or in any `VITE_`-prefixed variable, because everything with that prefix is
   compiled into the public bundle. The bootstrap setup token is a Functions
   secret and never appears client-side.
-- Sign-out terminates Firestore and clears its IndexedDB cache, so one
-  employee's cached customers and payments do not survive into the next
-  employee's session on a shared boutique tablet.
+- Sign-out terminates Firestore, clears its IndexedDB cache **and reloads the
+  tab**, so one employee's cached customers and payments do not survive into the
+  next employee's session on a shared boutique tablet. See §7a.
 - Sign-in reports the same message for an unknown email and a wrong password;
   distinguishing them would let an attacker enumerate staff accounts. Password
   reset is silent for the same reason.
+- Error messages shown to an employee never carry SDK wording. A raw
+  `FirebaseError` names collections and document paths — and a document path
+  names a customer. See §7b.
+
+---
+
+## 7a. Data at rest on the device (Phase 9)
+
+The application is installable and caches, which makes "what is on this tablet,
+and who can reach it?" a security question rather than a performance one.
+
+**What is cached, and by what:**
+
+| Cache                     | Contains                                | Bound to a session? | Cleared by                    |
+| ------------------------- | --------------------------------------- | ------------------- | ----------------------------- |
+| Firestore IndexedDB       | The working set: customers, reservations | Yes                 | Sign-out (terminate + clear)  |
+| Service-worker precache   | JS, CSS, fonts, icons — no business data | No                  | A new deployment              |
+| `localStorage`            | `azhary.language` only                  | No                  | Nothing; it is a preference   |
+
+The two rows that matter are the second and third: the service-worker cache and
+`localStorage` are **shared by everyone who opens that browser**, signed in or
+not. Nothing private is put in either. There is deliberately **no runtime caching
+of Firestore, Storage or Cloud Functions responses** — a cached customer record
+in a service-worker cache would outlive the session that fetched it, and no
+sign-out could reach it.
+
+Sign-out therefore has three steps, in this order: drop the token, terminate and
+clear the Firestore cache, then load `/` afresh. The reload is what makes the
+guarantee statable — in-memory React state and a terminated Firestore handle both
+go with the page. It runs even if clearing the cache throws (another tab holding
+the database), because a cleanup failure must never leave a session open on a
+shared device. Covered by `src/services/auth.service.test.ts`.
+
+**What an export contains.** A backup file is a plain JSON document an owner
+emails to themselves, so it is validated against `FORBIDDEN_FIELDS`
+(`src/domain/backup.ts`) in both directions: no bootstrap token, no private key,
+no credential, no password. The `users` collection is not exported at all —
+identity lives in Firebase Auth and in custom claims, neither of which a backup
+can or should carry. The emulator suite asserts this over the **raw JSON text**
+rather than the parsed structure, so a secret smuggled into a field the test does
+not know about is still caught.
+
+**Who may restore.** Restore can overwrite every record in the boutique; there is
+no operation with a wider blast radius. It is owner-only, checked inside the
+Cloud Function via `requireOwner()` — not merely hidden in the interface — so a
+staff account cannot reach it by calling the endpoint directly.
+
+---
+
+## 7b. What an error is allowed to say
+
+`FirebaseError: Missing or insufficient permissions` names an internal control.
+`PERMISSION_DENIED: Function not found` names infrastructure. A Firestore error
+carries the document path of the record being read, which for `customers/{id}`
+identifies a customer.
+
+None of that reaches an employee. Every thrown value passes through
+`useFriendlyError()`, which shows one of nine translated situations — or, for an
+`AppError` this application raised deliberately, the message it was given.
+
+The original error goes to the console **in development only**
+(`import.meta.env.DEV`). A boutique tablet's console is reachable by anyone who
+plugs the device into a laptop, so in production the detail is dropped rather
+than logged.
 
 ---
 
@@ -587,5 +651,9 @@ Functions integration suite.
 | Forged audit entries                     | `actorUid` must equal the caller; entries are append-only                             |
 | Leaked inventory or customer photos      | Storage is authenticated-only; no public read                                         |
 | Staff account enumeration                | Sign-in and reset return identical messages regardless of account existence           |
-| Stale session on a shared tablet         | Sign-out clears persistence, query cache and app state                                |
+| Stale session on a shared tablet         | Sign-out clears persistence and reloads the tab; nothing private is in a shared cache |
+| Backup file emailed to the wrong place   | Exports carry no credential; `FORBIDDEN_FIELDS` refuses one in either direction        |
+| Staff member restoring a backup          | `requireOwner()` inside the Function, not a hidden button                              |
+| Customer identity leaked in an error     | SDK wording never reaches the UI; detail is console-only, and only in development      |
+| A queued write deciding availability     | Fourteen operations refuse offline in the service layer, not merely in the UI          |
 | Secrets in the bundle                    | Only `VITE_`-prefixed public config is bundled; the setup token is a Functions secret |

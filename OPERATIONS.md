@@ -76,10 +76,103 @@ that has never been restored is a hypothesis.
 
 ---
 
+## 3a. Backup and restore from inside the application (Phase 9)
+
+The `gcloud` commands above are the infrastructure-level safety net, run by
+whoever administers the project. **Settings → Data** is the one the owner uses,
+and it needs no command line.
+
+### Taking a backup
+
+1. Sign in as the owner. Open **Settings → Data**.
+2. Press **Export all data**.
+3. The file downloads to the device. Nothing is uploaded anywhere.
+
+The file is named `azhary-backup-<date>-<project-id>.json` — the project id is in
+the name so a development backup is never mistaken for a production one months
+later.
+
+The export is validated *before* it is offered. If validation fails, nothing is
+downloaded and the screen says so; a file this application would itself refuse to
+read is not a backup.
+
+**Do this before**: changing the VAT rate, a bulk edit, or anything described as
+a migration.
+
+### Restoring
+
+1. **Take a backup of the current state first**, even if it is believed to be
+   empty. A restore overwrites.
+2. **Settings → Data → Choose a backup file.**
+3. Read the report. The screen shows the file's export date, the project it came
+   from, and — per collection — how many records would be **created** and how
+   many **overwritten**. A file from a different project is called out in a
+   warning.
+4. Nothing has been written yet. Press **Restore this data** to proceed, or
+   **Choose a different file**.
+
+Restore is **owner-only**, enforced server-side. A staff account cannot perform
+one even by calling the endpoint directly.
+
+### What a restore is guaranteed to do — and not do
+
+| Guaranteed                                          | Not guaranteed                                     |
+| --------------------------------------------------- | -------------------------------------------------- |
+| Records return under their original ids             | Atomicity across the whole file (see below)         |
+| Invoice numbers and figures are unchanged           | Recovery of photos — those live in Storage          |
+| Balances are the restored events, not recalculated  | Recovery of staff accounts — those live in Auth     |
+| Arabic text is byte-for-byte identical              | Anything that happened after the export            |
+
+**Not atomic across the whole file.** A callable request is capped at 10 MB, so
+the file is sent in chunks, and Firestore has no transaction at that size. If a
+restore is interrupted — the tab is closed, the connection drops — some
+collections will have been written and others not. **Run the same file again.**
+Every record is keyed by its original id, so a repeat converges on the correct
+state rather than duplicating anything.
+
+**Photos and staff accounts are not in the file.** Dress and damage photos are
+bytes in Cloud Storage; employee logins are Firebase Auth accounts and custom
+claims. Neither can be carried in a JSON document, and a backup that appeared to
+restore access would be worse than one that plainly does not. Restoring those is
+the `gcloud`/console procedure in §3.
+
+### Restore drill
+
+Rehearse quarterly, into development, and record the date and outcome. A backup
+that has never been restored is a hypothesis.
+
+The automated equivalent runs on every change: `npm run test:functions:backup`
+builds a boutique, exports it, empties the database, restores it, and compares
+every record, relationship, financial event, snapshot and audit entry with what
+was there before.
+
+---
+
 ## 4. Data export for the boutique
 
-- **JSON backup** — full business data, from **Settings → Data → Export**.
-- **CSV** — customers, dresses, reservations, payments, invoices, individually.
+Two different things, for two different needs.
+
+**JSON backup** — full business data, from **Settings → Data → Export all data**.
+For restoring the system. Not meant to be read by a person.
+
+**CSV** — from **Settings → Data → Export a list for a spreadsheet**. For giving
+to somebody: an accountant, a stocktake, a mailing. Five lists:
+
+| List                   | Sorted by     | Typically used for                        |
+| ---------------------- | ------------- | ----------------------------------------- |
+| Customers              | Code          | Contact lists, event-date planning        |
+| Dresses                | Code          | Stocktake against the rail                |
+| Reservations           | Code          | Period review, revenue by reservation     |
+| Payments and deposits  | When it happened | Reconciling against the bank statement |
+| Invoices and documents | Number        | Handing the tax file to an accountant     |
+
+Each opens directly in Excel, Numbers or Google Sheets and displays Arabic names
+correctly. Amounts are plain numbers with three decimals — `1234.500` — so a
+column sums without being cleaned up first; the currency is named in the heading.
+
+**What these files never contain**: dress purchase cost, customer measurements,
+internal notes, or database ids. A spreadsheet leaves the building, and those
+four are the things that must not leave with it.
 
 Import requires explicit confirmation, passes validation, and warns to take a
 backup first (specification §49).
@@ -501,11 +594,55 @@ Change it in **Settings**. Historical invoices are unaffected — each stores th
 rate and amount that applied when it was issued (specification §11). Reservations
 created before the change keep their snapshot pricing.
 
-### Someone is offline
+### The connection has dropped
 
-The application shows: _Offline — Changes are saved locally and will synchronize
-when connection returns._ Reads work from cache. Writes queue. **Nothing is
-reported as saved until the server confirms it.** WhatsApp requires a connection.
+A banner appears at the top: **Offline — some actions are unavailable.** Reads
+continue from the cache, so the day's pickups, a customer's record and a
+reservation can all still be looked at.
+
+What still works:
+
+- Reading anything that was already loaded.
+- Editing an existing dress or customer. The confirmation says **"Saved on this
+  device — it will sync when the connection returns"**, and it means exactly
+  that: it is saved here, and not yet on the server.
+
+What waits for the connection, and why:
+
+| Refused offline                          | Because                                                            |
+| ---------------------------------------- | ------------------------------------------------------------------ |
+| Creating or changing a reservation       | Whether the dress is free depends on what other tills just did      |
+| Taking a payment, deposit or refund      | The balance is a total over the payment history, read live          |
+| Issuing or voiding a document            | The number comes from a counter only the server can advance         |
+| Creating a dress, customer or accessory  | The code comes from the same kind of counter                        |
+| Adding an employee, changing a role      | Permissions are written by the server and nowhere else              |
+| Sending a WhatsApp message               | It opens WhatsApp, which needs a connection of its own              |
+
+The refusal says which of these applies rather than only "you are offline".
+
+This is deliberate and it is not a limitation to work around. A reservation
+created on a disconnected tablet would be judged against a picture of the shop
+from an hour ago — which is exactly how the same dress gets promised to two
+brides. **Nothing is ever reported as saved until the server confirms it.**
+
+**Reconnecting counts as offline.** A device that is trying to reconnect has not
+yet heard back, and "probably connected" is not connected.
+
+### Installing the application on a tablet
+
+The application can be installed like an app: in Chrome, **⋮ → Install**; in
+Safari on iPad, **Share → Add to Home Screen**. It then opens full-screen without
+browser chrome, which is what a boutique tablet wants.
+
+**Updates are offered, not forced.** When a new version has been deployed, a
+prompt appears; it can be accepted whenever convenient. The application will
+never swap versions underneath somebody in the middle of taking a payment.
+
+### Handing the tablet to a colleague
+
+Press **Sign out**. It drops the session, clears the cached customers and
+reservations from the device, and reloads to the sign-in screen. Closing the tab
+or simply walking away does **not** do this — the session stays open.
 
 ---
 
